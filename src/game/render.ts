@@ -1,4 +1,5 @@
 import { canPlaceWithoutBlocking, isBuildable, toIndex } from './pathfinding';
+import { canDrawImage, getAnimationFrame, getSpriteAtlas } from './spriteAtlas';
 import type { GameState, GridPoint, RenderViewState } from './types';
 
 const GRID_LINE = 'rgba(243, 229, 189, 0.16)';
@@ -246,29 +247,23 @@ function drawDraftCandidates(
 ): void {
   ctx.save();
   ctx.translate(view.offsetX, view.offsetY);
+  const atlas = getSpriteAtlas();
+  const gemImage = atlas.images.gems;
   for (let i = 0; i < state.draft.length; i++) {
     const candidate = state.draft[i];
     const color = getGemColor(state, candidate.gemId);
     const cx = candidate.x * view.cellSize + view.cellSize / 2;
     const cy = candidate.y * view.cellSize + view.cellSize / 2;
-    const radius = view.cellSize * 0.24;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.34)';
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * 1.35, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = color;
-    ctx.globalAlpha = state.pendingGemId ? 0.72 : 1;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - radius * 1.3);
-    ctx.lineTo(cx + radius * 1.05, cy);
-    ctx.lineTo(cx, cy + radius * 1.3);
-    ctx.lineTo(cx - radius * 1.05, cy);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = state.pendingGemId ? 'rgba(255, 246, 215, 0.34)' : '#fff6d7';
-    ctx.lineWidth = Math.max(1, view.cellSize * 0.03);
-    ctx.stroke();
+    if (canDrawImage(gemImage)) {
+      const sprite = atlas.metadata.gems[candidate.gemId];
+      if (sprite) {
+        ctx.globalAlpha = state.pendingGemId ? 0.78 : 1;
+        drawSprite(ctx, gemImage, sprite.frame, cx, cy, view.cellSize * 0.9);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+    }
+    drawGemFallback(ctx, cx, cy, view.cellSize, color, state.pendingGemId ? 0.72 : 1);
   }
   ctx.restore();
 }
@@ -284,6 +279,8 @@ function getGemColor(state: GameState, gemId: string): string {
 function drawTowers(ctx: CanvasRenderingContext2D, state: GameState, view: RenderViewState): void {
   ctx.save();
   ctx.translate(view.offsetX, view.offsetY);
+  const atlas = getSpriteAtlas();
+  const gemImage = atlas.images.gems;
   for (let i = 0; i < state.towers.length; i++) {
     const tower = state.towers[i];
     const cx = tower.x * view.cellSize + view.cellSize / 2;
@@ -296,25 +293,14 @@ function drawTowers(ctx: CanvasRenderingContext2D, state: GameState, view: Rende
       ctx.arc(cx, cy, tower.range * view.cellSize, 0, Math.PI * 2);
       ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + radius * 0.8, radius * 1.2, radius * 0.45, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#17130f';
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * 1.22, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = tower.color;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - radius * 1.25);
-    ctx.lineTo(cx + radius, cy);
-    ctx.lineTo(cx, cy + radius * 1.25);
-    ctx.lineTo(cx - radius, cy);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 246, 215, 0.62)';
-    ctx.lineWidth = Math.max(1, view.cellSize * 0.025);
-    ctx.stroke();
+    if (canDrawImage(gemImage)) {
+      const sprite = atlas.metadata.gems[tower.gemId];
+      if (sprite) {
+        drawSprite(ctx, gemImage, sprite.frame, cx, cy, view.cellSize);
+        continue;
+      }
+    }
+    drawTowerFallback(ctx, cx, cy, radius, tower.color);
   }
   ctx.restore();
 }
@@ -322,11 +308,29 @@ function drawTowers(ctx: CanvasRenderingContext2D, state: GameState, view: Rende
 function drawEnemies(ctx: CanvasRenderingContext2D, state: GameState, view: RenderViewState): void {
   ctx.save();
   ctx.translate(view.offsetX, view.offsetY);
+  const atlas = getSpriteAtlas();
+  const monsterImage = atlas.images.monsters;
   for (let i = 0; i < state.enemies.length; i++) {
     const enemy = state.enemies[i];
     if (!enemy.alive) continue;
     const cx = enemy.x * view.cellSize + view.cellSize / 2;
     const cy = enemy.y * view.cellSize + view.cellSize / 2;
+    if (canDrawImage(monsterImage)) {
+      const sprite = atlas.metadata.monsters[enemy.definitionId];
+      const animation = sprite?.animations.walk;
+      if (sprite && animation) {
+        drawSprite(
+          ctx,
+          monsterImage,
+          getAnimationFrame(animation, state.time * 1000 + enemy.id * 37),
+          cx,
+          cy,
+          view.cellSize * 0.92,
+        );
+        drawHealthBar(ctx, cx, cy, view.cellSize, enemy.hp / enemy.maxHp);
+        continue;
+      }
+    }
     const radius = view.cellSize * 0.23;
     ctx.fillStyle = enemy.color;
     ctx.beginPath();
@@ -335,19 +339,103 @@ function drawEnemies(ctx: CanvasRenderingContext2D, state: GameState, view: Rend
     ctx.strokeStyle = 'rgba(255, 246, 215, 0.5)';
     ctx.lineWidth = Math.max(1, view.cellSize * 0.025);
     ctx.stroke();
-    const hpWidth = view.cellSize * 0.72;
-    const hpY = cy - radius - view.cellSize * 0.16;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-    ctx.fillRect(cx - hpWidth / 2, hpY, hpWidth, Math.max(3, view.cellSize * 0.055));
-    ctx.fillStyle = '#55c980';
-    ctx.fillRect(
-      cx - hpWidth / 2,
-      hpY,
-      hpWidth * Math.max(0, enemy.hp / enemy.maxHp),
-      Math.max(3, view.cellSize * 0.055),
-    );
+    drawHealthBar(ctx, cx, cy - radius * 0.55, view.cellSize, enemy.hp / enemy.maxHp);
   }
   ctx.restore();
+}
+
+function drawSprite(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  frame: { x: number; y: number; w: number; h: number },
+  cx: number,
+  cy: number,
+  size: number,
+): void {
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    image,
+    frame.x,
+    frame.y,
+    frame.w,
+    frame.h,
+    cx - size / 2,
+    cy - size / 2,
+    size,
+    size,
+  );
+}
+
+function drawGemFallback(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  color: string,
+  alpha: number,
+): void {
+  const radius = cellSize * 0.24;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.34)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 1.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius * 1.3);
+  ctx.lineTo(cx + radius * 1.05, cy);
+  ctx.lineTo(cx, cy + radius * 1.3);
+  ctx.lineTo(cx - radius * 1.05, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = alpha < 1 ? 'rgba(255, 246, 215, 0.34)' : '#fff6d7';
+  ctx.lineWidth = Math.max(1, cellSize * 0.03);
+  ctx.stroke();
+}
+
+function drawTowerFallback(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  color: string,
+): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + radius * 0.8, radius * 1.2, radius * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#17130f';
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 1.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius * 1.25);
+  ctx.lineTo(cx + radius, cy);
+  ctx.lineTo(cx, cy + radius * 1.25);
+  ctx.lineTo(cx - radius, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 246, 215, 0.62)';
+  ctx.lineWidth = Math.max(1, radius * 0.12);
+  ctx.stroke();
+}
+
+function drawHealthBar(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  healthRatio: number,
+): void {
+  const hpWidth = cellSize * 0.72;
+  const hpHeight = Math.max(3, cellSize * 0.055);
+  const hpY = cy - cellSize * 0.32;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillRect(cx - hpWidth / 2, hpY, hpWidth, hpHeight);
+  ctx.fillStyle = '#55c980';
+  ctx.fillRect(cx - hpWidth / 2, hpY, hpWidth * Math.max(0, healthRatio), hpHeight);
 }
 
 function drawProjectiles(
