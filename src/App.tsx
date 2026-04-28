@@ -1,4 +1,5 @@
 import { BentoIntro } from './components/BentoIntro';
+import { BottomBuildBar } from './components/BottomBuildBar';
 import { GameCanvas } from './components/GameCanvas';
 import { Hud } from './components/Hud';
 import { SidePanel } from './components/SidePanel';
@@ -17,7 +18,7 @@ export default function App() {
     <main className="min-h-screen overflow-hidden bg-[#071016] text-tactical-ink">
       <div className="pixel-backdrop absolute inset-0" />
       <BentoIntro />
-      <div className="relative mx-auto grid min-h-screen max-w-[1760px] grid-cols-1 gap-3 p-2 sm:p-3 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-4 lg:p-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="relative mx-auto grid min-h-screen max-w-[1760px] grid-cols-1 gap-3 p-2 pb-44 sm:p-3 sm:pb-44 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-4 lg:p-4 lg:pb-40 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex min-h-[640px] flex-col gap-3">
           <Hud
             snapshot={snapshot}
@@ -34,6 +35,7 @@ export default function App() {
         </section>
         <SidePanel controller={controller} snapshot={snapshot} save={save} />
       </div>
+      <BottomBuildBar controller={controller} snapshot={snapshot} />
     </main>
   );
 }

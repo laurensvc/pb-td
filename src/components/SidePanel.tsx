@@ -4,7 +4,6 @@ import {
   BookOpen,
   Box,
   Crosshair,
-  Hammer,
   Map,
   Medal,
   RadioTower,
@@ -16,7 +15,7 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react';
-import { gameConfig, getEnemy, getGem } from '../game/config';
+import { gameConfig, getEnemy } from '../game/config';
 import type {
   DamageType,
   EnemySkill,
@@ -25,11 +24,11 @@ import type {
   TargetMode,
   TowerEffect,
   TowerEffectDefinition,
-  TowerShopItem,
   TowerUpgradeStat,
 } from '../game/types';
 import type { GameController } from '../hooks/useGameController';
 import { useSaveStore } from '../stores/saveStore';
+import { getTowerTags } from './uiTags';
 
 interface SidePanelProps {
   controller: GameController;
@@ -37,11 +36,11 @@ interface SidePanelProps {
   save: SaveState;
 }
 
-type Tab = 'build' | 'quests' | 'help';
+type Tab = 'intel' | 'quests' | 'help';
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
 
 const tabs: readonly { id: Tab; label: string; icon: IconComponent }[] = [
-  { id: 'build', label: 'Build', icon: Hammer },
+  { id: 'intel', label: 'Intel', icon: ScanLine },
   { id: 'quests', label: 'Quests', icon: Medal },
   { id: 'help', label: 'Help', icon: BookOpen },
 ];
@@ -117,7 +116,7 @@ const enemySkillLabels: Record<EnemySkill, string> = {
 };
 
 export function SidePanel({ controller, snapshot, save }: SidePanelProps) {
-  const [tab, setTab] = useState<Tab>('build');
+  const [tab, setTab] = useState<Tab>('intel');
   const resetSave = useSaveStore((state) => state.resetSave);
   const selected = snapshot.selectedTile;
 
@@ -142,9 +141,8 @@ export function SidePanel({ controller, snapshot, save }: SidePanelProps) {
         </div>
       </section>
 
-      {tab === 'build' ? (
+      {tab === 'intel' ? (
         <>
-          <BuildPanel controller={controller} snapshot={snapshot} />
           <SelectedPanel controller={controller} snapshot={snapshot} selected={selected} />
           <WavePanel snapshot={snapshot} />
         </>
@@ -160,95 +158,6 @@ export function SidePanel({ controller, snapshot, save }: SidePanelProps) {
       ) : null}
       {tab === 'help' ? <HelpPanel /> : null}
     </aside>
-  );
-}
-
-function BuildPanel({
-  controller,
-  snapshot,
-}: {
-  controller: GameController;
-  snapshot: GameSnapshot;
-}) {
-  const selectedShop = snapshot.selectedShopGemId;
-  return (
-    <section className="pixel-panel p-4">
-      <PanelTitle icon={<Hammer size={18} />} eyebrow="Command" title="Build Console" />
-      <div className="mt-3 grid gap-3">
-        <div className="pixel-row">
-          <div className="min-w-0">
-            <div className="font-display text-xs uppercase text-tactical-amber">
-              Free Maze Blocks
-            </div>
-            <div className="text-2xl font-black text-tactical-ink">{snapshot.bankedMazeBlocks}</div>
-          </div>
-          <button
-            className={`arcade-button-secondary px-3 py-2 text-sm font-black ${
-              snapshot.buildMode === 'mazeBlock' ? 'border-tactical-cyan/80' : ''
-            }`}
-            disabled={!snapshot.canPlaceMazeBlock}
-            onClick={() => controller.dispatch({ type: 'placeMazeBlock', x: -1, y: -1 })}
-          >
-            <Map size={15} />
-            PLACE BLOCK
-          </button>
-        </div>
-        <div className="grid gap-2">
-          <div className="font-display text-xs uppercase text-tactical-cyan">Tower Shop</div>
-          <div className="grid grid-cols-2 gap-2">
-            {snapshot.towerShop.map((item) => (
-              <ShopButton
-                key={item.gemId}
-                item={item}
-                active={selectedShop === item.gemId}
-                affordable={snapshot.gold >= item.cost}
-                onSelect={() => controller.dispatch({ type: 'selectShopTower', gemId: item.gemId })}
-              />
-            ))}
-          </div>
-        </div>
-        {selectedShop ? (
-          <button
-            className="arcade-mini w-full justify-center"
-            onClick={() => controller.dispatch({ type: 'clearShopSelection' })}
-          >
-            CLEAR SHOP SELECTION
-          </button>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-function ShopButton({
-  active,
-  affordable,
-  item,
-  onSelect,
-}: {
-  active: boolean;
-  affordable: boolean;
-  item: TowerShopItem;
-  onSelect: () => void;
-}) {
-  const gem = getGem(gameConfig, item.gemId);
-  return (
-    <button
-      type="button"
-      className={`pixel-row min-h-[6rem] items-start text-left ${active ? 'pixel-row-active' : ''}`}
-      disabled={!affordable}
-      onClick={onSelect}
-    >
-      <span className="min-w-0">
-        <span className="flex items-center gap-2 font-black text-tactical-ink">
-          <GemChip color={gem.color} />
-          {gem.family}
-        </span>
-        <span className="mt-1 block text-sm text-tactical-muted">
-          {item.cost}g | {gem.damage} dmg | {gem.range.toFixed(1)} rng | {gem.cooldown.toFixed(2)}s
-        </span>
-      </span>
-    </button>
   );
 }
 
@@ -288,6 +197,13 @@ function SelectedPanel({
             <Stat label="Target" value={snapshot.selectedTowerTarget?.name ?? 'auto'} />
             <Stat label="Mode" value={targetModeLabels[snapshot.selectedTower.targetMode]} />
             <Stat label="Tier" value={snapshot.selectedTower.tier} />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {getTowerTags(snapshot.selectedTower).map((tag) => (
+              <Badge key={tag} tone="effect">
+                {tag}
+              </Badge>
+            ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <UpgradeButton
@@ -450,7 +366,6 @@ function UpgradeButton({
 function WavePanel({ snapshot }: { snapshot: GameSnapshot }) {
   const wave = snapshot.currentWave;
   const enemy = wave ? getEnemy(gameConfig, wave.enemyId) : null;
-  const nextEnemy = snapshot.nextWave ? getEnemy(gameConfig, snapshot.nextWave.enemyId) : null;
 
   return (
     <section className="pixel-panel p-4">
@@ -473,7 +388,6 @@ function WavePanel({ snapshot }: { snapshot: GameSnapshot }) {
                 </Badge>
               ),
             )}
-            {nextEnemy?.boss ? <Badge tone="gold">Boss next</Badge> : null}
             {snapshot.requiredWavesCleared ? <Badge tone="muted">Repeat mode</Badge> : null}
           </div>
         </div>
