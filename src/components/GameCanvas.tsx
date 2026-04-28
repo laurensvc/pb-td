@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { getRenderView, renderGame, screenToTile } from '../game/render';
+import { getRenderView, renderGame, screenToEnemyId, screenToTile } from '../game/render';
 import type { GameController } from '../hooks/useGameController';
 
 interface GameCanvasProps {
@@ -26,10 +26,10 @@ export function GameCanvas({ controller }: GameCanvasProps) {
   }, [controller.game]);
 
   return (
-    <div className="forge-panel min-h-0 flex-1 overflow-hidden rounded-md p-2">
+    <div className="arcade-panel min-h-0 flex-1 overflow-hidden rounded-md p-2">
       <canvas
         ref={canvasRef}
-        className="h-full min-h-[520px] w-full cursor-crosshair rounded bg-[#15120f]"
+        className="h-full min-h-[520px] w-full cursor-crosshair rounded bg-[#080812]"
         role="application"
         aria-label="PB TD game board"
         onPointerMove={(event) => {
@@ -49,20 +49,37 @@ export function GameCanvas({ controller }: GameCanvasProps) {
         onClick={(event) => {
           const canvas = canvasRef.current;
           if (!canvas) return;
-          const tile = screenToTile(
+          const game = controller.game.current;
+          const rect = canvas.getBoundingClientRect();
+          const targetId = screenToEnemyId(
             viewRef.current,
-            controller.game.current,
+            game,
             event.clientX,
             event.clientY,
-            canvas.getBoundingClientRect(),
+            rect,
           );
-          if (!tile) return;
-          if (controller.game.current.pendingGemId) {
+          const tile = screenToTile(
+            viewRef.current,
+            game,
+            event.clientX,
+            event.clientY,
+            rect,
+          );
+          if (tile && game.pendingGemId) {
             controller.dispatch({ type: 'placePendingGem', x: tile.x, y: tile.y });
-          } else if (controller.game.current.draft.length === 5) {
+          } else if (tile && game.draft.length === 5) {
             controller.dispatch({ type: 'keepDraftCandidate', x: tile.x, y: tile.y });
-          } else {
+          } else if (targetId && game.selectedTile && selectedTileHasTower(game)) {
+            controller.dispatch({
+              type: 'setTowerTarget',
+              x: game.selectedTile.x,
+              y: game.selectedTile.y,
+              targetId,
+            });
+          } else if (tile) {
             controller.dispatch({ type: 'selectTile', x: tile.x, y: tile.y });
+          } else {
+            controller.dispatch({ type: 'clearHover' });
           }
         }}
       />
@@ -72,4 +89,14 @@ export function GameCanvas({ controller }: GameCanvasProps) {
 
 function getFallbackView() {
   return { width: 1, height: 1, cellSize: 1, offsetX: 0, offsetY: 0 };
+}
+
+function selectedTileHasTower(game: GameController['game']['current']): boolean {
+  const selected = game.selectedTile;
+  if (!selected) return false;
+  for (let i = 0; i < game.towers.length; i++) {
+    const tower = game.towers[i];
+    if (tower.x === selected.x && tower.y === selected.y) return true;
+  }
+  return false;
 }

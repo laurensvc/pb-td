@@ -10,6 +10,7 @@ A browser-based, GEMTD-inspired tower defense game with React 19, TypeScript, Ta
 - `pnpm lint` - run ESLint
 - `pnpm typecheck` - run TypeScript
 - `pnpm build` - build for production
+- `pnpm assets:folders` - create `public/assets/towers` and `public/assets/monsters` folders from game config (see `public/assets/README.md`)
 
 ## Gameplay
 

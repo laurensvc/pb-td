@@ -20,57 +20,57 @@ export function Hud({
   onSetSpeed,
 }: HudProps) {
   return (
-    <header className="forge-panel rounded-md px-4 py-3">
+    <header className="arcade-panel rounded-md px-4 py-3">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-brass">PB TD</p>
-          <h1 className="font-display text-3xl font-bold leading-none text-vellum md:text-4xl">
-            Gem Foundry
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-arcade-yellow">
+            PB TD · {snapshot.phase.toUpperCase()}
+          </p>
+          <h1 className="font-display text-3xl font-black leading-none text-white md:text-4xl">
+            Gem Castle Defense
           </h1>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 xl:min-w-[520px]">
-          <Metric label="Gold" value={snapshot.gold} />
-          <Metric label="Lives" value={snapshot.lives} />
+        <div className="grid grid-cols-3 gap-2 text-sm sm:grid-cols-6 xl:min-w-[720px]">
+          <Metric label="Gold" value={snapshot.gold} tone="gold" />
+          <Metric label="Shells" value={snapshot.shells} tone="cyan" />
+          <Metric label="Lives" value={snapshot.lives} tone="red" />
           <Metric
             label="Wave"
-            value={`${Math.min(snapshot.wave, snapshot.totalWaves)} / ${snapshot.totalWaves}`}
+            value={`${snapshot.wave} / ${snapshot.totalWaves}`}
+            tone="violet"
           />
-          <Metric label="Best" value={save.bestWave} />
+          <Metric label="Best" value={save.bestWave} tone="green" />
+          <Metric label="MVPs" value={snapshot.selectedTower?.mvpAwards ?? 0} tone="gold" />
         </div>
       </div>
       <div className="mt-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <p className="min-h-6 text-base font-medium text-[#f2dfb8]">{snapshot.message}</p>
+        <p className="min-h-6 text-base font-bold text-white">{snapshot.message}</p>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            className="forge-button rounded px-4 py-2 font-bold"
+            className="arcade-button px-4 py-2 font-black"
             onClick={onStartWave}
             disabled={!snapshot.canStartWave}
           >
-            Start Wave
+            START WAVE
           </button>
-          <button
-            className="rounded border border-brass/35 bg-vellum/10 px-3 py-2 text-sm font-bold text-vellum"
-            onClick={onPauseToggle}
-          >
-            {snapshot.status === 'paused' ? 'Resume' : 'Pause'}
+          <button className="arcade-button-secondary px-3 py-2 font-bold" onClick={onPauseToggle}>
+            {snapshot.status === 'paused' ? 'RESUME' : 'PAUSE'}
           </button>
-          <label className="flex items-center gap-2 rounded border border-brass/25 bg-black/15 px-3 py-2 text-sm text-vellum/85">
-            Speed
+          <label className="flex items-center gap-2 border-2 border-white/20 bg-black/30 px-3 py-2 text-sm font-bold text-white">
+            SPD
             <select
-              className="bg-transparent font-bold text-vellum"
+              className="bg-black font-black text-arcade-yellow"
               value={speed}
               onChange={(event) => onSetSpeed(Number(event.target.value))}
             >
               <option value={1}>1x</option>
               <option value={1.5}>1.5x</option>
               <option value={2}>2x</option>
+              <option value={3}>3x</option>
             </select>
           </label>
-          <button
-            className="rounded border border-ruby/35 bg-ruby/10 px-3 py-2 text-sm font-bold text-vellum"
-            onClick={onReset}
-          >
-            Reset
+          <button className="arcade-button-danger px-3 py-2 font-bold" onClick={onReset}>
+            RESET RUN
           </button>
         </div>
       </div>
@@ -78,11 +78,29 @@ export function Hud({
   );
 }
 
-function Metric({ label, value }: { label: string; value: number | string }) {
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  tone: 'gold' | 'cyan' | 'red' | 'violet' | 'green';
+}) {
+  const toneClass = {
+    gold: 'text-arcade-yellow',
+    cyan: 'text-arcade-cyan',
+    red: 'text-arcade-red',
+    violet: 'text-arcade-violet',
+    green: 'text-arcade-green',
+  }[tone];
+
   return (
-    <div className="rounded border border-brass/20 bg-black/18 px-3 py-2 shadow-insetGlow">
-      <div className="text-xs uppercase tracking-[0.18em] text-brass/85">{label}</div>
-      <div className="font-display text-2xl font-bold leading-none text-vellum">{value}</div>
+    <div className="border-2 border-white/15 bg-black/35 px-3 py-2 shadow-arcade">
+      <div className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-white/60">
+        {label}
+      </div>
+      <div className={`font-display text-2xl font-black leading-none ${toneClass}`}>{value}</div>
     </div>
   );
 }

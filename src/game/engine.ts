@@ -1,7 +1,15 @@
-import { gameConfig, getEnemy, getGem } from './config';
-import { buildOccupancy, canPlaceWithoutBlocking, findPath } from './pathfinding';
+import { gameConfig, gemFamilies, getEnemy, getGem, getSkill } from './config';
+import {
+  buildOccupancy,
+  canPlaceWithoutBlocking,
+  findCheckpointPaths,
+  findPath,
+  flattenCheckpointPaths,
+} from './pathfinding';
 import type {
+  DamageType,
   DraftCandidate,
+  EnemySkill,
   EnemyState,
   FloatingText,
   GameAction,
@@ -10,23 +18,50 @@ import type {
   GameState,
   GemDefinition,
   GemFamily,
+  GemTier,
   GridPoint,
   ProjectileState,
+  QuestProgress,
   RecipeDefinition,
   SaveState,
+  SkillId,
+  TowerEffectDefinition,
   TowerState,
 } from './types';
 
-const DEFAULT_FAMILIES: readonly GemFamily[] = ['ruby', 'sapphire', 'topaz'];
 const DRAFT_SIZE = 5;
 const TILE_EPSILON = 0.03;
+const MAX_MVP_AWARDS = 10;
+const MVP_AURA_RANGE = 2;
+const REQUIRED_WAVES = 50;
+const REPEAT_WAVE_SKILLS: readonly EnemySkill[] = [
+  'vitality',
+  'rush',
+  'evasion',
+  'refraction',
+  'reactiveArmor',
+  'krakenShell',
+  'recharge',
+  'disarm',
+];
+const DEFAULT_RANK = {
+  season: 'Local Season',
+  soloRank: 25,
+  raceRank: 25,
+  seasonRankId: 'gray-gem',
+  claimedSeasonReward: false,
+};
 
 export const defaultSaveState: SaveState = {
-  version: 1,
+  version: 2,
   bestWave: 0,
   wins: 0,
+  shells: gameConfig.economy.startingShells,
   discoveredRecipes: [],
-  unlockedFamilies: ['ruby', 'sapphire', 'topaz'],
+  unlockedSecrets: [],
+  skillInventory: [],
+  quests: gameConfig.quests.map((quest) => ({ id: quest.id, completed: false, progress: 0 })),
+  rank: DEFAULT_RANK,
   settings: {
     reducedMotion: false,
     muted: false,
@@ -38,6 +73,16 @@ function nextRandom(state: GameState): number {
   return state.rngSeed / 4294967296;
 }
 
+function rollInt(state: GameState, min: number, max: number): number {
+  return min + Math.floor(nextRandom(state) * (max - min + 1));
+}
+
+function cloneEffects(effects: readonly TowerEffectDefinition[]): TowerEffectDefinition[] {
+  const result: TowerEffectDefinition[] = [];
+  for (let i = 0; i < effects.length; i++) result.push({ ...effects[i] });
+  return result;
+}
+
 function makeTower(state: GameState, gem: GemDefinition, x: number, y: number): TowerState {
   return {
     id: state.nextTowerId++,
@@ -45,6 +90,7 @@ function makeTower(state: GameState, gem: GemDefinition, x: number, y: number): 
     name: gem.name,
     family: gem.family,
     tier: gem.tier,
+    classification: gem.classification,
     x,
     y,
     damage: gem.damage,
@@ -53,9 +99,19 @@ function makeTower(state: GameState, gem: GemDefinition, x: number, y: number): 
     cooldownLeft: 0,
     projectileSpeed: gem.projectileSpeed,
     color: gem.color,
-    splashRadius: gem.splashRadius ?? 0,
-    slow: gem.slow ?? 0,
+    damageType: gem.damageType,
+    effects: cloneEffects(gem.effects),
     kills: 0,
+    roundDamage: 0,
+    totalDamage: 0,
+    mvpAwards: 0,
+    stopped: false,
+    targetId: null,
+    buffUntil: 0,
+    attackSpeedBuff: 0,
+    rangeBuff: 0,
+    critBuff: 0,
+    critMultiplier: 1,
   };
 }
 
@@ -63,15 +119,35 @@ export function createGame(
   config: GameConfig = gameConfig,
   save: SaveState = defaultSaveState,
 ): GameState {
-  const unlocked = new Set<GemFamily>(
-    save.unlockedFamilies.length > 0 ? save.unlockedFamilies : DEFAULT_FAMILIES,
-  );
+  const saveQuests = save.quests ?? defaultSaveState.quests;
+  const saveSkills = save.skillInventory ?? defaultSaveState.skillInventory;
+  const saveDiscovered = save.discoveredRecipes ?? defaultSaveState.discoveredRecipes;
+  const saveUnlocked = save.unlockedSecrets ?? defaultSaveState.unlockedSecrets;
+
+  const quests = new Map<string, QuestProgress>();
+  const questDefinitions = config.quests ?? [];
+  for (let i = 0; i < questDefinitions.length; i++) {
+    const definition = questDefinitions[i];
+    let saved: QuestProgress | undefined;
+    for (let q = 0; q < saveQuests.length; q++) {
+      if (saveQuests[q].id === definition.id) saved = saveQuests[q];
+    }
+    quests.set(definition.id, saved ?? { id: definition.id, completed: false, progress: 0 });
+  }
+
+  const skillInventory = new Map<SkillId, number>();
+  for (let i = 0; i < saveSkills.length; i++) {
+    skillInventory.set(saveSkills[i].id, saveSkills[i].level);
+  }
+
   const state: GameState = {
     config,
     status: 'ready',
+    phase: 'build',
     time: 0,
     rngSeed: (Date.now() ^ Math.floor(Math.random() * 1000000)) >>> 0,
     gold: config.economy.startingGold,
+    shells: save.shells ?? config.economy.startingShells,
     lives: config.economy.startingLives,
     score: 0,
     waveIndex: 0,
@@ -90,16 +166,35 @@ export function createGame(
     projectiles: [],
     floatingTexts: [],
     occupied: new Int16Array(config.map.width * config.map.height),
-    path: [],
+    checkpointPaths: [],
+    currentPath: [],
     nextTowerId: 1,
     nextDraftId: 1,
     nextEnemyId: 1,
     nextProjectileId: 1,
-    discoveredRecipes: new Set(save.discoveredRecipes),
-    unlockedFamilies: unlocked,
+    discoveredRecipes: new Set(saveDiscovered),
+    unlockedSecrets: new Set(saveUnlocked),
+    skillInventory,
+    activeSkills: {
+      guardUntil: 0,
+      evadeUntil: 0,
+      fatalBondsUntil: 0,
+      candyAvailable: true,
+    },
+    quests,
+    rank: save.rank ?? DEFAULT_RANK,
+    stats: {
+      startedAt: 0,
+      leaks: 0,
+      mvpAwards: 0,
+      secretTowersBuilt: 0,
+      oneRoundTowersBuilt: 0,
+      killedGoldenRoshan: false,
+      killedZard: false,
+      completedRequiredWaves: false,
+    },
   };
-  state.occupied = buildOccupancy(config.map, state.towers, state.stones, state.draft);
-  state.path = findPath(config.map, state.occupied, config.map.entrance, config.map.exit);
+  rebuildPaths(state);
   beginDraftRound(state);
   return state;
 }
@@ -119,12 +214,8 @@ function getActiveEnemyCells(state: GameState): GridPoint[] {
 
 function rebuildPaths(state: GameState): void {
   state.occupied = buildOccupancy(state.config.map, state.towers, state.stones, state.draft);
-  state.path = findPath(
-    state.config.map,
-    state.occupied,
-    state.config.map.entrance,
-    state.config.map.exit,
-  );
+  state.checkpointPaths = findCheckpointPaths(state.config.map, state.occupied);
+  state.currentPath = flattenCheckpointPaths(state.checkpointPaths);
   for (let i = 0; i < state.enemies.length; i++) {
     const enemy = state.enemies[i];
     if (!enemy.alive) continue;
@@ -132,7 +223,8 @@ function rebuildPaths(state: GameState): void {
       x: clamp(Math.round(enemy.x), 0, state.config.map.width - 1),
       y: clamp(Math.round(enemy.y), 0, state.config.map.height - 1),
     };
-    const path = findPath(state.config.map, state.occupied, start, state.config.map.exit);
+    const target = getEnemyTarget(state, enemy);
+    const path = findPath(state.config.map, state.occupied, start, target);
     if (path.length > 0) {
       enemy.path = path;
       enemy.pathIndex = 0;
@@ -140,21 +232,64 @@ function rebuildPaths(state: GameState): void {
   }
 }
 
-function chooseGemId(state: GameState): string {
-  const roll = nextRandom(state);
-  const waveBoost = state.waveIndex / Math.max(1, state.config.waves.length);
-  let tier = 1;
-  if (roll > 0.96 - waveBoost * 0.1) tier = 4;
-  else if (roll > 0.82 - waveBoost * 0.16) tier = 3;
-  else if (roll > 0.48 - waveBoost * 0.18) tier = 2;
+function getEnemyTarget(state: GameState, enemy: EnemyState): GridPoint {
+  if (enemy.checkpointIndex < state.config.map.checkpoints.length) {
+    return state.config.map.checkpoints[enemy.checkpointIndex];
+  }
+  return state.config.map.exit;
+}
 
-  const unlocked = Array.from(state.unlockedFamilies);
-  const family = unlocked[Math.floor(nextRandom(state) * unlocked.length)] ?? 'ruby';
+function getSkillLevel(state: GameState, skillId: SkillId): number {
+  return state.skillInventory.get(skillId) ?? 0;
+}
+
+function getRequiredWaveCount(state: GameState): number {
+  return Math.max(1, Math.min(REQUIRED_WAVES, state.config.waves.length));
+}
+
+function getWaveAtIndex(state: GameState, index: number): GameConfig['waves'][number] | null {
+  if (state.config.waves.length === 0 || index < 0) return null;
+  return state.config.waves[index % state.config.waves.length];
+}
+
+function getCurrentWave(state: GameState): GameConfig['waves'][number] | null {
+  return getWaveAtIndex(state, state.waveIndex);
+}
+
+function getWaveSkills(state: GameState, wave: GameConfig['waves'][number]): EnemySkill[] {
+  if (state.waveIndex < state.config.waves.length) return mergeSkills(wave.skills, []);
+  const repeatIndex = state.waveIndex - state.config.waves.length;
+  const repeatSkill = REPEAT_WAVE_SKILLS[(repeatIndex + wave.wave) % REPEAT_WAVE_SKILLS.length];
+  return mergeSkills(wave.skills, [repeatSkill]);
+}
+
+function chooseGemId(state: GameState): string {
+  const qualityBonus =
+    getSkillLevel(state, 'gemQualityPray') * 0.08 +
+    getSkillLevel(state, 'flawlessPray') * 0.05 +
+    getSkillLevel(state, 'perfectPray') * 0.04;
+  const waveBoost = Math.min(0.36, state.waveIndex * 0.008);
+  const roll = nextRandom(state);
+  let tier: GemTier = 1;
+  if (roll > 0.985 - waveBoost - qualityBonus * 0.4) tier = 6;
+  else if (roll > 0.92 - waveBoost - qualityBonus * 0.55) tier = 5;
+  else if (roll > 0.76 - waveBoost - qualityBonus * 0.7) tier = 4;
+  else if (roll > 0.52 - waveBoost - qualityBonus * 0.8) tier = 3;
+  else if (roll > 0.26 - waveBoost - qualityBonus) tier = 2;
+
+  let family = gemFamilies[Math.floor(nextRandom(state) * gemFamilies.length)];
+  if (
+    getSkillLevel(state, 'gemPray') > 0 &&
+    nextRandom(state) < 0.28 + getSkillLevel(state, 'gemPray') * 0.1
+  ) {
+    family = gemFamilies[(state.waveIndex + getSkillLevel(state, 'gemPray')) % gemFamilies.length];
+  }
   return `${family}-${tier}`;
 }
 
 function canBeginDraftRound(state: GameState): boolean {
   return (
+    state.phase === 'build' &&
     state.draft.length === 0 &&
     state.draftQueue.length === 0 &&
     state.draftWaveIndex !== state.waveIndex &&
@@ -169,24 +304,21 @@ function canBeginDraftRound(state: GameState): boolean {
 
 function beginDraftRound(state: GameState): void {
   if (!canBeginDraftRound(state)) return;
-  state.draftQueue = [];
+  state.phase = 'build';
+  state.activeSkills.candyAvailable = true;
+  state.draftQueue.length = 0;
   for (let i = 0; i < DRAFT_SIZE; i++) state.draftQueue.push(chooseGemId(state));
   state.draftWaveIndex = state.waveIndex;
   state.pendingGemId = state.draftQueue.shift() ?? null;
 }
 
-function buyDraft(state: GameState): void {
-  if (!canBeginDraftRound(state)) return;
-  beginDraftRound(state);
-}
-
 function placePendingGem(state: GameState, x: number, y: number): void {
-  if (!state.pendingGemId) return;
+  if (!state.pendingGemId || state.phase !== 'build') return;
   const enemyCells = getActiveEnemyCells(state);
   if (!canPlaceWithoutBlocking(state.config.map, state.occupied, x, y, enemyCells)) return;
   state.draft.push({ id: state.nextDraftId++, gemId: state.pendingGemId, x, y });
   state.pendingGemId = state.draftQueue.shift() ?? null;
-  state.selectedTile = null;
+  state.selectedTile = { x, y };
   rebuildPaths(state);
 }
 
@@ -194,17 +326,6 @@ function getTowerAt(state: GameState, x: number, y: number): TowerState | null {
   for (let i = 0; i < state.towers.length; i++) {
     const tower = state.towers[i];
     if (tower.x === x && tower.y === y) return tower;
-  }
-  return null;
-}
-
-function removeTowerAt(state: GameState, x: number, y: number): TowerState | null {
-  for (let i = 0; i < state.towers.length; i++) {
-    const tower = state.towers[i];
-    if (tower.x !== x || tower.y !== y) continue;
-    state.towers[i] = state.towers[state.towers.length - 1];
-    state.towers.length -= 1;
-    return tower;
   }
   return null;
 }
@@ -217,8 +338,15 @@ function getDraftCandidateAt(state: GameState, x: number, y: number): DraftCandi
   return null;
 }
 
+function getStoneAt(state: GameState, x: number, y: number): number {
+  for (let i = 0; i < state.stones.length; i++) {
+    if (state.stones[i].x === x && state.stones[i].y === y) return i;
+  }
+  return -1;
+}
+
 function keepDraftCandidate(state: GameState, x: number, y: number): void {
-  if (state.pendingGemId || state.draft.length !== DRAFT_SIZE) return;
+  if (state.pendingGemId || state.draft.length !== DRAFT_SIZE || state.phase !== 'build') return;
   const kept = getDraftCandidateAt(state, x, y);
   if (!kept) return;
   for (let i = 0; i < state.draft.length; i++) {
@@ -228,65 +356,159 @@ function keepDraftCandidate(state: GameState, x: number, y: number): void {
   }
   const gem = getGem(state.config, kept.gemId);
   state.towers.push(makeTower(state, gem, kept.x, kept.y));
-  state.draft = [];
-  state.draftQueue = [];
+  state.draft.length = 0;
+  state.draftQueue.length = 0;
   state.selectedTile = { x: kept.x, y: kept.y };
+  state.phase = 'attack';
   rebuildPaths(state);
 }
 
+interface MatchPiece {
+  source: 'tower' | 'draft';
+  index: number;
+  gemId: string;
+  family: GemFamily;
+  tier: GemTier;
+  x: number;
+  y: number;
+}
+
+const recipePiecesScratch: MatchPiece[] = [];
+
+function collectNearbyPieces(state: GameState, x: number, y: number): MatchPiece[] {
+  recipePiecesScratch.length = 0;
+  for (let i = 0; i < state.towers.length; i++) {
+    const tower = state.towers[i];
+    if (Math.abs(tower.x - x) > 1 || Math.abs(tower.y - y) > 1) continue;
+    recipePiecesScratch.push({
+      source: 'tower',
+      index: i,
+      gemId: tower.gemId,
+      family: tower.family,
+      tier: tower.tier,
+      x: tower.x,
+      y: tower.y,
+    });
+  }
+  for (let i = 0; i < state.draft.length; i++) {
+    const candidate = state.draft[i];
+    if (Math.abs(candidate.x - x) > 1 || Math.abs(candidate.y - y) > 1) continue;
+    const gem = getGem(state.config, candidate.gemId);
+    recipePiecesScratch.push({
+      source: 'draft',
+      index: i,
+      gemId: candidate.gemId,
+      family: gem.family,
+      tier: gem.tier,
+      x: candidate.x,
+      y: candidate.y,
+    });
+  }
+  return recipePiecesScratch;
+}
+
 function ingredientMatches(
-  tower: TowerState,
+  piece: MatchPiece,
   ingredient: RecipeDefinition['ingredients'][number],
 ): boolean {
-  if (ingredient.gemId && tower.gemId !== ingredient.gemId) return false;
-  if (ingredient.family && tower.family !== ingredient.family) return false;
-  if (ingredient.tier && tower.tier < ingredient.tier) return false;
+  if (ingredient.gemId && piece.gemId !== ingredient.gemId) return false;
+  if (ingredient.towerId && piece.gemId !== ingredient.towerId) return false;
+  if (ingredient.family && piece.family !== ingredient.family) return false;
+  if (ingredient.tier && piece.tier < ingredient.tier) return false;
   return true;
 }
 
-export function findRecipeAt(state: GameState, x: number, y: number): RecipeDefinition | null {
-  const nearby: TowerState[] = [];
-  for (let i = 0; i < state.towers.length; i++) {
-    const tower = state.towers[i];
-    if (Math.abs(tower.x - x) <= 1 && Math.abs(tower.y - y) <= 1) nearby.push(tower);
+function recipeMatches(
+  recipe: RecipeDefinition,
+  pieces: readonly MatchPiece[],
+  used: Uint8Array,
+): boolean {
+  used.fill(0);
+  let matched = 0;
+  for (let i = 0; i < recipe.ingredients.length; i++) {
+    for (let p = 0; p < pieces.length; p++) {
+      if (used[p] === 1) continue;
+      if (!ingredientMatches(pieces[p], recipe.ingredients[i])) continue;
+      used[p] = 1;
+      matched++;
+      break;
+    }
   }
+  return matched === recipe.ingredients.length;
+}
 
+function matchedPiecesAreLegalForTile(
+  state: GameState,
+  x: number,
+  y: number,
+  recipe: RecipeDefinition,
+  pieces: readonly MatchPiece[],
+  used: Uint8Array,
+): boolean {
+  let draftCount = 0;
+  let towerCount = 0;
+  let selectedDraftConsumed = false;
+  for (let i = 0; i < used.length; i++) {
+    if (used[i] !== 1) continue;
+    const piece = pieces[i];
+    if (piece.source === 'draft') {
+      draftCount++;
+      if (piece.x === x && piece.y === y) selectedDraftConsumed = true;
+    } else {
+      towerCount++;
+    }
+  }
+  if (draftCount === 0) return true;
+  return (
+    towerCount === 0 &&
+    draftCount === recipe.ingredients.length &&
+    selectedDraftConsumed &&
+    state.phase === 'build' &&
+    !state.pendingGemId &&
+    state.draft.length === DRAFT_SIZE
+  );
+}
+
+export function findRecipeAt(state: GameState, x: number, y: number): RecipeDefinition | null {
   const base = getTowerAt(state, x, y);
-  if (base && base.tier < 4) {
+  if (base && base.classification === 'gem' && base.tier < 6) {
     let count = 0;
-    for (let i = 0; i < nearby.length; i++) {
-      const tower = nearby[i];
-      if (tower.family === base.family && tower.tier === base.tier) count++;
+    for (let i = 0; i < state.towers.length; i++) {
+      const tower = state.towers[i];
+      if (Math.abs(tower.x - x) > 1 || Math.abs(tower.y - y) > 1) continue;
+      if (
+        tower.family === base.family &&
+        tower.tier === base.tier &&
+        tower.classification === 'gem'
+      )
+        count++;
     }
     if (count >= 3) {
       return {
         id: `upgrade-${base.family}-${base.tier}`,
-        name: `${base.name} refinement`,
-        description: `Fuse three adjacent ${base.name}s into the next tier.`,
+        name: `${base.name} merge`,
+        classification: 'basic',
+        description: `Merge three adjacent ${base.name}s into level ${base.tier + 1}.`,
         ingredients: [
           { family: base.family, tier: base.tier },
           { family: base.family, tier: base.tier },
           { family: base.family, tier: base.tier },
         ],
-        resultGemId: `${base.family}-${(base.tier + 1).toString()}`,
+        resultGemId: `${base.family}-${base.tier + 1}`,
       };
     }
   }
 
+  const pieces = collectNearbyPieces(state, x, y);
+  const used = new Uint8Array(pieces.length);
   for (let r = 0; r < state.config.recipes.length; r++) {
     const recipe = state.config.recipes[r];
-    const used = new Uint8Array(nearby.length);
-    let matched = 0;
-    for (let i = 0; i < recipe.ingredients.length; i++) {
-      for (let t = 0; t < nearby.length; t++) {
-        if (used[t] === 1) continue;
-        if (!ingredientMatches(nearby[t], recipe.ingredients[i])) continue;
-        used[t] = 1;
-        matched++;
-        break;
-      }
+    if (
+      recipeMatches(recipe, pieces, used) &&
+      matchedPiecesAreLegalForTile(state, x, y, recipe, pieces, used)
+    ) {
+      return recipe;
     }
-    if (matched === recipe.ingredients.length) return recipe;
   }
   return null;
 }
@@ -294,83 +516,195 @@ export function findRecipeAt(state: GameState, x: number, y: number): RecipeDefi
 function combineAt(state: GameState, x: number, y: number): void {
   const recipe = findRecipeAt(state, x, y);
   if (!recipe) return;
-  const consumedIndexes: number[] = [];
-  const used = new Uint8Array(state.towers.length);
-  for (let i = 0; i < recipe.ingredients.length; i++) {
-    for (let t = 0; t < state.towers.length; t++) {
-      if (used[t] === 1) continue;
-      const tower = state.towers[t];
-      if (Math.abs(tower.x - x) > 1 || Math.abs(tower.y - y) > 1) continue;
-      if (!ingredientMatches(tower, recipe.ingredients[i])) continue;
-      used[t] = 1;
-      consumedIndexes.push(t);
-      break;
-    }
-  }
-  if (consumedIndexes.length !== recipe.ingredients.length) return;
+  const pieces = collectNearbyPieces(state, x, y);
+  const used = new Uint8Array(pieces.length);
+  if (!recipeMatches(recipe, pieces, used)) return;
+  if (!matchedPiecesAreLegalForTile(state, x, y, recipe, pieces, used)) return;
 
-  consumedIndexes.sort((a, b) => b - a);
-  for (let i = 0; i < consumedIndexes.length; i++) {
-    const index = consumedIndexes[i];
+  const consumedTowerIndexes: number[] = [];
+  const consumedDraftIndexes: number[] = [];
+  for (let i = 0; i < used.length; i++) {
+    if (used[i] !== 1) continue;
+    const piece = pieces[i];
+    if (piece.source === 'tower') consumedTowerIndexes.push(piece.index);
+    else consumedDraftIndexes.push(piece.index);
+  }
+
+  consumedTowerIndexes.sort((a, b) => b - a);
+  for (let i = 0; i < consumedTowerIndexes.length; i++) {
+    const index = consumedTowerIndexes[i];
     state.towers[index] = state.towers[state.towers.length - 1];
     state.towers.length -= 1;
   }
+
+  if (consumedDraftIndexes.length > 0) {
+    for (let i = 0; i < state.draft.length; i++) {
+      let consumed = false;
+      for (let c = 0; c < consumedDraftIndexes.length; c++) {
+        if (consumedDraftIndexes[c] === i) consumed = true;
+      }
+      if (!consumed) state.stones.push({ x: state.draft[i].x, y: state.draft[i].y });
+    }
+    state.draft.length = 0;
+    state.draftQueue.length = 0;
+    state.pendingGemId = null;
+    state.phase = 'attack';
+    if (recipe.oneRoundOnly) state.stats.oneRoundTowersBuilt += 1;
+  }
+
   const gem = getGem(state.config, recipe.resultGemId);
   state.towers.push(makeTower(state, gem, x, y));
   state.discoveredRecipes.add(recipe.id);
+  if (recipe.hidden || recipe.classification === 'secret') {
+    state.unlockedSecrets.add(recipe.id);
+    state.stats.secretTowersBuilt += 1;
+  }
   state.selectedTile = { x, y };
   rebuildPaths(state);
 }
 
-function sellTower(state: GameState, x: number, y: number): void {
-  const tower = removeTowerAt(state, x, y);
-  if (!tower) return;
-  state.gold += Math.round(
-    state.config.economy.draftCost * state.config.economy.sellRefundRate * tower.tier,
-  );
+function removeStone(state: GameState, x: number, y: number): void {
+  const index = getStoneAt(state, x, y);
+  if (index < 0) return;
+  state.stones[index] = state.stones[state.stones.length - 1];
+  state.stones.length -= 1;
   rebuildPaths(state);
+}
+
+function mergeAt(state: GameState, x: number, y: number, levels: 1 | 2): void {
+  const tower = getTowerAt(state, x, y);
+  if (!tower || tower.classification !== 'gem') return;
+  const nextTier = Math.min(6, tower.tier + levels) as GemTier;
+  if (nextTier === tower.tier) return;
+  const gem = getGem(state.config, `${tower.family}-${nextTier}`);
+  Object.assign(tower, makeTowerFromExisting(state, tower, gem));
+}
+
+function makeTowerFromExisting(
+  state: GameState,
+  tower: TowerState,
+  gem: GemDefinition,
+): Partial<TowerState> {
+  return {
+    gemId: gem.id,
+    name: gem.name,
+    family: gem.family,
+    tier: gem.tier,
+    classification: gem.classification,
+    damage: gem.damage,
+    range: gem.range,
+    cooldown: gem.cooldown,
+    projectileSpeed: gem.projectileSpeed,
+    color: gem.color,
+    damageType: gem.damageType,
+    effects: cloneEffects(gem.effects),
+    cooldownLeft: Math.min(tower.cooldownLeft, gem.cooldown),
+    buffUntil: state.time > tower.buffUntil ? 0 : tower.buffUntil,
+  };
+}
+
+function downgradeAt(state: GameState, x: number, y: number): void {
+  const tower = getTowerAt(state, x, y);
+  if (!tower || tower.classification !== 'gem' || tower.tier <= 1) return;
+  if (state.gold < state.config.economy.downgradeCost) return;
+  state.gold -= state.config.economy.downgradeCost;
+  const tier = rollInt(state, 1, tower.tier - 1) as GemTier;
+  const family = gemFamilies[Math.floor(nextRandom(state) * gemFamilies.length)];
+  const gem = getGem(state.config, `${family}-${tier}`);
+  Object.assign(tower, makeTowerFromExisting(state, tower, gem));
 }
 
 function startWave(state: GameState): void {
   if (state.activeWaveId || state.status === 'lost' || state.status === 'won') return;
   if (state.pendingGemId || state.draft.length > 0 || state.draftQueue.length > 0) return;
-  if (state.waveIndex >= state.config.waves.length) return;
-  const wave = state.config.waves[state.waveIndex];
+  const wave = getCurrentWave(state);
+  if (!wave) return;
   state.status = 'running';
-  state.activeWaveId = wave.id;
+  state.phase = 'attack';
+  state.activeWaveId =
+    state.waveIndex >= state.config.waves.length
+      ? `${wave.id}-repeat-${state.waveIndex + 1}`
+      : wave.id;
   state.enemiesToSpawn = wave.count;
   state.spawnTimer = 0;
+  for (let i = 0; i < state.towers.length; i++) state.towers[i].roundDamage = 0;
+}
+
+function chooseWaveEnemy(state: GameState): string {
+  const wave = getCurrentWave(state);
+  if (!wave) return state.config.enemies[0]?.id ?? '';
+  if (!wave.alternativeEnemyIds || wave.alternativeEnemyIds.length === 0) return wave.enemyId;
+  if (nextRandom(state) < (wave.boss ? 0.18 : 0.35)) {
+    return wave.alternativeEnemyIds[
+      Math.floor(nextRandom(state) * wave.alternativeEnemyIds.length)
+    ];
+  }
+  return wave.enemyId;
 }
 
 function spawnEnemy(state: GameState): void {
-  if (!state.activeWaveId) return;
-  const wave = state.config.waves[state.waveIndex];
-  const definition = getEnemy(state.config, wave.enemyId);
-  const waveScale = 1 + state.waveIndex * 0.16;
+  if (!state.activeWaveId || state.checkpointPaths.length === 0) return;
+  const wave = getCurrentWave(state);
+  if (!wave) return;
+  const definition = getEnemy(state.config, chooseWaveEnemy(state));
+  const waveScale = 1 + state.waveIndex * 0.14;
+  const skills = mergeSkills(definition.skills, getWaveSkills(state, wave));
+  const vitality = skills.includes('vitality') ? 1.28 : 1;
   const enemy: EnemyState = {
     id: state.nextEnemyId++,
     definitionId: definition.id,
+    name: definition.name,
     x: state.config.map.entrance.x,
     y: state.config.map.entrance.y,
-    hp: Math.round(definition.hp * waveScale),
-    maxHp: Math.round(definition.hp * waveScale),
-    speed: definition.speed,
-    reward: definition.reward + Math.floor(state.waveIndex * 0.8),
-    armor: definition.armor,
-    path: state.path,
+    hp: Math.round(definition.hp * waveScale * vitality),
+    maxHp: Math.round(definition.hp * waveScale * vitality),
+    speed: definition.speed * (skills.includes('rush') ? 1.28 : 1),
+    reward: definition.reward + Math.floor(state.waveIndex * 1.2),
+    armor: definition.armor + (skills.includes('highArmor') ? 10 : 0),
+    checkpointIndex: 0,
+    path: state.checkpointPaths[0],
     pathIndex: 0,
     alive: true,
     reachedExit: false,
     slowUntil: 0,
     slowMultiplier: 1,
+    sapphireSlowUntil: [0, 0, 0, 0, 0, 0],
+    sapphireSlowMultiplier: [1, 1, 1, 1, 1, 1],
+    poisonDps: 0,
+    poisonUntil: 0,
+    burnDps: 0,
+    burnUntil: 0,
+    stunUntil: 0,
+    refraction: skills.includes('refraction') ? 3 : 0,
+    blinkCooldown: skills.includes('blink') ? 4 : 0,
+    rechargeTimer: 0,
     color: definition.color,
+    skills,
+    invisible: skills.includes('permanentInvisibility') || skills.includes('cloakAndDagger'),
+    flying: definition.flying || skills.includes('flying'),
   };
   state.enemies.push(enemy);
+}
+
+function mergeSkills(a: readonly EnemySkill[], b: readonly EnemySkill[]): EnemySkill[] {
+  const result: EnemySkill[] = [];
+  for (let i = 0; i < a.length; i++) result.push(a[i]);
+  for (let i = 0; i < b.length; i++) {
+    if (!result.includes(b[i])) result.push(b[i]);
+  }
+  return result;
 }
 
 function findEnemyById(state: GameState, id: number): EnemyState | null {
   for (let i = 0; i < state.enemies.length; i++) {
     if (state.enemies[i].id === id && state.enemies[i].alive) return state.enemies[i];
+  }
+  return null;
+}
+
+function findTowerById(state: GameState, id: number): TowerState | null {
+  for (let i = 0; i < state.towers.length; i++) {
+    if (state.towers[i].id === id) return state.towers[i];
   }
   return null;
 }
@@ -385,11 +719,12 @@ function acquireProjectile(state: GameState): ProjectileState {
     x: 0,
     y: 0,
     targetId: 0,
+    towerId: 0,
     damage: 0,
     speed: 0,
     color: '#ffffff',
-    splashRadius: 0,
-    slow: 0,
+    damageType: 'physical',
+    effects: [],
   };
   state.projectiles.push(projectile);
   return projectile;
@@ -399,46 +734,112 @@ function acquireFloatingText(state: GameState): FloatingText {
   for (let i = 0; i < state.floatingTexts.length; i++) {
     if (!state.floatingTexts[i].active) return state.floatingTexts[i];
   }
-  const text: FloatingText = { active: false, x: 0, y: 0, value: 0, life: 0, color: '#fff0a8' };
+  const text: FloatingText = { active: false, x: 0, y: 0, value: '', life: 0, color: '#fff0a8' };
   state.floatingTexts.push(text);
   return text;
 }
 
-function damageEnemy(state: GameState, enemy: EnemyState, damage: number, slow: number): void {
-  const amount = Math.max(1, Math.round(damage - enemy.armor));
-  enemy.hp -= amount;
-  if (slow > 0) {
-    enemy.slowUntil = state.time + 1.1;
-    enemy.slowMultiplier = Math.max(0.45, 1 - slow);
-  }
+function addText(state: GameState, x: number, y: number, value: string, color: string): void {
   const text = acquireFloatingText(state);
   text.active = true;
-  text.x = enemy.x;
-  text.y = enemy.y - 0.25;
-  text.value = amount;
+  text.x = x;
+  text.y = y - 0.25;
+  text.value = value;
   text.life = 0.6;
-  text.color = enemy.color;
-  if (enemy.hp <= 0 && enemy.alive) {
-    enemy.alive = false;
-    state.gold += enemy.reward;
-    state.score += enemy.reward * 9 + state.waveIndex * 11;
+  text.color = color;
+}
+
+function effectiveTowerDamage(state: GameState, tower: TowerState): number {
+  let damage = tower.damage * (1 + Math.min(MAX_MVP_AWARDS, tower.mvpAwards) * 0.1);
+  if (state.lives <= state.config.economy.startingLives * 0.6) {
+    damage *= 1 + getSkillLevel(state, 'revenge') * 0.01 + 0.02;
   }
+  for (let i = 0; i < state.towers.length; i++) {
+    const aura = state.towers[i];
+    if (aura.id === tower.id) continue;
+    const dx = aura.x - tower.x;
+    const dy = aura.y - tower.y;
+    const distanceSq = dx * dx + dy * dy;
+    for (let e = 0; e < aura.effects.length; e++) {
+      const effect = aura.effects[e];
+      if (effect.type !== 'damageAura' && effect.type !== 'inspire' && effect.type !== 'mvpAura')
+        continue;
+      const radius = effect.radius ?? MVP_AURA_RANGE;
+      if (distanceSq <= radius * radius) damage *= 1 + Math.min(0.75, effect.value);
+    }
+    if (aura.mvpAwards > 0 && distanceSq <= MVP_AURA_RANGE * MVP_AURA_RANGE) {
+      damage *= 1 + Math.min(0.75, aura.mvpAwards * 0.075);
+    }
+  }
+  return damage;
+}
+
+function effectiveCooldown(state: GameState, tower: TowerState): number {
+  let multiplier = 1;
+  let opalGemAuraMask = 0;
+  for (let i = 0; i < state.towers.length; i++) {
+    const aura = state.towers[i];
+    const dx = aura.x - tower.x;
+    const dy = aura.y - tower.y;
+    for (let e = 0; e < aura.effects.length; e++) {
+      const effect = aura.effects[e];
+      if (effect.type !== 'speedAura') continue;
+      const radius = effect.radius ?? 5;
+      if (dx * dx + dy * dy > radius * radius) continue;
+      if (aura.family === 'opal' && aura.classification === 'gem') {
+        const mask = 1 << (aura.tier - 1);
+        if ((opalGemAuraMask & mask) !== 0) continue;
+        opalGemAuraMask |= mask;
+      }
+      multiplier += Math.min(1.2, effect.value);
+    }
+  }
+  if (tower.buffUntil > state.time) multiplier += tower.attackSpeedBuff;
+  return Math.max(0.08, tower.cooldown / multiplier);
+}
+
+function effectiveRange(state: GameState, tower: TowerState): number {
+  return tower.range + (tower.buffUntil > state.time ? tower.rangeBuff : 0);
+}
+
+function canTargetEnemy(tower: TowerState, enemy: EnemyState): boolean {
+  if (enemy.invisible && !hasEffect(tower, 'overlook')) return false;
+  if (enemy.flying && !hasEffect(tower, 'antiFly') && tower.family !== 'topaz') return false;
+  return true;
+}
+
+function hasEffect(tower: TowerState, type: TowerEffectDefinition['type']): boolean {
+  for (let i = 0; i < tower.effects.length; i++) {
+    if (tower.effects[i].type === type) return true;
+  }
+  return false;
 }
 
 function fireTower(state: GameState, tower: TowerState): void {
-  let best: EnemyState | null = null;
+  if (tower.stopped) return;
+  let best: EnemyState | null = tower.targetId ? findEnemyById(state, tower.targetId) : null;
   let bestDistance = Number.POSITIVE_INFINITY;
   const tx = tower.x + 0.5;
   const ty = tower.y + 0.5;
-  for (let i = 0; i < state.enemies.length; i++) {
-    const enemy = state.enemies[i];
-    if (!enemy.alive) continue;
-    const dx = enemy.x + 0.5 - tx;
-    const dy = enemy.y + 0.5 - ty;
-    const distanceSq = dx * dx + dy * dy;
-    if (distanceSq > tower.range * tower.range || distanceSq >= bestDistance) continue;
-    bestDistance = distanceSq;
-    best = enemy;
+  const range = effectiveRange(state, tower);
+  if (best && canTargetEnemy(tower, best)) {
+    const dx = best.x + 0.5 - tx;
+    const dy = best.y + 0.5 - ty;
+    if (dx * dx + dy * dy > range * range) best = null;
+  } else {
+    best = null;
+  }
+  if (!best) {
+    for (let i = 0; i < state.enemies.length; i++) {
+      const enemy = state.enemies[i];
+      if (!enemy.alive || !canTargetEnemy(tower, enemy)) continue;
+      const dx = enemy.x + 0.5 - tx;
+      const dy = enemy.y + 0.5 - ty;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq > range * range || distanceSq >= bestDistance) continue;
+      bestDistance = distanceSq;
+      best = enemy;
+    }
   }
   if (!best) return;
   const projectile = acquireProjectile(state);
@@ -446,12 +847,13 @@ function fireTower(state: GameState, tower: TowerState): void {
   projectile.x = tx;
   projectile.y = ty;
   projectile.targetId = best.id;
-  projectile.damage = tower.damage;
+  projectile.towerId = tower.id;
+  projectile.damage = effectiveTowerDamage(state, tower);
   projectile.speed = tower.projectileSpeed;
   projectile.color = tower.color;
-  projectile.splashRadius = tower.splashRadius;
-  projectile.slow = tower.slow;
-  tower.cooldownLeft = tower.cooldown;
+  projectile.damageType = tower.damageType;
+  projectile.effects = cloneEffects(tower.effects);
+  tower.cooldownLeft = effectiveCooldown(state, tower);
 }
 
 function tickTowers(state: GameState, dt: number): void {
@@ -466,18 +868,28 @@ function tickEnemies(state: GameState, dt: number): void {
   for (let i = 0; i < state.enemies.length; i++) {
     const enemy = state.enemies[i];
     if (!enemy.alive) continue;
+    tickEnemyDots(state, enemy, dt);
+    if (!enemy.alive) continue;
+    if (enemy.stunUntil > state.time) continue;
+    if (enemy.skills.includes('blink')) {
+      enemy.blinkCooldown -= dt;
+      if (enemy.blinkCooldown <= 0 && enemy.pathIndex < enemy.path.length - 2) {
+        enemy.pathIndex = Math.min(enemy.path.length - 1, enemy.pathIndex + 2);
+        enemy.x = enemy.path[enemy.pathIndex].x;
+        enemy.y = enemy.path[enemy.pathIndex].y;
+        enemy.blinkCooldown = 4.5;
+      }
+    }
     const path = enemy.path;
     if (path.length <= 1 || enemy.pathIndex >= path.length - 1) {
-      enemy.alive = false;
-      enemy.reachedExit = true;
-      state.lives -= 1;
+      advanceEnemyCheckpoint(state, enemy);
       continue;
     }
     const next = path[enemy.pathIndex + 1];
     const dx = next.x - enemy.x;
     const dy = next.y - enemy.y;
     const distance = Math.hypot(dx, dy);
-    const multiplier = enemy.slowUntil > state.time ? enemy.slowMultiplier : 1;
+    const multiplier = effectiveEnemySlowMultiplier(enemy, state.time);
     const travel = enemy.speed * multiplier * dt;
     if (distance <= travel + TILE_EPSILON) {
       enemy.x = next.x;
@@ -488,6 +900,169 @@ function tickEnemies(state: GameState, dt: number): void {
       enemy.y += (dy / distance) * travel;
     }
   }
+}
+
+function effectiveEnemySlowMultiplier(enemy: EnemyState, time: number): number {
+  let multiplier = enemy.slowUntil > time ? enemy.slowMultiplier : 1;
+  for (let i = 0; i < enemy.sapphireSlowUntil.length; i++) {
+    if (enemy.sapphireSlowUntil[i] > time) multiplier *= enemy.sapphireSlowMultiplier[i];
+  }
+  return Math.max(0.25, multiplier);
+}
+
+function tickEnemyDots(state: GameState, enemy: EnemyState, dt: number): void {
+  let amount = 0;
+  if (enemy.poisonUntil > state.time) amount += enemy.poisonDps * dt;
+  if (enemy.burnUntil > state.time) amount += enemy.burnDps * dt;
+  if (enemy.skills.includes('recharge')) {
+    enemy.rechargeTimer += dt;
+    if (enemy.rechargeTimer > 1.4) {
+      enemy.hp = Math.min(enemy.maxHp, enemy.hp + Math.max(5, enemy.maxHp * 0.015));
+      enemy.rechargeTimer = 0;
+    }
+  }
+  if (amount > 0) applyRawDamage(state, enemy, amount, null, 'pure');
+}
+
+function advanceEnemyCheckpoint(state: GameState, enemy: EnemyState): void {
+  enemy.checkpointIndex += 1;
+  if (enemy.checkpointIndex < state.checkpointPaths.length) {
+    enemy.path = state.checkpointPaths[enemy.checkpointIndex];
+    enemy.pathIndex = 0;
+    if (enemy.path.length > 0) {
+      enemy.x = enemy.path[0].x;
+      enemy.y = enemy.path[0].y;
+    }
+    return;
+  }
+  enemy.alive = false;
+  enemy.reachedExit = true;
+  state.stats.leaks += 1;
+  const guard = state.activeSkills.guardUntil > state.time ? getSkillLevel(state, 'guard') : 0;
+  const evadeChance =
+    state.activeSkills.evadeUntil > state.time
+      ? [0, 0.1, 0.15, 0.2, 0.25][getSkillLevel(state, 'evade')]
+      : 0;
+  if (evadeChance > 0 && nextRandom(state) < evadeChance) {
+    addText(state, enemy.x, enemy.y, 'Evade', '#7dd3fc');
+    return;
+  }
+  const damage = Math.max(1, (enemy.skills.includes('thief') ? 2 : 1) - guard);
+  state.lives -= damage;
+}
+
+function applyRawDamage(
+  state: GameState,
+  enemy: EnemyState,
+  damage: number,
+  tower: TowerState | null,
+  damageType: DamageType,
+): number {
+  if (!enemy.alive) return 0;
+  let amount = damage;
+  if (damageType === 'magic' && enemy.skills.includes('magicImmune')) amount = 0;
+  else if (damageType === 'magic') amount *= getMvpMagicVulnerability(state, enemy);
+  if (damageType === 'physical' && enemy.skills.includes('physicalImmune')) amount = 0;
+  if (enemy.skills.includes('evasion') && damageType === 'physical' && nextRandom(state) < 0.28)
+    amount = 0;
+  if (enemy.skills.includes('untouchable')) amount *= 0.75;
+  if (enemy.skills.includes('krakenShell')) amount = Math.max(0, amount - enemy.maxHp * 0.006);
+  if (enemy.refraction > 0 && amount > 0) {
+    enemy.refraction -= 1;
+    amount *= 0.35;
+  }
+  if (damageType === 'physical') amount = Math.max(1, amount - enemy.armor);
+  if (enemy.skills.includes('reactiveArmor') && damageType === 'physical')
+    enemy.armor = Math.min(30, enemy.armor + 1);
+  amount = Math.max(0, Math.round(amount));
+  if (amount <= 0) {
+    addText(state, enemy.x, enemy.y, '0', '#94a3b8');
+    return 0;
+  }
+  enemy.hp -= amount;
+  if (tower) {
+    tower.roundDamage += amount;
+    tower.totalDamage += amount;
+  }
+  addText(state, enemy.x, enemy.y, String(amount), enemy.color);
+  if (enemy.hp <= 0 && enemy.alive) killEnemy(state, enemy, tower);
+  return amount;
+}
+
+function getMvpMagicVulnerability(state: GameState, enemy: EnemyState): number {
+  for (let i = 0; i < state.towers.length; i++) {
+    const tower = state.towers[i];
+    if (tower.mvpAwards <= 0) continue;
+    const dx = tower.x + 0.5 - (enemy.x + 0.5);
+    const dy = tower.y + 0.5 - (enemy.y + 0.5);
+    if (dx * dx + dy * dy <= MVP_AURA_RANGE * MVP_AURA_RANGE) return 1.1;
+  }
+  return 1;
+}
+
+function killEnemy(state: GameState, enemy: EnemyState, tower: TowerState | null): void {
+  enemy.alive = false;
+  if (tower) tower.kills += 1;
+  if (enemy.definitionId === 'golden-baby-roshan') state.stats.killedGoldenRoshan = true;
+  if (enemy.definitionId === 'zard') state.stats.killedZard = true;
+  const greedy = tower ? getEffectValue(tower, 'greedy') : 0;
+  state.gold += Math.round(enemy.reward * (1 + greedy));
+  state.score += enemy.reward * 9 + state.waveIndex * 11;
+}
+
+function getEffectValue(tower: TowerState, type: TowerEffectDefinition['type']): number {
+  let value = 0;
+  for (let i = 0; i < tower.effects.length; i++) {
+    if (tower.effects[i].type === type) value = Math.max(value, tower.effects[i].value);
+  }
+  return value;
+}
+
+function applyProjectileEffects(
+  state: GameState,
+  enemy: EnemyState,
+  tower: TowerState | null,
+  effects: readonly TowerEffectDefinition[],
+): void {
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
+    if (effect.type === 'armorBreak') enemy.armor = Math.max(-64, enemy.armor - effect.value);
+    else if (effect.type === 'slow') {
+      applySlowEffect(state, enemy, tower, effect);
+    } else if (effect.type === 'poison') {
+      enemy.poisonDps = Math.max(enemy.poisonDps, effect.value);
+      enemy.poisonUntil = state.time + (effect.duration ?? 5);
+    } else if (effect.type === 'burn') {
+      enemy.burnDps = Math.max(enemy.burnDps, effect.value);
+      enemy.burnUntil = state.time + (effect.duration ?? 4);
+    } else if (effect.type === 'stun' && nextRandom(state) < effect.value) {
+      enemy.stunUntil = Math.max(enemy.stunUntil, state.time + (effect.duration ?? 0.4));
+    } else if (effect.type === 'corrupt') {
+      enemy.armor = Math.max(-64, enemy.armor - Math.ceil(effect.value * 20));
+    } else if (effect.type === 'recover' && tower && nextRandom(state) < 0.08) {
+      state.lives = Math.min(state.config.economy.startingLives, state.lives + 1);
+    }
+  }
+}
+
+function applySlowEffect(
+  state: GameState,
+  enemy: EnemyState,
+  tower: TowerState | null,
+  effect: TowerEffectDefinition,
+): void {
+  const until = state.time + (effect.duration ?? 1.5);
+  const multiplier = Math.max(0.25, 1 - effect.value);
+  if (tower?.family === 'sapphire') {
+    const index = tower.tier - 1;
+    if (enemy.sapphireSlowUntil[index] <= state.time) enemy.sapphireSlowMultiplier[index] = 1;
+    enemy.sapphireSlowUntil[index] = Math.max(enemy.sapphireSlowUntil[index], until);
+    enemy.sapphireSlowMultiplier[index] = Math.min(enemy.sapphireSlowMultiplier[index], multiplier);
+    return;
+  }
+  if (enemy.slowUntil <= state.time) enemy.slowMultiplier = 1;
+  enemy.slowUntil = Math.max(enemy.slowUntil, until);
+  enemy.slowMultiplier = Math.min(enemy.slowMultiplier, multiplier);
 }
 
 function tickProjectiles(state: GameState, dt: number): void {
@@ -507,22 +1082,96 @@ function tickProjectiles(state: GameState, dt: number): void {
     const travel = projectile.speed * dt;
     if (distance <= travel || distance < 0.08) {
       projectile.active = false;
-      if (projectile.splashRadius > 0) {
-        for (let e = 0; e < state.enemies.length; e++) {
-          const enemy = state.enemies[e];
-          if (!enemy.alive) continue;
-          const sx = enemy.x + 0.5 - tx;
-          const sy = enemy.y + 0.5 - ty;
-          if (sx * sx + sy * sy <= projectile.splashRadius * projectile.splashRadius) {
-            damageEnemy(state, enemy, projectile.damage, projectile.slow);
-          }
-        }
-      } else {
-        damageEnemy(state, target, projectile.damage, projectile.slow);
-      }
+      const tower = findTowerById(state, projectile.towerId);
+      hitEnemy(state, target, tower, projectile.damage, projectile.damageType, projectile.effects);
+      applyAreaEffects(state, target, tower, projectile);
     } else {
       projectile.x += (dx / distance) * travel;
       projectile.y += (dy / distance) * travel;
+    }
+  }
+}
+
+function hitEnemy(
+  state: GameState,
+  enemy: EnemyState,
+  tower: TowerState | null,
+  damage: number,
+  damageType: DamageType,
+  effects: readonly TowerEffectDefinition[],
+): void {
+  if (!enemy.alive) return;
+  let finalDamage = damage;
+  if (
+    tower &&
+    tower.buffUntil > state.time &&
+    tower.critBuff > 0 &&
+    nextRandom(state) < tower.critBuff
+  ) {
+    finalDamage *= tower.critMultiplier;
+  }
+  applyProjectileEffects(state, enemy, tower, effects);
+  applyRawDamage(state, enemy, finalDamage, tower, damageType);
+}
+
+function applyAreaEffects(
+  state: GameState,
+  target: EnemyState,
+  tower: TowerState | null,
+  projectile: ProjectileState,
+): void {
+  for (let i = 0; i < projectile.effects.length; i++) {
+    const effect = projectile.effects[i];
+    if (effect.type === 'cleave' || effect.type === 'radiation') {
+      const radius = effect.radius ?? 3;
+      for (let e = 0; e < state.enemies.length; e++) {
+        const enemy = state.enemies[e];
+        if (!enemy.alive || enemy.id === target.id) continue;
+        const dx = enemy.x - target.x;
+        const dy = enemy.y - target.y;
+        if (dx * dx + dy * dy <= radius * radius) {
+          hitEnemy(
+            state,
+            enemy,
+            tower,
+            projectile.damage * effect.value,
+            effect.damageType ?? projectile.damageType,
+            projectile.effects,
+          );
+        }
+      }
+    } else if (effect.type === 'split' || effect.type === 'lightning') {
+      let hits = 0;
+      const maxTargets = effect.maxTargets ?? 3;
+      for (let e = 0; e < state.enemies.length && hits < maxTargets; e++) {
+        const enemy = state.enemies[e];
+        if (!enemy.alive || enemy.id === target.id) continue;
+        hitEnemy(
+          state,
+          enemy,
+          tower,
+          projectile.damage * (effect.type === 'lightning' ? effect.value : 0.65),
+          projectile.damageType,
+          projectile.effects,
+        );
+        hits++;
+      }
+    }
+  }
+  if (state.activeSkills.fatalBondsUntil > state.time) {
+    const level = getSkillLevel(state, 'fatalBonds');
+    const radius = [0, 5, 6, 7, 8][level];
+    const bonus = [0, 0.1, 0.15, 0.2, 0.25][level];
+    let bonds = 0;
+    for (let e = 0; e < state.enemies.length && bonds < level + 2; e++) {
+      const enemy = state.enemies[e];
+      if (!enemy.alive || enemy.id === target.id) continue;
+      const dx = enemy.x - target.x;
+      const dy = enemy.y - target.y;
+      if (dx * dx + dy * dy <= radius * radius) {
+        applyRawDamage(state, enemy, projectile.damage * bonus, tower, 'pure');
+        bonds++;
+      }
     }
   }
 }
@@ -541,11 +1190,7 @@ function clearInactiveEnemies(state: GameState): void {
   let write = 0;
   for (let i = 0; i < state.enemies.length; i++) {
     const enemy = state.enemies[i];
-    if (enemy.alive) {
-      state.enemies[write++] = enemy;
-      continue;
-    }
-    if (enemy.reachedExit) continue;
+    if (enemy.alive) state.enemies[write++] = enemy;
   }
   state.enemies.length = write;
 }
@@ -560,29 +1205,197 @@ function completeWaveIfDone(state: GameState): void {
     }
   }
   if (state.enemiesToSpawn > 0 || active) return;
+  awardMvp(state);
   state.activeWaveId = null;
   state.waveIndex += 1;
-  state.gold += 25 + state.waveIndex * 6;
-  unlockFamilyByWave(state);
-  if (state.waveIndex >= state.config.waves.length) {
-    state.status = 'won';
-  } else {
-    state.status = 'ready';
-    beginDraftRound(state);
+  state.gold += 70 + state.waveIndex * 10;
+  updateRank(state);
+  if (!state.stats.completedRequiredWaves && state.waveIndex >= getRequiredWaveCount(state)) {
+    state.stats.completedRequiredWaves = true;
+    completeQuests(state);
+  }
+  state.status = 'ready';
+  state.phase = 'build';
+  beginDraftRound(state);
+}
+
+function awardMvp(state: GameState): void {
+  let winner: TowerState | null = null;
+  let bestDamage = 0;
+  for (let i = 0; i < state.towers.length; i++) {
+    const tower = state.towers[i];
+    if (tower.roundDamage > bestDamage && tower.mvpAwards < MAX_MVP_AWARDS) {
+      bestDamage = tower.roundDamage;
+      winner = tower;
+    }
+  }
+  if (!winner || bestDamage <= 0) return;
+  winner.mvpAwards += 1;
+  state.stats.mvpAwards += 1;
+}
+
+function updateRank(state: GameState): void {
+  const progress = Math.min(1, state.waveIndex / getRequiredWaveCount(state));
+  state.rank.soloRank = Math.max(1, 25 - Math.floor(progress * 22));
+  state.rank.raceRank = Math.max(1, 25 - Math.floor(progress * 18));
+  const rankIndex = Math.min(
+    state.config.ranks.length - 1,
+    Math.floor(progress * state.config.ranks.length),
+  );
+  state.rank.seasonRankId = state.config.ranks[rankIndex].id;
+}
+
+function completeQuests(state: GameState): void {
+  maybeCompleteQuest(state, 'complete-all');
+  if (state.lives === state.config.economy.startingLives) maybeCompleteQuest(state, 'full-health');
+  if (state.stats.oneRoundTowersBuilt > 0) maybeCompleteQuest(state, 'secret-only');
+  const elapsedMinutes = state.time / 60;
+  if (elapsedMinutes <= 40) maybeCompleteQuest(state, 'under-40');
+  if (elapsedMinutes <= 60) maybeCompleteQuest(state, 'under-60');
+  if (state.stats.secretTowersBuilt === 0) maybeCompleteQuest(state, 'no-single-round');
+  if (state.stats.killedGoldenRoshan) maybeCompleteQuest(state, 'kill-golden-roshan');
+  if (state.stats.mvpAwards >= 5) maybeCompleteQuest(state, 'five-mvps');
+  if (state.stats.killedZard) maybeCompleteQuest(state, 'kill-zard');
+}
+
+function maybeCompleteQuest(state: GameState, questId: string): void {
+  const progress = state.quests.get(questId);
+  if (!progress || progress.completed) return;
+  progress.completed = true;
+  progress.progress = 1;
+  for (let i = 0; i < state.config.quests.length; i++) {
+    const quest = state.config.quests[i];
+    if (quest.id !== questId) continue;
+    state.shells += rollInt(state, quest.rewardShells[0], quest.rewardShells[1]);
   }
 }
 
-function unlockFamilyByWave(state: GameState): void {
-  if (state.waveIndex >= 2) state.unlockedFamilies.add('emerald');
-  if (state.waveIndex >= 4) state.unlockedFamilies.add('amethyst');
-  if (state.waveIndex >= 6) state.unlockedFamilies.add('onyx');
+function buySkill(state: GameState, skillId: SkillId): void {
+  const skill = getSkill(state.config, skillId);
+  const level = getSkillLevel(state, skillId);
+  if (level >= 4) return;
+  const goldCost = skill.goldCosts[level] ?? skill.goldCosts[skill.goldCosts.length - 1] ?? 0;
+  if (state.gold < goldCost || state.shells < skill.shellCost) return;
+  state.gold -= goldCost;
+  state.shells -= skill.shellCost;
+  state.skillInventory.set(skillId, level + 1);
+}
+
+function activateSkill(
+  state: GameState,
+  action: Extract<GameAction, { type: 'activateSkill' }>,
+): void {
+  const level = getSkillLevel(state, action.skillId);
+  if (level <= 0) return;
+  const skill = getSkill(state.config, action.skillId);
+  const goldCost = skill.goldCosts[level - 1] ?? 0;
+  if (state.gold < goldCost) return;
+  const tower =
+    action.x !== undefined && action.y !== undefined ? getTowerAt(state, action.x, action.y) : null;
+  if (action.skillId === 'heal')
+    state.lives = Math.min(
+      state.config.economy.startingLives,
+      state.lives + rollInt(state, 1, [10, 13, 15, 16][level - 1]),
+    );
+  else if (action.skillId === 'guard') state.activeSkills.guardUntil = state.time + 60;
+  else if (action.skillId === 'evade') state.activeSkills.evadeUntil = state.time + 300;
+  else if (action.skillId === 'timelapse' && state.phase === 'build') {
+    state.draftQueue.length = 0;
+    for (let i = 0; i < DRAFT_SIZE - state.draft.length; i++)
+      state.draftQueue.push(chooseGemId(state));
+    state.pendingGemId = state.draftQueue.shift() ?? state.pendingGemId;
+  } else if (
+    action.skillId === 'hammer' &&
+    tower &&
+    tower.classification === 'gem' &&
+    tower.tier > 1
+  ) {
+    const gem = getGem(state.config, `${tower.family}-${tower.tier - 1}`);
+    Object.assign(tower, makeTowerFromExisting(state, tower, gem));
+  } else if (action.skillId === 'attackSpeed' && tower) {
+    tower.buffUntil = state.time + 60;
+    tower.attackSpeedBuff = [0.6, 0.8, 1, 1.2][level - 1];
+  } else if (action.skillId === 'aim' && tower) {
+    tower.buffUntil = state.time + 60;
+    tower.rangeBuff = [10, 12, 14, 16][level - 1];
+  } else if (action.skillId === 'crit' && tower) {
+    tower.buffUntil = state.time + 60;
+    tower.critBuff = 0.15;
+    tower.critMultiplier = [4, 6, 8, 10][level - 1];
+  } else if (action.skillId === 'fatalBonds') state.activeSkills.fatalBondsUntil = state.time + 30;
+  else if (action.skillId === 'adjacentSwap' && tower) adjacentSwap(state, tower);
+  else if (
+    action.skillId === 'swap' &&
+    tower &&
+    action.targetX !== undefined &&
+    action.targetY !== undefined
+  ) {
+    const other = getTowerAt(state, action.targetX, action.targetY);
+    if (other) {
+      const tx = tower.x;
+      const ty = tower.y;
+      tower.x = other.x;
+      tower.y = other.y;
+      other.x = tx;
+      other.y = ty;
+      rebuildPaths(state);
+    }
+  } else if (
+    action.skillId === 'candyMaker' &&
+    action.x !== undefined &&
+    action.y !== undefined &&
+    state.activeSkills.candyAvailable
+  ) {
+    if (
+      canPlaceWithoutBlocking(
+        state.config.map,
+        state.occupied,
+        action.x,
+        action.y,
+        getActiveEnemyCells(state),
+      )
+    ) {
+      state.stones.push({ x: action.x, y: action.y });
+      state.activeSkills.candyAvailable = false;
+      rebuildPaths(state);
+    }
+  } else return;
+  state.gold -= goldCost;
+}
+
+function adjacentSwap(state: GameState, tower: TowerState): void {
+  for (let i = 0; i < state.stones.length; i++) {
+    const stone = state.stones[i];
+    if (Math.abs(stone.x - tower.x) <= 1 && Math.abs(stone.y - tower.y) <= 1) {
+      const tx = tower.x;
+      const ty = tower.y;
+      tower.x = stone.x;
+      tower.y = stone.y;
+      stone.x = tx;
+      stone.y = ty;
+      rebuildPaths(state);
+      return;
+    }
+  }
+}
+
+function claimSeasonReward(state: GameState): void {
+  if (state.rank.claimedSeasonReward) return;
+  for (let i = 0; i < state.config.ranks.length; i++) {
+    const rank = state.config.ranks[i];
+    if (rank.id !== state.rank.seasonRankId) continue;
+    state.shells += rank.shells;
+    state.rank.claimedSeasonReward = true;
+    maybeCompleteQuest(state, 'season-award');
+  }
 }
 
 export function tickGame(state: GameState, dt: number): void {
   if (state.status !== 'running') return;
   state.time += dt;
   if (state.activeWaveId) {
-    const wave = state.config.waves[state.waveIndex];
+    const wave = getCurrentWave(state);
+    if (!wave) return;
     state.spawnTimer -= dt;
     while (state.enemiesToSpawn > 0 && state.spawnTimer <= 0) {
       spawnEnemy(state);
@@ -607,9 +1420,6 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
     case 'startWave':
       startWave(state);
       break;
-    case 'buyDraft':
-      buyDraft(state);
-      break;
     case 'keepDraftCandidate':
       keepDraftCandidate(state, action.x, action.y);
       break;
@@ -628,8 +1438,33 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
     case 'combineAt':
       combineAt(state, action.x, action.y);
       break;
-    case 'sellTower':
-      sellTower(state, action.x, action.y);
+    case 'removeStone':
+      removeStone(state, action.x, action.y);
+      break;
+    case 'mergeAt':
+      mergeAt(state, action.x, action.y, action.levels);
+      break;
+    case 'downgradeAt':
+      downgradeAt(state, action.x, action.y);
+      break;
+    case 'toggleTowerStop': {
+      const tower = getTowerAt(state, action.x, action.y);
+      if (tower) tower.stopped = !tower.stopped;
+      break;
+    }
+    case 'setTowerTarget': {
+      const tower = getTowerAt(state, action.x, action.y);
+      if (tower) tower.targetId = action.targetId;
+      break;
+    }
+    case 'buySkill':
+      buySkill(state, action.skillId);
+      break;
+    case 'activateSkill':
+      activateSkill(state, action);
+      break;
+    case 'claimSeasonReward':
+      claimSeasonReward(state);
       break;
     case 'pause':
       if (state.status === 'running') state.status = 'paused';
@@ -638,11 +1473,7 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       if (state.status === 'paused') state.status = 'running';
       break;
     case 'resetRun': {
-      const next = createGame(state.config, {
-        ...defaultSaveState,
-        discoveredRecipes: Array.from(state.discoveredRecipes),
-        unlockedFamilies: Array.from(state.unlockedFamilies),
-      });
+      const next = createGame(state.config, commitProgressToSave(state, toSaveState(state)));
       Object.assign(state, next);
       break;
     }
@@ -653,45 +1484,75 @@ export function createSnapshot(state: GameState): GameSnapshot {
   const selectedTower = state.selectedTile
     ? getTowerAt(state, state.selectedTile.x, state.selectedTile.y)
     : null;
-  const activeEnemies = countActiveEnemies(state);
+  const selectedTowerTarget = selectedTower?.targetId
+    ? findEnemyById(state, selectedTower.targetId)
+    : null;
+  const selectedStone =
+    state.selectedTile && getStoneAt(state, state.selectedTile.x, state.selectedTile.y) >= 0;
+  const currentWave = getWaveAtIndex(state, state.waveIndex);
+  const nextWave = getWaveAtIndex(state, state.waveIndex + 1);
   return {
     status: state.status,
+    phase: state.phase,
     gold: state.gold,
+    shells: state.shells,
     lives: state.lives,
     score: state.score,
     wave: state.waveIndex + 1,
-    totalWaves: state.config.waves.length,
-    activeEnemies,
+    totalWaves: getRequiredWaveCount(state),
+    activeEnemies: countActiveEnemies(state),
     towers: state.towers.length,
+    stones: state.stones.length,
     draft: state.draft,
     draftRemaining: state.pendingGemId ? state.draftQueue.length + 1 : 0,
     pendingGemId: state.pendingGemId,
     selectedTile: state.selectedTile,
     selectedTower,
+    selectedTowerTarget,
     hoverTile: state.hoverTile,
+    currentWave,
+    currentWaveSkills: currentWave ? getWaveSkills(state, currentWave) : [],
+    nextWave,
+    requiredWavesCleared: state.stats.completedRequiredWaves,
     discoveredRecipes: Array.from(state.discoveredRecipes),
-    unlockedFamilies: Array.from(state.unlockedFamilies),
+    unlockedSecrets: Array.from(state.unlockedSecrets),
+    skills: Array.from(state.skillInventory, ([id, level]) => ({ id, level })),
+    quests: Array.from(state.quests.values()),
+    rank: state.rank,
     canStartWave:
+      state.phase === 'attack' &&
       !state.activeWaveId &&
       state.status !== 'lost' &&
-      state.status !== 'won' &&
       !state.pendingGemId &&
       state.draft.length === 0,
     canKeepDraft: !state.pendingGemId && state.draft.length === DRAFT_SIZE,
-    canBuyDraft: canBeginDraftRound(state),
+    canMerge: Boolean(
+      selectedTower && selectedTower.classification === 'gem' && selectedTower.tier < 6,
+    ),
+    canMergePlus: Boolean(
+      selectedTower && selectedTower.classification === 'gem' && selectedTower.tier < 5,
+    ),
+    canDowngrade: Boolean(
+      selectedTower &&
+      selectedTower.classification === 'gem' &&
+      selectedTower.tier > 1 &&
+      state.gold >= state.config.economy.downgradeCost,
+    ),
+    canRemoveStone: Boolean(selectedStone),
     message: getMessage(state),
   };
 }
 
 function getMessage(state: GameState): string {
-  if (state.status === 'won') return 'The crucible is quiet. Victory is sealed.';
-  if (state.status === 'lost') return 'The ward has cracked. Rebuild the bastion.';
+  if (state.status === 'won') return 'Wave 50 cleared. The Gem Castle stands.';
+  if (state.status === 'lost') return 'The Gem Castle has fallen. Rebuild the maze.';
   if (state.pendingGemId)
-    return `Place candidate ${state.draft.length + 1} of ${DRAFT_SIZE}, then choose one gem to keep.`;
+    return `Build phase: place candidate ${state.draft.length + 1} of ${DRAFT_SIZE}.`;
   if (state.draft.length === DRAFT_SIZE)
-    return 'Choose one of the five placed gems to keep. The other four harden into maze stones.';
-  if (state.activeWaveId) return 'Wave in motion. Shape, fuse, and hold.';
-  return 'Keep one tower from the automatic draft, then ring the wave bell.';
+    return 'Select one gem to keep, or combine a one-round recipe.';
+  if (state.activeWaveId) return 'Attack phase: towers may be stopped or focused for MVP control.';
+  if (state.stats.completedRequiredWaves) return 'Wave 50 cleared. Repeat waves are open.';
+  return 'Build resolved. Start the next wave when the maze is ready.';
 }
 
 function countActiveEnemies(state: GameState): number {
@@ -706,16 +1567,37 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function toSaveState(state: GameState): SaveState {
+  return {
+    version: 2,
+    bestWave: Math.min(state.waveIndex, getRequiredWaveCount(state)),
+    wins: state.stats.completedRequiredWaves || state.status === 'won' ? 1 : 0,
+    shells: state.shells,
+    discoveredRecipes: Array.from(state.discoveredRecipes),
+    unlockedSecrets: Array.from(state.unlockedSecrets),
+    skillInventory: Array.from(state.skillInventory, ([id, level]) => ({ id, level })),
+    quests: Array.from(state.quests.values()),
+    rank: state.rank,
+    settings: defaultSaveState.settings,
+  };
+}
+
 export function commitProgressToSave(state: GameState, save: SaveState): SaveState {
   const bestWave = Math.max(
     save.bestWave,
-    Math.min(state.waveIndex + 1, state.config.waves.length),
+    Math.min(state.waveIndex + 1, getRequiredWaveCount(state)),
   );
+  const completedRequiredWaves = state.stats.completedRequiredWaves || state.status === 'won';
   return {
     ...save,
+    version: 2,
     bestWave,
-    wins: save.wins + (state.status === 'won' ? 1 : 0),
+    wins: save.wins + (completedRequiredWaves ? 1 : 0),
+    shells: state.shells,
     discoveredRecipes: Array.from(state.discoveredRecipes),
-    unlockedFamilies: Array.from(state.unlockedFamilies),
+    unlockedSecrets: Array.from(state.unlockedSecrets),
+    skillInventory: Array.from(state.skillInventory, ([id, level]) => ({ id, level })),
+    quests: Array.from(state.quests.values()),
+    rank: state.rank,
   };
 }

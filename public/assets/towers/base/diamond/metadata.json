@@ -1,0 +1,10 @@
+{
+  "id": "diamond",
+  "displayName": "Diamond",
+  "assetType": "tower",
+  "category": "base",
+  "sprite": "sprite.png",
+  "icon": "icon.png",
+  "animation": "animation.json",
+  "notes": ""
+}

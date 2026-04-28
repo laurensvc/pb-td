@@ -113,6 +113,40 @@ export function findPath(
   return path;
 }
 
+export function findCheckpointPaths(
+  map: MapDefinition,
+  occupied: Int16Array,
+  start: GridPoint = map.entrance,
+): GridPoint[][] {
+  const targets = map.checkpoints.length > 0 ? map.checkpoints : [map.exit];
+  const paths: GridPoint[][] = [];
+  let cursor = start;
+  for (let i = 0; i < targets.length; i++) {
+    const path = findPath(map, occupied, cursor, targets[i]);
+    if (path.length === 0) return [];
+    paths.push(path);
+    cursor = targets[i];
+  }
+  if (cursor.x !== map.exit.x || cursor.y !== map.exit.y) {
+    const path = findPath(map, occupied, cursor, map.exit);
+    if (path.length === 0) return [];
+    paths.push(path);
+  }
+  return paths;
+}
+
+export function flattenCheckpointPaths(paths: readonly GridPoint[][]): GridPoint[] {
+  const result: GridPoint[] = [];
+  for (let i = 0; i < paths.length; i++) {
+    const segment = paths[i];
+    for (let p = 0; p < segment.length; p++) {
+      if (result.length > 0 && p === 0) continue;
+      result.push(segment[p]);
+    }
+  }
+  return result;
+}
+
 export function canPlaceWithoutBlocking(
   map: MapDefinition,
   occupied: Int16Array,
@@ -123,7 +157,7 @@ export function canPlaceWithoutBlocking(
   if (!isBuildable(map, occupied, x, y)) return false;
   const index = toIndex(x, y, map.width);
   occupied[index] = -2;
-  const mainPath = findPath(map, occupied, map.entrance, map.exit);
+  const mainPath = findCheckpointPaths(map, occupied);
   if (mainPath.length === 0) {
     occupied[index] = 0;
     return false;

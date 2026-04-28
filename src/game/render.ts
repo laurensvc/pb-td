@@ -1,4 +1,5 @@
 import { canPlaceWithoutBlocking, isBuildable, toIndex } from './pathfinding';
+import { drawTowerBaseImage, getTowerBaseImage } from './towerBaseImages';
 import { canDrawImage, getAnimationFrame, getSpriteAtlas } from './spriteAtlas';
 import type { GameState, GridPoint, RenderViewState } from './types';
 
@@ -39,6 +40,27 @@ export function screenToTile(
   if (tileX < 0 || tileY < 0 || tileX >= state.config.map.width || tileY >= state.config.map.height)
     return null;
   return { x: tileX, y: tileY };
+}
+
+export function screenToEnemyId(
+  view: RenderViewState,
+  state: GameState,
+  clientX: number,
+  clientY: number,
+  rect: DOMRect,
+): number | null {
+  const dpr = window.devicePixelRatio || 1;
+  const x = ((clientX - rect.left) * dpr - view.offsetX) / view.cellSize;
+  const y = ((clientY - rect.top) * dpr - view.offsetY) / view.cellSize;
+  const hitRadiusSq = 0.42 * 0.42;
+  for (let i = state.enemies.length - 1; i >= 0; i--) {
+    const enemy = state.enemies[i];
+    if (!enemy.alive) continue;
+    const dx = enemy.x + 0.5 - x;
+    const dy = enemy.y + 0.5 - y;
+    if (dx * dx + dy * dy <= hitRadiusSq) return enemy.id;
+  }
+  return null;
 }
 
 export function renderGame(
@@ -103,8 +125,34 @@ function drawBoard(ctx: CanvasRenderingContext2D, state: GameState, view: Render
     ctx.stroke();
   }
   drawGate(ctx, map.entrance.x, map.entrance.y, view.cellSize, '#55b8a9');
+  for (let i = 0; i < map.checkpoints.length; i++) {
+    drawCheckpoint(ctx, map.checkpoints[i].x, map.checkpoints[i].y, view.cellSize, i + 1);
+  }
   drawGate(ctx, map.exit.x, map.exit.y, view.cellSize, '#c87932');
   ctx.restore();
+}
+
+function drawCheckpoint(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  cellSize: number,
+  label: number,
+): void {
+  const cx = x * cellSize + cellSize / 2;
+  const cy = y * cellSize + cellSize / 2;
+  ctx.fillStyle = 'rgba(250, 204, 21, 0.22)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, cellSize * 0.34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = Math.max(2, cellSize * 0.045);
+  ctx.stroke();
+  ctx.fillStyle = '#fff7bf';
+  ctx.font = `${Math.max(10, cellSize * 0.24)}px Cinzel`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(label), cx, cy);
 }
 
 function drawBlockedTile(
@@ -164,22 +212,22 @@ function drawGate(
 }
 
 function drawPath(ctx: CanvasRenderingContext2D, state: GameState, view: RenderViewState): void {
-  if (state.path.length <= 1) return;
+  if (state.currentPath.length <= 1) return;
   ctx.save();
   ctx.translate(view.offsetX, view.offsetY);
-  ctx.strokeStyle = 'rgba(215, 174, 100, 0.48)';
+  ctx.strokeStyle = 'rgba(250, 204, 21, 0.5)';
   ctx.lineWidth = Math.max(3, view.cellSize * 0.13);
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.beginPath();
   ctx.moveTo(
-    state.path[0].x * view.cellSize + view.cellSize / 2,
-    state.path[0].y * view.cellSize + view.cellSize / 2,
+    state.currentPath[0].x * view.cellSize + view.cellSize / 2,
+    state.currentPath[0].y * view.cellSize + view.cellSize / 2,
   );
-  for (let i = 1; i < state.path.length; i++) {
+  for (let i = 1; i < state.currentPath.length; i++) {
     ctx.lineTo(
-      state.path[i].x * view.cellSize + view.cellSize / 2,
-      state.path[i].y * view.cellSize + view.cellSize / 2,
+      state.currentPath[i].x * view.cellSize + view.cellSize / 2,
+      state.currentPath[i].y * view.cellSize + view.cellSize / 2,
     );
   }
   ctx.stroke();
@@ -254,6 +302,13 @@ function drawDraftCandidates(
     const color = getGemColor(state, candidate.gemId);
     const cx = candidate.x * view.cellSize + view.cellSize / 2;
     const cy = candidate.y * view.cellSize + view.cellSize / 2;
+    const basePortrait = getTowerBaseImage(candidate.gemId);
+    if (basePortrait) {
+      ctx.globalAlpha = state.pendingGemId ? 0.78 : 1;
+      drawTowerBaseImage(ctx, basePortrait, cx, cy, view.cellSize * 0.9);
+      ctx.globalAlpha = 1;
+      continue;
+    }
     if (canDrawImage(gemImage)) {
       const sprite = atlas.metadata.gems[candidate.gemId];
       if (sprite) {
@@ -285,7 +340,7 @@ function drawTowers(ctx: CanvasRenderingContext2D, state: GameState, view: Rende
     const tower = state.towers[i];
     const cx = tower.x * view.cellSize + view.cellSize / 2;
     const cy = tower.y * view.cellSize + view.cellSize / 2;
-    const radius = view.cellSize * (0.2 + tower.tier * 0.025);
+    const radius = view.cellSize * (0.18 + tower.tier * 0.025);
     if (state.selectedTile?.x === tower.x && state.selectedTile.y === tower.y) {
       ctx.strokeStyle = 'rgba(87, 196, 180, 0.42)';
       ctx.lineWidth = Math.max(1, view.cellSize * 0.025);
@@ -293,14 +348,36 @@ function drawTowers(ctx: CanvasRenderingContext2D, state: GameState, view: Rende
       ctx.arc(cx, cy, tower.range * view.cellSize, 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (canDrawImage(gemImage)) {
+    if (tower.mvpAwards > 0) {
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.7)';
+      ctx.lineWidth = Math.max(2, view.cellSize * 0.04);
+      ctx.beginPath();
+      ctx.arc(cx, cy, view.cellSize * (0.34 + tower.mvpAwards * 0.018), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    const basePortrait = getTowerBaseImage(tower.gemId);
+    if (basePortrait) {
+      drawTowerBaseImage(ctx, basePortrait, cx, cy, view.cellSize);
+    } else if (canDrawImage(gemImage)) {
       const sprite = atlas.metadata.gems[tower.gemId];
       if (sprite) {
         drawSprite(ctx, gemImage, sprite.frame, cx, cy, view.cellSize);
-        continue;
+      } else {
+        drawTowerFallback(ctx, cx, cy, radius, tower.color);
       }
+    } else {
+      drawTowerFallback(ctx, cx, cy, radius, tower.color);
     }
-    drawTowerFallback(ctx, cx, cy, radius, tower.color);
+    if (tower.stopped) {
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = Math.max(2, view.cellSize * 0.045);
+      ctx.beginPath();
+      ctx.moveTo(cx - view.cellSize * 0.22, cy - view.cellSize * 0.22);
+      ctx.lineTo(cx + view.cellSize * 0.22, cy + view.cellSize * 0.22);
+      ctx.moveTo(cx + view.cellSize * 0.22, cy - view.cellSize * 0.22);
+      ctx.lineTo(cx - view.cellSize * 0.22, cy + view.cellSize * 0.22);
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }
@@ -310,11 +387,15 @@ function drawEnemies(ctx: CanvasRenderingContext2D, state: GameState, view: Rend
   ctx.translate(view.offsetX, view.offsetY);
   const atlas = getSpriteAtlas();
   const monsterImage = atlas.images.monsters;
+  const selectedTargetId = getSelectedTargetId(state);
   for (let i = 0; i < state.enemies.length; i++) {
     const enemy = state.enemies[i];
     if (!enemy.alive) continue;
     const cx = enemy.x * view.cellSize + view.cellSize / 2;
     const cy = enemy.y * view.cellSize + view.cellSize / 2;
+    const targeted = enemy.id === selectedTargetId;
+    if (targeted) drawTargetIndicator(ctx, cx, cy, view.cellSize);
+    if (enemy.invisible) ctx.globalAlpha = 0.48;
     if (canDrawImage(monsterImage)) {
       const sprite = atlas.metadata.monsters[enemy.definitionId];
       const animation = sprite?.animations.walk;
@@ -328,6 +409,9 @@ function drawEnemies(ctx: CanvasRenderingContext2D, state: GameState, view: Rend
           view.cellSize * 0.92,
         );
         drawHealthBar(ctx, cx, cy, view.cellSize, enemy.hp / enemy.maxHp);
+        drawEnemyBadges(ctx, enemy, cx, cy, view.cellSize);
+        ctx.globalAlpha = 1;
+        if (targeted) drawTargetIndicator(ctx, cx, cy, view.cellSize);
         continue;
       }
     }
@@ -340,8 +424,86 @@ function drawEnemies(ctx: CanvasRenderingContext2D, state: GameState, view: Rend
     ctx.lineWidth = Math.max(1, view.cellSize * 0.025);
     ctx.stroke();
     drawHealthBar(ctx, cx, cy - radius * 0.55, view.cellSize, enemy.hp / enemy.maxHp);
+    drawEnemyBadges(ctx, enemy, cx, cy, view.cellSize);
+    ctx.globalAlpha = 1;
+    if (targeted) drawTargetIndicator(ctx, cx, cy, view.cellSize);
   }
   ctx.restore();
+}
+
+function getSelectedTargetId(state: GameState): number | null {
+  const tile = state.selectedTile;
+  if (!tile) return null;
+  for (let i = 0; i < state.towers.length; i++) {
+    const tower = state.towers[i];
+    if (tower.x === tile.x && tower.y === tile.y) return tower.targetId;
+  }
+  return null;
+}
+
+function drawTargetIndicator(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+): void {
+  const radius = cellSize * 0.43;
+  const notch = cellSize * 0.16;
+  ctx.save();
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = Math.max(2, cellSize * 0.045);
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - radius - notch, cy);
+  ctx.lineTo(cx - radius + notch, cy);
+  ctx.moveTo(cx + radius - notch, cy);
+  ctx.lineTo(cx + radius + notch, cy);
+  ctx.moveTo(cx, cy - radius - notch);
+  ctx.lineTo(cx, cy - radius + notch);
+  ctx.moveTo(cx, cy + radius - notch);
+  ctx.lineTo(cx, cy + radius + notch);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawEnemyBadges(
+  ctx: CanvasRenderingContext2D,
+  enemy: { flying: boolean; skills: readonly string[]; invisible: boolean },
+  cx: number,
+  cy: number,
+  cellSize: number,
+): void {
+  let offset = 0;
+  if (enemy.flying) offset = drawBadge(ctx, cx, cy, cellSize, offset, 'F', '#38bdf8');
+  if (enemy.invisible) offset = drawBadge(ctx, cx, cy, cellSize, offset, 'I', '#c084fc');
+  if (enemy.skills.includes('magicImmune'))
+    offset = drawBadge(ctx, cx, cy, cellSize, offset, 'M', '#f472b6');
+  if (enemy.skills.includes('physicalImmune'))
+    drawBadge(ctx, cx, cy, cellSize, offset, 'P', '#f97316');
+}
+
+function drawBadge(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  offset: number,
+  label: string,
+  color: string,
+): number {
+  const size = Math.max(10, cellSize * 0.22);
+  const x = cx - cellSize * 0.38 + offset * (size + 2);
+  const y = cy + cellSize * 0.2;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, size, size);
+  ctx.fillStyle = '#101014';
+  ctx.font = `${Math.max(8, cellSize * 0.15)}px Alegreya Sans`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + size / 2, y + size / 2);
+  return offset + 1;
 }
 
 function drawSprite(

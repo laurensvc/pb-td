@@ -23,6 +23,7 @@ export function useGameController(): GameController {
   const speedRef = useRef(useUiStore.getState().speed);
   const gameRef = useRef(createGame(gameConfig, save));
   const terminalStatusRef = useRef<string | null>(null);
+  const requiredClearSavedRef = useRef(gameRef.current.stats.completedRequiredWaves);
 
   useEffect(() => {
     const unsubscribe = useUiStore.subscribe((state) => {
@@ -62,8 +63,13 @@ export function useGameController(): GameController {
       if (snapshotTimer > 0.12) {
         const game = gameRef.current;
         setSnapshot(createSnapshot(game));
+        if (!game.stats.completedRequiredWaves) requiredClearSavedRef.current = false;
+        if (game.stats.completedRequiredWaves && !requiredClearSavedRef.current) {
+          requiredClearSavedRef.current = true;
+          setSave(commitProgressToSave(game, useSaveStore.getState().save));
+        }
         if (
-          (game.status === 'won' || game.status === 'lost') &&
+          (game.status === 'won' || (game.status === 'lost' && !game.stats.completedRequiredWaves)) &&
           terminalStatusRef.current !== game.status
         ) {
           terminalStatusRef.current = game.status;

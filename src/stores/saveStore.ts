@@ -9,6 +9,27 @@ interface SaveStore {
   resetSave: () => void;
 }
 
+function mergePersistedSave(value: Partial<SaveState> | undefined): SaveState {
+  const v = value ?? {};
+  return {
+    ...defaultSaveState,
+    ...v,
+    version: 2,
+    shells: v.shells ?? defaultSaveState.shells,
+    bestWave: v.bestWave ?? defaultSaveState.bestWave,
+    wins: v.wins ?? defaultSaveState.wins,
+    discoveredRecipes: v.discoveredRecipes ?? defaultSaveState.discoveredRecipes,
+    unlockedSecrets: v.unlockedSecrets ?? defaultSaveState.unlockedSecrets,
+    skillInventory: v.skillInventory ?? defaultSaveState.skillInventory,
+    quests: v.quests ?? defaultSaveState.quests,
+    rank: v.rank ?? defaultSaveState.rank,
+    settings: {
+      ...defaultSaveState.settings,
+      ...v.settings,
+    },
+  };
+}
+
 export const useSaveStore = create<SaveStore>()(
   persist(
     (set) => ({
@@ -18,7 +39,14 @@ export const useSaveStore = create<SaveStore>()(
     }),
     {
       name: 'prism-bastion-save-v1',
-      version: 1,
+      /** Bump when migrate must normalize stored `save` (e.g. repair partial/corrupt shapes). */
+      version: 3,
+      /** Persist only `save`; migrate receives that object wrapped as `{ state: { save } }` → here `persisted` is `{ save?: … }`. */
+      partialize: (state) => ({ save: state.save }),
+      migrate: (persisted) => {
+        const root = (persisted ?? {}) as { save?: Partial<SaveState> };
+        return { save: mergePersistedSave(root.save) };
+      },
     },
   ),
 );

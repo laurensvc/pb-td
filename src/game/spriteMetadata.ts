@@ -1,3 +1,6 @@
+import { gameConfig } from './config';
+import type { GemFamily } from './types';
+
 export type SpriteSheetId = 'monsters' | 'gems';
 
 export interface SpriteRect {
@@ -29,7 +32,8 @@ export interface SpriteMetadata {
   gems: Record<string, GemSpriteMeta>;
 }
 
-const frameSize = 64;
+/** Monster cells stay on a 64px grid. */
+const monsterFrameSize = 64;
 const monsterIds = ['cinderling', 'slag-runner', 'iron-wight', 'glass-hex', 'obelisk'] as const;
 const monsterAnimationColumns = {
   idle: [0, 1],
@@ -43,39 +47,48 @@ const monsterDurations = {
   attack: 95,
   death: 130,
 } as const;
-const gemIds = [
-  'ruby-1',
-  'sapphire-1',
-  'topaz-1',
-  'emerald-1',
-  'amethyst-1',
-  'onyx-1',
-  'ruby-2',
-  'sapphire-2',
-  'topaz-2',
-  'emerald-2',
-  'amethyst-2',
-  'onyx-2',
-  'ruby-3',
-  'sapphire-3',
-  'topaz-3',
-  'emerald-3',
-  'amethyst-3',
-  'onyx-3',
-  'ruby-4',
-  'sapphire-4',
-  'topaz-4',
-  'emerald-4',
-  'amethyst-4',
-  'onyx-4',
-  'prism-lens',
-  'verdant-forge',
-  'night-crucible',
-  'sunward-core',
-] as const;
 
-function rect(col: number, row: number): SpriteRect {
-  return { x: col * frameSize, y: row * frameSize, w: frameSize, h: frameSize };
+/** `public/assets/sprites/gems.png` — 7×4 framed gems (see script / atlas layout). */
+const GEM_SHEET_W = 1448;
+const GEM_SHEET_H = 1086;
+const GEM_COLS = 7;
+const GEM_ROWS = 4;
+
+/** Map each gem family to a column in the sheet (7 columns; aquamarine shares sapphire’s blue column). */
+const FAMILY_TO_COL: Record<GemFamily, number> = {
+  ruby: 0,
+  sapphire: 1,
+  aquamarine: 1,
+  topaz: 2,
+  emerald: 3,
+  amethyst: 4,
+  diamond: 5,
+  opal: 6,
+};
+
+function monsterRect(col: number, row: number): SpriteRect {
+  return {
+    x: col * monsterFrameSize,
+    y: row * monsterFrameSize,
+    w: monsterFrameSize,
+    h: monsterFrameSize,
+  };
+}
+
+function gemCellRect(col: number, row: number): SpriteRect {
+  const baseW = Math.floor(GEM_SHEET_W / GEM_COLS);
+  const x = col * baseW;
+  const w = col === GEM_COLS - 1 ? GEM_SHEET_W - x : baseW;
+  const baseH = Math.floor(GEM_SHEET_H / GEM_ROWS);
+  const y = row * baseH;
+  const h = row === GEM_ROWS - 1 ? GEM_SHEET_H - y : baseH;
+  return { x, y, w, h };
+}
+
+function gemFrameForDefinition(gem: { family: GemFamily; tier: number }): SpriteRect {
+  const col = FAMILY_TO_COL[gem.family];
+  const row = Math.min(Math.max(gem.tier - 1, 0), GEM_ROWS - 1);
+  return gemCellRect(col, row);
 }
 
 function createMonsterMeta(row: number): MonsterSpriteMeta {
@@ -83,51 +96,56 @@ function createMonsterMeta(row: number): MonsterSpriteMeta {
     sheet: 'monsters',
     animations: {
       idle: {
-        frames: monsterAnimationColumns.idle.map((col) => rect(col, row)),
+        frames: monsterAnimationColumns.idle.map((col) => monsterRect(col, row)),
         frameDurationMs: monsterDurations.idle,
       },
       walk: {
-        frames: monsterAnimationColumns.walk.map((col) => rect(col, row)),
+        frames: monsterAnimationColumns.walk.map((col) => monsterRect(col, row)),
         frameDurationMs: monsterDurations.walk,
       },
       attack: {
-        frames: monsterAnimationColumns.attack.map((col) => rect(col, row)),
+        frames: monsterAnimationColumns.attack.map((col) => monsterRect(col, row)),
         frameDurationMs: monsterDurations.attack,
       },
       death: {
-        frames: monsterAnimationColumns.death.map((col) => rect(col, row)),
+        frames: monsterAnimationColumns.death.map((col) => monsterRect(col, row)),
         frameDurationMs: monsterDurations.death,
       },
     },
   };
 }
 
-function createMetadata(): SpriteMetadata {
-  const monsters: Record<string, MonsterSpriteMeta> = {};
+function buildGemSprites(): Record<string, GemSpriteMeta> {
   const gems: Record<string, GemSpriteMeta> = {};
-  for (let i = 0; i < monsterIds.length; i++) monsters[monsterIds[i]] = createMonsterMeta(i);
-  for (let i = 0; i < gemIds.length; i++) {
-    gems[gemIds[i]] = {
+  for (let i = 0; i < gameConfig.gems.length; i++) {
+    const gem = gameConfig.gems[i];
+    gems[gem.id] = {
       sheet: 'gems',
-      frame: rect(i % 7, Math.floor(i / 7)),
+      frame: gemFrameForDefinition(gem),
     };
   }
+  return gems;
+}
+
+function createMetadata(): SpriteMetadata {
+  const monsters: Record<string, MonsterSpriteMeta> = {};
+  for (let i = 0; i < monsterIds.length; i++) monsters[monsterIds[i]] = createMonsterMeta(i);
   return {
-    frameSize,
+    frameSize: monsterFrameSize,
     sheets: {
       monsters: {
         src: '/assets/sprites/monsters.png',
-        width: frameSize * 13,
-        height: frameSize * monsterIds.length,
+        width: monsterFrameSize * 13,
+        height: monsterFrameSize * monsterIds.length,
       },
       gems: {
         src: '/assets/sprites/gems.png',
-        width: frameSize * 7,
-        height: frameSize * 4,
+        width: GEM_SHEET_W,
+        height: GEM_SHEET_H,
       },
     },
     monsters,
-    gems,
+    gems: buildGemSprites(),
   };
 }
 

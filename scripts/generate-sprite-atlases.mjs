@@ -169,53 +169,174 @@ function line(image, x1, y1, x2, y2, color) {
   }
 }
 
+function ellipse(image, cx, cy, rx, ry, color, alpha = 255) {
+  for (let y = -ry; y <= ry; y++) {
+    for (let x = -rx; x <= rx; x++) {
+      if ((x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1) {
+        setPixel(image, cx + x, cy + y, color, alpha);
+      }
+    }
+  }
+}
+
+function circleO(image, cx, cy, r, outline, fill) {
+  circle(image, cx, cy, r + 2, outline);
+  circle(image, cx, cy, r, fill);
+}
+
+function rectO(image, x, y, w, h, outline, fill) {
+  rect(image, x - 2, y - 2, w + 4, h + 4, outline);
+  rect(image, x, y, w, h, fill);
+}
+
+function diamondO(image, cx, cy, rx, ry, outline, fill) {
+  diamond(image, cx, cy, rx + 2, ry + 2, outline);
+  diamond(image, cx, cy, rx, ry, fill);
+}
+
+function spark(image, x, y, color) {
+  rect(image, x, y - 2, 1, 5, color);
+  rect(image, x - 2, y, 5, 1, color);
+}
+
+function flame(image, x, y, size, dark, mid, light) {
+  diamond(image, x, y, size, size + 3, dark);
+  diamond(image, x + 1, y - 1, Math.max(2, size - 3), size, mid);
+  diamond(image, x + 2, y - 2, Math.max(1, size - 6), Math.max(2, size - 3), light);
+}
+
+function shadow(image, ox, oy, width = 36) {
+  ellipse(image, ox + 32, oy + 53, Math.floor(width / 2), 5, '#090807', 150);
+}
+
 function drawMonster(image, ox, oy, id, animation, frame) {
   const p = monsterPalette[id];
-  const bob = animation === 'walk' ? [0, -2, 1, -1][frame] : animation === 'attack' ? -1 : 0;
+  const outline = '#080706';
+  const bob = animation === 'walk' ? [0, -2, 1, -1][frame] : animation === 'attack' ? -2 : 0;
   const lean = animation === 'attack' ? frame * 2 : animation === 'walk' ? [0, 1, -1, 1][frame] : 0;
+  shadow(image, ox, oy, id === 'obelisk' ? 46 : id === 'iron-wight' ? 42 : 34);
   if (animation === 'death') {
-    const sink = frame * 5;
-    rect(image, ox + 20, oy + 42 + sink, 24, Math.max(4, 14 - frame * 3), p[1]);
-    rect(image, ox + 18, oy + 40 + sink, 28, 4, p[2]);
-    for (let i = 0; i < 6 - frame; i++) circle(image, ox + 16 + i * 7, oy + 34 - i, 2, p[3]);
+    drawDeath(image, ox, oy, id, frame, p);
     return;
   }
   if (id === 'obelisk') {
-    rect(image, ox + 19 + lean, oy + 20 + bob, 26, 30, p[1]);
-    diamond(image, ox + 32 + lean, oy + 17 + bob, 14, 13, p[2]);
-    rect(image, ox + 26 + lean, oy + 25 + bob, 12, 22, p[3]);
-    rect(image, ox + 14, oy + 50, 36, 7, p[0]);
+    drawObelisk(image, ox, oy, animation, frame, bob, p, outline);
   } else if (id === 'glass-hex') {
-    diamond(image, ox + 32 + lean, oy + 25 + bob, 16, 18, p[2]);
-    circle(image, ox + 32 + lean, oy + 29 + bob, 7, p[1]);
-    line(image, ox + 20 + lean, oy + 36 + bob, ox + 13, oy + 47, p[2]);
-    line(image, ox + 44 + lean, oy + 36 + bob, ox + 51, oy + 47, p[2]);
-    rect(image, ox + 24, oy + 47, 5, 9, p[1]);
-    rect(image, ox + 36, oy + 47, 5, 9, p[1]);
+    drawGlassHex(image, ox, oy, animation, frame, bob, lean, p, outline);
   } else if (id === 'iron-wight') {
-    rect(image, ox + 21 + lean, oy + 21 + bob, 24, 27, p[1]);
-    rect(image, ox + 24 + lean, oy + 15 + bob, 18, 14, p[2]);
-    rect(image, ox + 29 + lean, oy + 31 + bob, 7, 10, p[3]);
-    rect(image, ox + 14 + lean, oy + 29 + bob, 8, 18, p[2]);
-    rect(image, ox + 44 + lean, oy + 29 + bob, 8, 18, p[2]);
-    rect(image, ox + 21, oy + 48, 7, 8, p[0]);
-    rect(image, ox + 39, oy + 48, 7, 8, p[0]);
+    drawIronWight(image, ox, oy, animation, frame, bob, lean, p, outline);
   } else if (id === 'slag-runner') {
-    rect(image, ox + 18 + lean, oy + 27 + bob, 31, 16, p[1]);
-    circle(image, ox + 47 + lean, oy + 27 + bob, 9, p[2]);
-    rect(image, ox + 20, oy + 43 + bob, 7, 11, p[3]);
-    rect(image, ox + 39, oy + 43 + bob, 7, 11, p[3]);
-    if (animation === 'walk') rect(image, ox + 7, oy + 31 + frame, 12, 4, p[2], 210);
+    drawSlagRunner(image, ox, oy, animation, frame, bob, lean, p, outline);
   } else {
-    circle(image, ox + 32 + lean, oy + 27 + bob, 13, p[2]);
-    rect(image, ox + 22 + lean, oy + 34 + bob, 22, 15, p[1]);
-    rect(image, ox + 19 + lean, oy + 13 + bob, 6, 12, p[3]);
-    rect(image, ox + 39 + lean, oy + 13 + bob, 6, 12, p[3]);
-    rect(image, ox + 24, oy + 48, 6, 8, p[0]);
-    rect(image, ox + 37, oy + 48, 6, 8, p[0]);
-    if (animation === 'attack') circle(image, ox + 51 + frame * 2, oy + 28, 4 + frame, p[3]);
+    drawCinderling(image, ox, oy, animation, frame, bob, lean, p, outline);
   }
-  setPixel(image, ox + 36 + lean, oy + 25 + bob, '#fff6d7');
+}
+
+function drawDeath(image, ox, oy, id, frame, p) {
+  const collapse = frame * 4;
+  if (id === 'glass-hex') {
+    for (let i = 0; i < 7 - frame; i++)
+      diamondO(image, ox + 14 + i * 7, oy + 43 - i, 3, 6, '#071016', p[2]);
+  } else if (id === 'obelisk') {
+    for (let i = 0; i < 8 - frame; i++)
+      rectO(image, ox + 10 + i * 6, oy + 46 - i, 5, 8, '#080706', p[1]);
+    flame(image, ox + 32, oy + 40 + collapse, 8, p[0], p[2], p[3]);
+  } else {
+    rectO(image, ox + 18, oy + 42 + collapse, 30, Math.max(5, 13 - frame * 2), '#080706', p[1]);
+    flame(image, ox + 34, oy + 35 + collapse, Math.max(3, 8 - frame), p[0], p[2], p[3]);
+  }
+  for (let i = 0; i < 4 - frame; i++) spark(image, ox + 12 + i * 13, oy + 24 + i * 3, p[3]);
+}
+
+function drawCinderling(image, ox, oy, animation, frame, bob, lean, p, outline) {
+  const wing = animation === 'walk' ? [0, 2, -1, 1][frame] : 0;
+  diamondO(image, ox + 20 + lean, oy + 28 + bob + wing, 12, 9, outline, '#6a1c10');
+  diamondO(image, ox + 45 + lean, oy + 28 + bob - wing, 10, 8, outline, '#6a1c10');
+  circleO(image, ox + 33 + lean, oy + 29 + bob, 13, outline, p[2]);
+  rectO(image, ox + 24 + lean, oy + 37 + bob, 18, 13, outline, p[1]);
+  flame(image, ox + 22 + lean, oy + 14 + bob, 5, outline, p[2], p[3]);
+  flame(image, ox + 43 + lean, oy + 14 + bob, 5, outline, p[2], p[3]);
+  line(image, ox + 19 + lean, oy + 41 + bob, ox + 11, oy + 36 + bob, outline);
+  flame(image, ox + 10 + lean, oy + 35 + bob, 4, outline, p[2], p[3]);
+  rectO(image, ox + 20, oy + 49 + bob, 6, 7, outline, p[0]);
+  rectO(image, ox + 38, oy + 49 + bob, 6, 7, outline, p[0]);
+  rectO(image, ox + 42 + lean, oy + 36 + bob, 10, 4, outline, p[1]);
+  if (animation === 'attack')
+    flame(image, ox + 54 + frame * 2, oy + 32 + bob, 6 + frame, outline, p[2], p[3]);
+  setPixel(image, ox + 37 + lean, oy + 27 + bob, '#fff6d7');
+}
+
+function drawSlagRunner(image, ox, oy, animation, frame, bob, lean, p, outline) {
+  const stretch =
+    animation === 'walk' ? [0, 3, 5, 2][frame] : animation === 'attack' ? 2 + frame : 0;
+  if (animation === 'walk') {
+    rect(image, ox + 4, oy + 30 + frame, 16 + frame * 2, 3, p[2], 190);
+    rect(image, ox + 7, oy + 35 + frame, 11 + frame, 3, p[3], 180);
+  }
+  ellipse(image, ox + 31 + lean, oy + 32 + bob, 21 + stretch, 12, outline);
+  ellipse(image, ox + 32 + lean, oy + 31 + bob, 18 + stretch, 9, p[1]);
+  circleO(image, ox + 48 + lean + stretch, oy + 28 + bob, 9, outline, p[1]);
+  diamond(image, ox + 50 + lean + stretch, oy + 29 + bob, 7, 5, p[2]);
+  for (let i = 0; i < 4; i++) {
+    const lx = ox + 17 + i * 9 + (i % 2 === frame % 2 ? 2 : -1);
+    rectO(image, lx, oy + 41 + bob, 5, 11, outline, i % 2 ? p[2] : p[0]);
+  }
+  line(image, ox + 21 + lean, oy + 28 + bob, ox + 45 + lean, oy + 34 + bob, p[3]);
+  line(image, ox + 25 + lean, oy + 36 + bob, ox + 38 + lean, oy + 25 + bob, p[2]);
+  if (animation === 'attack') flame(image, ox + 49 + frame * 2, oy + 44, 7, outline, p[2], p[3]);
+}
+
+function drawIronWight(image, ox, oy, animation, frame, bob, lean, p, outline) {
+  const attack = animation === 'attack';
+  rectO(image, ox + 20 + lean, oy + 23 + bob, 25, 25, outline, p[1]);
+  rectO(image, ox + 24 + lean, oy + 14 + bob, 18, 14, outline, p[2]);
+  rectO(image, ox + 16 + lean, oy + 25 + bob, 10, 19, outline, p[2]);
+  rectO(image, ox + 42 + lean, oy + 25 + bob, 10, 19, outline, p[2]);
+  rectO(image, ox + 21, oy + 47 + bob, 8, 9, outline, p[0]);
+  rectO(image, ox + 38, oy + 47 + bob, 8, 9, outline, p[0]);
+  rect(image, ox + 30 + lean, oy + 33 + bob, 8, 10, p[3]);
+  rect(image, ox + 27 + lean, oy + 18 + bob, 4, 3, p[3]);
+  rect(image, ox + 36 + lean, oy + 18 + bob, 4, 3, p[3]);
+  line(image, ox + 18 + lean, oy + 30 + bob, ox + 45 + lean, oy + 30 + bob, '#d7ae64');
+  if (attack) {
+    line(image, ox + 14, oy + 31, ox + 8, oy + 17 + frame * 5, outline);
+    circleO(image, ox + 7, oy + 15 + frame * 5, 6, outline, p[2]);
+    flame(image, ox + 50, oy + 45, 4 + frame, outline, '#d27633', p[3]);
+  }
+}
+
+function drawGlassHex(image, ox, oy, animation, frame, bob, lean, p, outline) {
+  const burst = animation === 'attack' ? frame * 4 : 0;
+  diamondO(image, ox + 32 + lean, oy + 28 + bob, 15, 18, outline, p[2]);
+  diamond(image, ox + 32 + lean, oy + 29 + bob, 8, 11, p[1]);
+  diamondO(image, ox + 18 - burst, oy + 25 + bob, 6, 13, outline, p[2]);
+  diamondO(image, ox + 46 + burst, oy + 24 + bob, 6, 13, outline, p[2]);
+  diamondO(image, ox + 24 + lean, oy + 12 + bob, 5, 10, outline, p[3]);
+  diamondO(image, ox + 42 + lean, oy + 13 + bob, 5, 10, outline, p[3]);
+  line(image, ox + 24 + lean, oy + 39 + bob, ox + 16, oy + 51, outline);
+  line(image, ox + 41 + lean, oy + 39 + bob, ox + 49, oy + 51, outline);
+  rectO(image, ox + 15, oy + 48, 7, 6, outline, p[1]);
+  rectO(image, ox + 44, oy + 48, 7, 6, outline, p[1]);
+  if (animation === 'attack') {
+    for (let i = 0; i < 5; i++) diamond(image, ox + 12 + i * 9, oy + 37 - i * 2, 3, 5, p[3]);
+  }
+}
+
+function drawObelisk(image, ox, oy, animation, frame, bob, p, outline) {
+  const pulse = animation === 'attack' ? frame * 2 : animation === 'idle' ? frame : 0;
+  rectO(image, ox + 14, oy + 45, 36, 10, outline, p[0]);
+  rectO(image, ox + 19, oy + 25 + bob, 26, 24, outline, p[1]);
+  diamondO(image, ox + 32, oy + 17 + bob, 14, 13, outline, p[1]);
+  rect(image, ox + 26, oy + 27 + bob, 12, 21, p[2]);
+  rect(image, ox + 29, oy + 29 + bob, 6, 17, p[3]);
+  rectO(image, ox + 9, oy + 31, 7, 20, outline, p[1]);
+  rectO(image, ox + 49, oy + 31, 7, 20, outline, p[1]);
+  circle(image, ox + 32, oy + 35 + bob, 7 + pulse, p[2], 180);
+  circle(image, ox + 32, oy + 35 + bob, 3 + pulse, p[3]);
+  if (animation === 'attack') {
+    rect(image, ox + 47, oy + 32, 10 + frame * 3, 5, p[2], 220);
+    spark(image, ox + 58, oy + 34, p[3]);
+  }
 }
 
 function drawGem(image, ox, oy, id) {
@@ -233,19 +354,57 @@ function drawGem(image, ox, oy, id) {
   const p = palette[family];
   const cx = ox + 32;
   const cy = oy + 32;
-  const scale = tier >= 4 ? 1.15 : 0.82 + tier * 0.08;
-  rect(image, ox + 20, oy + 47, 24, 5, '#271d15');
-  diamond(image, cx, cy, Math.round(16 * scale), Math.round(22 * scale), p[1]);
-  diamond(image, cx, cy - 1, Math.round(11 * scale), Math.round(17 * scale), p[2]);
-  diamond(image, cx - 4, cy - 5, Math.round(4 * scale), Math.round(7 * scale), p[3]);
-  line(image, cx - 15, cy, cx + 15, cy, '#fff6d7');
-  line(image, cx, cy - 21, cx, cy + 20, p[0]);
-  rect(image, ox + 18, oy + 30, 5, 5, '#d7ae64');
-  rect(image, ox + 41, oy + 30, 5, 5, '#d7ae64');
-  if (tier >= 3 || family.length > 6) {
-    circle(image, ox + 15, oy + 18, 2, p[3]);
-    circle(image, ox + 48, oy + 17, 2, p[3]);
-    circle(image, ox + 51, oy + 45, 2, p[2]);
+  const scale = tier >= 4 ? 1.05 : 0.76 + tier * 0.08;
+  if (family === 'verdant' || family === 'night' || family === 'sunward') {
+    drawRelicGem(image, ox, oy, family, p);
+    return;
+  }
+  rect(image, ox + 20, oy + 48, 24, 5, '#090807');
+  diamondO(image, cx, cy, Math.round(19 * scale), Math.round(25 * scale), '#090807', '#d7ae64');
+  diamondO(image, cx, cy, Math.round(14 * scale), Math.round(20 * scale), p[0], p[1]);
+  diamond(image, cx, cy - 1, Math.round(10 * scale), Math.round(16 * scale), p[2]);
+  diamond(image, cx - 5, cy - 7, Math.round(4 * scale), Math.round(7 * scale), p[3]);
+  line(image, cx - 12, cy, cx + 12, cy, '#fff6d7');
+  line(image, cx, cy - 18, cx, cy + 18, p[0]);
+  rectO(image, ox + 14, oy + 28, 6, 8, '#090807', '#d7ae64');
+  rectO(image, ox + 44, oy + 28, 6, 8, '#090807', '#d7ae64');
+  rectO(image, ox + 28, oy + 7, 8, 6, '#090807', '#d7ae64');
+  if (tier >= 3 || family === 'prism') {
+    spark(image, ox + 15, oy + 18, p[3]);
+    spark(image, ox + 49, oy + 17, p[3]);
+    spark(image, ox + 51, oy + 45, p[2]);
+  }
+}
+
+function drawRelicGem(image, ox, oy, family, p) {
+  if (family === 'sunward') {
+    for (let i = 0; i < 12; i++) {
+      const a = (Math.PI * 2 * i) / 12;
+      line(
+        image,
+        ox + 32,
+        oy + 32,
+        ox + 32 + Math.round(Math.cos(a) * 25),
+        oy + 32 + Math.round(Math.sin(a) * 25),
+        '#d7ae64',
+      );
+    }
+    circleO(image, ox + 32, oy + 32, 15, '#090807', '#d7ae64');
+    circle(image, ox + 32, oy + 32, 9, p[2]);
+    circle(image, ox + 34, oy + 29, 4, p[3]);
+    return;
+  }
+  rectO(image, ox + 15, oy + 28, 34, 22, '#090807', p[0]);
+  rectO(image, ox + 20, oy + 18, 24, 25, '#090807', p[1]);
+  circleO(image, ox + 32, oy + 31, 10, '#090807', p[2]);
+  circle(image, ox + 32, oy + 31, 5, p[3]);
+  rectO(image, ox + 10, oy + 34, 7, 13, '#090807', '#d7ae64');
+  rectO(image, ox + 47, oy + 34, 7, 13, '#090807', '#d7ae64');
+  if (family === 'night') {
+    rect(image, ox + 29, oy + 12, 6, 28, p[2]);
+    spark(image, ox + 50, oy + 17, p[3]);
+  } else {
+    flame(image, ox + 32, oy + 16, 5, '#090807', p[2], p[3]);
   }
 }
 
