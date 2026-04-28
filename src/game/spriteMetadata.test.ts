@@ -5,8 +5,12 @@ import { gameConfig } from './config';
 import { spriteMetadata, type SpriteRect } from './spriteMetadata';
 
 describe('sprite metadata', () => {
-  it('can render every configured enemy with metadata or canvas fallback', () => {
-    for (const enemy of gameConfig.enemies) expect(enemy.id).toBeTruthy();
+  it('has atlas metadata for every configured enemy', () => {
+    for (const enemy of gameConfig.enemies) {
+      const monster = spriteMetadata.monsters[enemy.id];
+      expect(monster).toBeTruthy();
+      expect(monster.animations.walk.frames.length).toBeGreaterThan(0);
+    }
   });
 
   it('can render every configured gem or tower with metadata or canvas fallback', () => {
