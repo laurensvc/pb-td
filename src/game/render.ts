@@ -302,13 +302,6 @@ function drawDraftCandidates(
     const color = getGemColor(state, candidate.gemId);
     const cx = candidate.x * view.cellSize + view.cellSize / 2;
     const cy = candidate.y * view.cellSize + view.cellSize / 2;
-    const basePortrait = getTowerBaseImage(candidate.gemId);
-    if (basePortrait) {
-      ctx.globalAlpha = state.pendingGemId ? 0.78 : 1;
-      drawTowerBaseImage(ctx, basePortrait, cx, cy, view.cellSize * 0.9);
-      ctx.globalAlpha = 1;
-      continue;
-    }
     if (canDrawImage(gemImage)) {
       const sprite = atlas.metadata.gems[candidate.gemId];
       if (sprite) {
@@ -318,7 +311,41 @@ function drawDraftCandidates(
         continue;
       }
     }
+    const basePortrait = getTowerBaseImage(candidate.gemId);
+    if (basePortrait) {
+      ctx.globalAlpha = state.pendingGemId ? 0.78 : 1;
+      drawTowerBaseImage(ctx, basePortrait, cx, cy, view.cellSize * 0.9);
+      ctx.globalAlpha = 1;
+      continue;
+    }
     drawGemFallback(ctx, cx, cy, view.cellSize, color, state.pendingGemId ? 0.72 : 1);
+  }
+  const choosePhase = state.draft.length === 5 && !state.pendingGemId;
+  if (choosePhase) {
+    for (let i = 0; i < state.draft.length; i++) {
+      const c = state.draft[i];
+      const fromPanelOrCanvas = Boolean(
+        state.draftRowHover && state.draftRowHover.x === c.x && state.draftRowHover.y === c.y,
+      );
+      const fromBoardSelect =
+        state.selectedTile !== null && state.selectedTile.x === c.x && state.selectedTile.y === c.y;
+      if (!fromPanelOrCanvas && !fromBoardSelect) continue;
+      const px = c.x * view.cellSize;
+      const py = c.y * view.cellSize;
+      const pad = Math.max(2, view.cellSize * 0.04);
+      ctx.save();
+      if (fromPanelOrCanvas) {
+        ctx.strokeStyle = 'rgba(250, 230, 120, 0.95)';
+        ctx.lineWidth = Math.max(3, view.cellSize * 0.1);
+        ctx.setLineDash([Math.max(4, view.cellSize * 0.1), 5]);
+      } else {
+        ctx.strokeStyle = 'rgba(250, 200, 80, 0.6)';
+        ctx.lineWidth = Math.max(2, view.cellSize * 0.06);
+      }
+      ctx.strokeRect(px + pad, py + pad, view.cellSize - pad * 2, view.cellSize - pad * 2);
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
   }
   ctx.restore();
 }
@@ -355,18 +382,25 @@ function drawTowers(ctx: CanvasRenderingContext2D, state: GameState, view: Rende
       ctx.arc(cx, cy, view.cellSize * (0.34 + tower.mvpAwards * 0.018), 0, Math.PI * 2);
       ctx.stroke();
     }
-    const basePortrait = getTowerBaseImage(tower.gemId);
-    if (basePortrait) {
-      drawTowerBaseImage(ctx, basePortrait, cx, cy, view.cellSize);
-    } else if (canDrawImage(gemImage)) {
+    if (canDrawImage(gemImage)) {
       const sprite = atlas.metadata.gems[tower.gemId];
       if (sprite) {
         drawSprite(ctx, gemImage, sprite.frame, cx, cy, view.cellSize);
       } else {
-        drawTowerFallback(ctx, cx, cy, radius, tower.color);
+        const basePortrait = getTowerBaseImage(tower.gemId);
+        if (basePortrait) {
+          drawTowerBaseImage(ctx, basePortrait, cx, cy, view.cellSize);
+        } else {
+          drawTowerFallback(ctx, cx, cy, radius, tower.color);
+        }
       }
     } else {
-      drawTowerFallback(ctx, cx, cy, radius, tower.color);
+      const basePortrait = getTowerBaseImage(tower.gemId);
+      if (basePortrait) {
+        drawTowerBaseImage(ctx, basePortrait, cx, cy, view.cellSize);
+      } else {
+        drawTowerFallback(ctx, cx, cy, radius, tower.color);
+      }
     }
     if (tower.stopped) {
       ctx.strokeStyle = '#ef4444';

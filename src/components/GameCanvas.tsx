@@ -10,6 +10,7 @@ export function GameCanvas({ controller }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewRef = useRef(getFallbackView());
 
+  // `controller.game` is a stable ref from useGameController; effect runs once per mount (not on each render).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -58,13 +59,7 @@ export function GameCanvas({ controller }: GameCanvasProps) {
             event.clientY,
             rect,
           );
-          const tile = screenToTile(
-            viewRef.current,
-            game,
-            event.clientX,
-            event.clientY,
-            rect,
-          );
+          const tile = screenToTile(viewRef.current, game, event.clientX, event.clientY, rect);
           if (tile && game.pendingGemId) {
             controller.dispatch({ type: 'placePendingGem', x: tile.x, y: tile.y });
           } else if (tile && game.draft.length === 5) {

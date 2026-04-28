@@ -164,14 +164,12 @@ export interface SkillDefinition {
   rarity: 'common' | 'rare' | 'mythical' | 'legendary';
   description: string;
   goldCosts: readonly number[];
-  shellCost: number;
   active: boolean;
 }
 
 export interface QuestDefinition {
   id: string;
   name: string;
-  rewardShells: [number, number];
   fixed?: boolean;
   cooldownDays?: number;
 }
@@ -179,7 +177,6 @@ export interface QuestDefinition {
 export interface RankDefinition {
   id: string;
   name: string;
-  shells: number;
   percentage: string;
 }
 
@@ -188,7 +185,6 @@ export interface EconomyConfig {
   startingLives: number;
   downgradeCost: number;
   sellRefundRate: number;
-  startingShells: number;
 }
 
 export interface GameConfig {
@@ -341,7 +337,6 @@ export interface GameState {
   time: number;
   rngSeed: number;
   gold: number;
-  shells: number;
   lives: number;
   score: number;
   waveIndex: number;
@@ -354,6 +349,8 @@ export interface GameState {
   pendingGemId: string | null;
   stones: GridPoint[];
   selectedTile: GridPoint | null;
+  /** Side panel draft list hover — highlights that candidate on the board. */
+  draftRowHover: GridPoint | null;
   hoverTile: GridPoint | null;
   towers: TowerState[];
   enemies: EnemyState[];
@@ -379,7 +376,6 @@ export interface SaveState {
   version: number;
   bestWave: number;
   wins: number;
-  shells: number;
   discoveredRecipes: string[];
   unlockedSecrets: string[];
   skillInventory: SkillInventoryEntry[];
@@ -395,7 +391,6 @@ export interface GameSnapshot {
   status: GameStatus;
   phase: GamePhase;
   gold: number;
-  shells: number;
   lives: number;
   score: number;
   wave: number;
@@ -407,6 +402,7 @@ export interface GameSnapshot {
   draftRemaining: number;
   pendingGemId: string | null;
   selectedTile: GridPoint | null;
+  draftRowHover: GridPoint | null;
   selectedTower: TowerState | null;
   selectedTowerTarget: EnemyState | null;
   hoverTile: GridPoint | null;
@@ -433,6 +429,8 @@ export type GameAction =
   | { type: 'keepDraftCandidate'; x: number; y: number }
   | { type: 'placePendingGem'; x: number; y: number }
   | { type: 'selectTile'; x: number; y: number }
+  | { type: 'hoverDraftRow'; x: number; y: number }
+  | { type: 'clearDraftRowHover' }
   | { type: 'hoverTile'; x: number; y: number }
   | { type: 'clearHover' }
   | { type: 'combineAt'; x: number; y: number }
@@ -442,7 +440,14 @@ export type GameAction =
   | { type: 'toggleTowerStop'; x: number; y: number }
   | { type: 'setTowerTarget'; x: number; y: number; targetId: number | null }
   | { type: 'buySkill'; skillId: SkillId }
-  | { type: 'activateSkill'; skillId: SkillId; x?: number; y?: number; targetX?: number; targetY?: number }
+  | {
+      type: 'activateSkill';
+      skillId: SkillId;
+      x?: number;
+      y?: number;
+      targetX?: number;
+      targetY?: number;
+    }
   | { type: 'claimSeasonReward' }
   | { type: 'pause' }
   | { type: 'resume' }

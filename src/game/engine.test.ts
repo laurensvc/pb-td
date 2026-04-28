@@ -107,6 +107,27 @@ function placeAndKeepDraft(game = createGame(gameConfig)) {
 }
 
 describe('game engine', () => {
+  it('does not merge gems before at least one wave is completed', () => {
+    const game = placeAndKeepDraft();
+    const gem = game.towers[0];
+    const tierBefore = gem.tier;
+    dispatchGameAction(game, { type: 'selectTile', x: gem.x, y: gem.y });
+    expect(createSnapshot(game).canMerge).toBe(false);
+    dispatchGameAction(game, { type: 'mergeAt', x: gem.x, y: gem.y, levels: 1 });
+    expect(game.towers[0].tier).toBe(tierBefore);
+  });
+
+  it('removes a maze stone and refunds no gold', () => {
+    const game = placeAndKeepDraft();
+    const initialGold = game.gold;
+    const stone = game.stones[0];
+    dispatchGameAction(game, { type: 'selectTile', x: stone.x, y: stone.y });
+    expect(createSnapshot(game).canRemoveStone).toBe(true);
+    dispatchGameAction(game, { type: 'removeStone', x: stone.x, y: stone.y });
+    expect(game.stones).toHaveLength(3);
+    expect(game.gold).toBe(initialGold);
+  });
+
   it('starts a build draft, keeps one gem, and hardens the rest into stones', () => {
     const game = createGame(gameConfig);
     expect(game.phase).toBe('build');
@@ -170,10 +191,12 @@ describe('game engine', () => {
     expect(game.towers[0].gemId).toBe('ruby-2');
   });
 
-  it('supports build actions and local shell skills', () => {
+  it('supports build actions and player skills', () => {
     const game = createGame(gameConfig);
-    game.shells = 20;
     game.gold = 2000;
+    game.waveIndex = 1;
+    game.pendingGemId = null;
+    game.draft = [];
     game.towers.push(tower(10, 4, 4, 'diamond', 3));
     dispatchGameAction(game, { type: 'buySkill', skillId: 'attackSpeed' });
     expect(game.skillInventory.get('attackSpeed')).toBe(1);

@@ -325,52 +325,18 @@ Bosses appear every 10 waves. Some waves have a chance to spawn alternative oppo
 | 49 | Drodo | Ground | Kraken Shell, Recharge |
 | 50 | Baby Roshan / Golden Baby Roshan / Platinum Baby Roshan | Boss / Flying | Kraken Shell, Magic Immune variants |
 
-## Ranks
+## Leaderboard
 
-Season rank is composed of Solo/Co-Op Rank plus Race Rank. Ranks reset every month.
+See how far you and other players have made it!
 
-Percentage indicates the player position among all players.
+| Player Name | Max Wave Reached |
+|-------------|------------------|
+| Player1     | 50               |
+| Player2     | 45               |
+| Player3     | 41               |
+| ...         | ...              |
 
-### Season Rank Rewards
-
-| Rank | Shells | Percentage |
-|---|---:|---|
-| Gray Gem | 10 | 80–100% |
-| Light Blue Gem | 20 | 30–80% |
-| Deep Blue Gem | 30 | 11–29% |
-| Purple Gem | 50 | 3–10% |
-| Golden Gem | 70 | 1–2% |
-| Crown | 100 | Top 100 |
-
-### Solo / Co-Op and Race Ranks
-
-| Rank | Solo / Co-Op | Race |
-|---:|---|---|
-| 25 | Stout Shield | Iron Branch |
-| 24 | Ring of Basilius | Quelling Blade |
-| 23 | Poor Man Shield | Blades of Attack |
-| 22 | Buckler | Ogre Axe |
-| 21 | Cloak | Claymore |
-| 20 | ChainMail | Javelin |
-| 19 | Ring of Health | Force Staff |
-| 18 | Helm of Iron Will | Blink Dagger |
-| 17 | Ring of Aquila | Yasha |
-| 16 | Glimmer Cape | Sange |
-| 15 | Helm Of Dominator | Eul's Scepter of Divinity |
-| 14 | Vladmir's Offering | Shadow Blade |
-| 13 | Hood Of Defience | Maelstrom |
-| 12 | Vanguard | Desolator |
-| 11 | Blade Mail | Aghanim's Scepter |
-| 10 | Solar Crest | Silver Edge |
-| 9 | Crimson Guard | Black King Bar |
-| 8 | BloodStone | Battle Fury |
-| 7 | Lotus Orb | Manta Style |
-| 6 | Shivas Guard | Monkey King Bar |
-| 5 | Octarine Core | Radiance |
-| 4 | Assault Cuirass | Scythe of Vyse |
-| 3 | Heart of Tarrasque | Daedalus |
-| 2 | Unknown | Unknown |
-| 1 | Aegis of the Immortal | Divine Rapier / Excalibur |
+How high can you climb? Try to reach a new max wave and claim the top spot!
 
 ## Quests
 

@@ -30,15 +30,10 @@ export function Hud({
             Gem Castle Defense
           </h1>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-sm sm:grid-cols-6 xl:min-w-[720px]">
+        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5 xl:min-w-[600px]">
           <Metric label="Gold" value={snapshot.gold} tone="gold" />
-          <Metric label="Shells" value={snapshot.shells} tone="cyan" />
           <Metric label="Lives" value={snapshot.lives} tone="red" />
-          <Metric
-            label="Wave"
-            value={`${snapshot.wave} / ${snapshot.totalWaves}`}
-            tone="violet"
-          />
+          <Metric label="Wave" value={`${snapshot.wave} / ${snapshot.totalWaves}`} tone="violet" />
           <Metric label="Best" value={save.bestWave} tone="green" />
           <Metric label="MVPs" value={snapshot.selectedTower?.mvpAwards ?? 0} tone="gold" />
         </div>

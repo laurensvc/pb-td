@@ -56,7 +56,6 @@ export const defaultSaveState: SaveState = {
   version: 2,
   bestWave: 0,
   wins: 0,
-  shells: gameConfig.economy.startingShells,
   discoveredRecipes: [],
   unlockedSecrets: [],
   skillInventory: [],
@@ -147,7 +146,6 @@ export function createGame(
     time: 0,
     rngSeed: (Date.now() ^ Math.floor(Math.random() * 1000000)) >>> 0,
     gold: config.economy.startingGold,
-    shells: save.shells ?? config.economy.startingShells,
     lives: config.economy.startingLives,
     score: 0,
     waveIndex: 0,
@@ -160,6 +158,7 @@ export function createGame(
     pendingGemId: null,
     stones: [],
     selectedTile: null,
+    draftRowHover: null,
     hoverTile: null,
     towers: [],
     enemies: [],
@@ -345,6 +344,14 @@ function getStoneAt(state: GameState, x: number, y: number): number {
   return -1;
 }
 
+function syncDraftRowHoverFromPointerTile(state: GameState, x: number, y: number): void {
+  if (state.draft.length === 5 && !state.pendingGemId && getDraftCandidateAt(state, x, y)) {
+    state.draftRowHover = { x, y };
+  } else {
+    state.draftRowHover = null;
+  }
+}
+
 function keepDraftCandidate(state: GameState, x: number, y: number): void {
   if (state.pendingGemId || state.draft.length !== DRAFT_SIZE || state.phase !== 'build') return;
   const kept = getDraftCandidateAt(state, x, y);
@@ -359,6 +366,7 @@ function keepDraftCandidate(state: GameState, x: number, y: number): void {
   state.draft.length = 0;
   state.draftQueue.length = 0;
   state.selectedTile = { x: kept.x, y: kept.y };
+  state.draftRowHover = null;
   state.phase = 'attack';
   rebuildPaths(state);
 }
@@ -572,6 +580,9 @@ function removeStone(state: GameState, x: number, y: number): void {
 }
 
 function mergeAt(state: GameState, x: number, y: number, levels: 1 | 2): void {
+  if (state.waveIndex < 1) return;
+  if (state.activeWaveId) return;
+  if (state.pendingGemId !== null || state.draft.length > 0) return;
   const tower = getTowerAt(state, x, y);
   if (!tower || tower.classification !== 'gem') return;
   const nextTier = Math.min(6, tower.tier + levels) as GemTier;
@@ -1263,11 +1274,6 @@ function maybeCompleteQuest(state: GameState, questId: string): void {
   if (!progress || progress.completed) return;
   progress.completed = true;
   progress.progress = 1;
-  for (let i = 0; i < state.config.quests.length; i++) {
-    const quest = state.config.quests[i];
-    if (quest.id !== questId) continue;
-    state.shells += rollInt(state, quest.rewardShells[0], quest.rewardShells[1]);
-  }
 }
 
 function buySkill(state: GameState, skillId: SkillId): void {
@@ -1275,9 +1281,8 @@ function buySkill(state: GameState, skillId: SkillId): void {
   const level = getSkillLevel(state, skillId);
   if (level >= 4) return;
   const goldCost = skill.goldCosts[level] ?? skill.goldCosts[skill.goldCosts.length - 1] ?? 0;
-  if (state.gold < goldCost || state.shells < skill.shellCost) return;
+  if (state.gold < goldCost) return;
   state.gold -= goldCost;
-  state.shells -= skill.shellCost;
   state.skillInventory.set(skillId, level + 1);
 }
 
@@ -1382,11 +1387,10 @@ function adjacentSwap(state: GameState, tower: TowerState): void {
 function claimSeasonReward(state: GameState): void {
   if (state.rank.claimedSeasonReward) return;
   for (let i = 0; i < state.config.ranks.length; i++) {
-    const rank = state.config.ranks[i];
-    if (rank.id !== state.rank.seasonRankId) continue;
-    state.shells += rank.shells;
+    if (state.config.ranks[i].id !== state.rank.seasonRankId) continue;
     state.rank.claimedSeasonReward = true;
     maybeCompleteQuest(state, 'season-award');
+    return;
   }
 }
 
@@ -1429,11 +1433,19 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
     case 'selectTile':
       state.selectedTile = { x: action.x, y: action.y };
       break;
+    case 'hoverDraftRow':
+      state.draftRowHover = { x: action.x, y: action.y };
+      break;
+    case 'clearDraftRowHover':
+      state.draftRowHover = null;
+      break;
     case 'hoverTile':
       state.hoverTile = { x: action.x, y: action.y };
+      syncDraftRowHoverFromPointerTile(state, action.x, action.y);
       break;
     case 'clearHover':
       state.hoverTile = null;
+      state.draftRowHover = null;
       break;
     case 'combineAt':
       combineAt(state, action.x, action.y);
@@ -1495,7 +1507,6 @@ export function createSnapshot(state: GameState): GameSnapshot {
     status: state.status,
     phase: state.phase,
     gold: state.gold,
-    shells: state.shells,
     lives: state.lives,
     score: state.score,
     wave: state.waveIndex + 1,
@@ -1507,6 +1518,7 @@ export function createSnapshot(state: GameState): GameSnapshot {
     draftRemaining: state.pendingGemId ? state.draftQueue.length + 1 : 0,
     pendingGemId: state.pendingGemId,
     selectedTile: state.selectedTile,
+    draftRowHover: state.draftRowHover,
     selectedTower,
     selectedTowerTarget,
     hoverTile: state.hoverTile,
@@ -1527,10 +1539,22 @@ export function createSnapshot(state: GameState): GameSnapshot {
       state.draft.length === 0,
     canKeepDraft: !state.pendingGemId && state.draft.length === DRAFT_SIZE,
     canMerge: Boolean(
-      selectedTower && selectedTower.classification === 'gem' && selectedTower.tier < 6,
+      selectedTower &&
+      selectedTower.classification === 'gem' &&
+      selectedTower.tier < 6 &&
+      state.waveIndex > 0 &&
+      !state.activeWaveId &&
+      !state.pendingGemId &&
+      state.draft.length === 0,
     ),
     canMergePlus: Boolean(
-      selectedTower && selectedTower.classification === 'gem' && selectedTower.tier < 5,
+      selectedTower &&
+      selectedTower.classification === 'gem' &&
+      selectedTower.tier < 5 &&
+      state.waveIndex > 0 &&
+      !state.activeWaveId &&
+      !state.pendingGemId &&
+      state.draft.length === 0,
     ),
     canDowngrade: Boolean(
       selectedTower &&
@@ -1572,7 +1596,6 @@ function toSaveState(state: GameState): SaveState {
     version: 2,
     bestWave: Math.min(state.waveIndex, getRequiredWaveCount(state)),
     wins: state.stats.completedRequiredWaves || state.status === 'won' ? 1 : 0,
-    shells: state.shells,
     discoveredRecipes: Array.from(state.discoveredRecipes),
     unlockedSecrets: Array.from(state.unlockedSecrets),
     skillInventory: Array.from(state.skillInventory, ([id, level]) => ({ id, level })),
@@ -1593,7 +1616,6 @@ export function commitProgressToSave(state: GameState, save: SaveState): SaveSta
     version: 2,
     bestWave,
     wins: save.wins + (completedRequiredWaves ? 1 : 0),
-    shells: state.shells,
     discoveredRecipes: Array.from(state.discoveredRecipes),
     unlockedSecrets: Array.from(state.unlockedSecrets),
     skillInventory: Array.from(state.skillInventory, ([id, level]) => ({ id, level })),

@@ -6,6 +6,9 @@ const outDir = join(process.cwd(), 'public', 'assets', 'sprites');
 mkdirSync(outDir, { recursive: true });
 
 const FRAME = 64;
+/** Gem atlas columns × rows (28 slots). */
+const GEMS_COLS = 7;
+const GEMS_ROWS = 4;
 const monsterIds = ['cinderling', 'slag-runner', 'iron-wight', 'glass-hex', 'obelisk'];
 const monsterAnimations = {
   idle: { frames: 2, duration: 260 },
@@ -81,7 +84,7 @@ const monsterPalette = {
 };
 
 const monsters = makeImage(FRAME * monsterSequence.length, FRAME * monsterIds.length);
-const gems = makeImage(FRAME * 7, FRAME * 4);
+const gems = makeImage(FRAME * GEMS_COLS, FRAME * GEMS_ROWS);
 const metadata = {
   frameSize: FRAME,
   sheets: {
@@ -116,8 +119,8 @@ for (let row = 0; row < monsterIds.length; row++) {
 
 for (let index = 0; index < gemIds.length; index++) {
   const id = gemIds[index];
-  const x = (index % 7) * FRAME;
-  const y = Math.floor(index / 7) * FRAME;
+  const x = (index % GEMS_COLS) * FRAME;
+  const y = Math.floor(index / GEMS_COLS) * FRAME;
   drawGem(gems, x, y, id);
   metadata.gems[id] = { sheet: 'gems', frame: { x, y, w: FRAME, h: FRAME } };
 }
@@ -125,6 +128,9 @@ for (let index = 0; index < gemIds.length; index++) {
 writePng(join(outDir, 'monsters.png'), monsters);
 writePng(join(outDir, 'gems.png'), gems);
 writeFileSync(join(outDir, 'sprites.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
+
+const outDirForLog = outDir.split(/[/\\]/).join('/');
+console.log(`Sprite atlases: monsters.png, gems.png, sprites.json → ${outDirForLog}`);
 
 function makeImage(width, height) {
   return { width, height, data: new Uint8Array(width * height * 4) };
@@ -339,16 +345,16 @@ function drawObelisk(image, ox, oy, animation, frame, bob, p, outline) {
   }
 }
 
+function getGemFamily(id) {
+  if (id.startsWith('prism')) return 'prism';
+  if (id.startsWith('verdant')) return 'verdant';
+  if (id.startsWith('night')) return 'night';
+  if (id.startsWith('sunward')) return 'sunward';
+  return id.split('-')[0];
+}
+
 function drawGem(image, ox, oy, id) {
-  const family = id.startsWith('prism')
-    ? 'prism'
-    : id.startsWith('verdant')
-      ? 'verdant'
-      : id.startsWith('night')
-        ? 'night'
-        : id.startsWith('sunward')
-          ? 'sunward'
-          : id.split('-')[0];
+  const family = getGemFamily(id);
   const tierMatch = id.match(/-(\d)$/);
   const tier = tierMatch ? Number(tierMatch[1]) : 4;
   const p = palette[family];

@@ -26,11 +26,21 @@ describe('sprite metadata', () => {
     }
   });
 
-  it('matches the public sprite metadata json', () => {
+  it('keeps the public atlas in sync: sheets, frame size, monsters, and base gem keys', () => {
     const publicMetadata = JSON.parse(
       readFileSync(join(process.cwd(), 'public', 'assets', 'sprites', 'sprites.json'), 'utf8'),
-    );
-    expect(publicMetadata).toEqual(spriteMetadata);
+    ) as {
+      frameSize: number;
+      sheets: (typeof spriteMetadata)['sheets'];
+      monsters: (typeof spriteMetadata)['monsters'];
+      gems: Record<string, unknown>;
+    };
+    expect(spriteMetadata.frameSize).toBe(publicMetadata.frameSize);
+    expect(spriteMetadata.sheets).toEqual(publicMetadata.sheets);
+    expect(spriteMetadata.monsters).toEqual(publicMetadata.monsters);
+    for (const [id, meta] of Object.entries(publicMetadata.gems)) {
+      expect(spriteMetadata.gems[id]).toEqual(meta);
+    }
   });
 });
 

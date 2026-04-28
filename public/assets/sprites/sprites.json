@@ -8,8 +8,8 @@
     },
     "gems": {
       "src": "/assets/sprites/gems.png",
-      "width": 1448,
-      "height": 1086
+      "width": 448,
+      "height": 256
     }
   },
   "monsters": {
@@ -530,823 +530,256 @@
     }
   },
   "gems": {
-    "amethyst-1": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 0,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "amethyst-2": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 271,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "amethyst-3": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 542,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "amethyst-4": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "amethyst-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "amethyst-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "aquamarine-1": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 0,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "aquamarine-2": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 271,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "aquamarine-3": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 542,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "aquamarine-4": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "aquamarine-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "aquamarine-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "diamond-1": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 0,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "diamond-2": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 271,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "diamond-3": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 542,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "diamond-4": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "diamond-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "diamond-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "emerald-1": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 0,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "emerald-2": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 271,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "emerald-3": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 542,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "emerald-4": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "emerald-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "emerald-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "opal-1": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 0,
-        "w": 212,
-        "h": 271
-      }
-    },
-    "opal-2": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 271,
-        "w": 212,
-        "h": 271
-      }
-    },
-    "opal-3": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 542,
-        "w": 212,
-        "h": 271
-      }
-    },
-    "opal-4": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
-    "opal-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
-    "opal-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
     "ruby-1": {
       "sheet": "gems",
       "frame": {
         "x": 0,
         "y": 0,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "ruby-2": {
-      "sheet": "gems",
-      "frame": {
-        "x": 0,
-        "y": 271,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "ruby-3": {
-      "sheet": "gems",
-      "frame": {
-        "x": 0,
-        "y": 542,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "ruby-4": {
-      "sheet": "gems",
-      "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "ruby-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "ruby-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "w": 64,
+        "h": 64
       }
     },
     "sapphire-1": {
       "sheet": "gems",
       "frame": {
-        "x": 206,
+        "x": 64,
         "y": 0,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "sapphire-2": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 271,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "sapphire-3": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 542,
-        "w": 206,
-        "h": 271
-      }
-    },
-    "sapphire-4": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "sapphire-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "sapphire-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "w": 64,
+        "h": 64
       }
     },
     "topaz-1": {
       "sheet": "gems",
       "frame": {
-        "x": 412,
+        "x": 128,
         "y": 0,
-        "w": 206,
-        "h": 271
+        "w": 64,
+        "h": 64
+      }
+    },
+    "emerald-1": {
+      "sheet": "gems",
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "amethyst-1": {
+      "sheet": "gems",
+      "frame": {
+        "x": 256,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "onyx-1": {
+      "sheet": "gems",
+      "frame": {
+        "x": 320,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "ruby-2": {
+      "sheet": "gems",
+      "frame": {
+        "x": 384,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "sapphire-2": {
+      "sheet": "gems",
+      "frame": {
+        "x": 0,
+        "y": 64,
+        "w": 64,
+        "h": 64
       }
     },
     "topaz-2": {
       "sheet": "gems",
       "frame": {
-        "x": 412,
-        "y": 271,
-        "w": 206,
-        "h": 271
+        "x": 64,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "emerald-2": {
+      "sheet": "gems",
+      "frame": {
+        "x": 128,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "amethyst-2": {
+      "sheet": "gems",
+      "frame": {
+        "x": 192,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "onyx-2": {
+      "sheet": "gems",
+      "frame": {
+        "x": 256,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "ruby-3": {
+      "sheet": "gems",
+      "frame": {
+        "x": 320,
+        "y": 64,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "sapphire-3": {
+      "sheet": "gems",
+      "frame": {
+        "x": 384,
+        "y": 64,
+        "w": 64,
+        "h": 64
       }
     },
     "topaz-3": {
       "sheet": "gems",
       "frame": {
-        "x": 412,
-        "y": 542,
-        "w": 206,
-        "h": 271
+        "x": 0,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "emerald-3": {
+      "sheet": "gems",
+      "frame": {
+        "x": 64,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "amethyst-3": {
+      "sheet": "gems",
+      "frame": {
+        "x": 128,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "onyx-3": {
+      "sheet": "gems",
+      "frame": {
+        "x": 192,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "ruby-4": {
+      "sheet": "gems",
+      "frame": {
+        "x": 256,
+        "y": 128,
+        "w": 64,
+        "h": 64
+      }
+    },
+    "sapphire-4": {
+      "sheet": "gems",
+      "frame": {
+        "x": 320,
+        "y": 128,
+        "w": 64,
+        "h": 64
       }
     },
     "topaz-4": {
       "sheet": "gems",
       "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "x": 384,
+        "y": 128,
+        "w": 64,
+        "h": 64
       }
     },
-    "topaz-5": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "topaz-6": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "silver": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "silver-knight": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "pink-diamond": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "huge-pink-diamond": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "koh-i-noor-diamond": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "malachite": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "vivid-malachite": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "uranium-238": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "uranium-235": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "asteriated-ruby": {
+    "emerald-4": {
       "sheet": "gems",
       "frame": {
         "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "y": 192,
+        "w": 64,
+        "h": 64
       }
     },
-    "volcano": {
+    "amethyst-4": {
       "sheet": "gems",
       "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "x": 64,
+        "y": 192,
+        "w": 64,
+        "h": 64
       }
     },
-    "bloodstone": {
+    "onyx-4": {
       "sheet": "gems",
       "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "x": 128,
+        "y": 192,
+        "w": 64,
+        "h": 64
       }
     },
-    "antique-bloodstone": {
+    "prism-lens": {
       "sheet": "gems",
       "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "x": 192,
+        "y": 192,
+        "w": 64,
+        "h": 64
       }
     },
-    "the-crown-prince": {
+    "verdant-forge": {
       "sheet": "gems",
       "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "x": 256,
+        "y": 192,
+        "w": 64,
+        "h": 64
       }
     },
-    "jade": {
+    "night-crucible": {
       "sheet": "gems",
       "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "x": 320,
+        "y": 192,
+        "w": 64,
+        "h": 64
       }
     },
-    "grey-jade": {
+    "sunward-core": {
       "sheet": "gems",
       "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "monkey-king-jade": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "diamond-cullinan": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1030,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "quartz": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "lucky-chinese-jade": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "charming-lazurite": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "golden-jubilee": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "gold": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "egypt-gold": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "dark-emerald": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "emerald-golem": {
-      "sheet": "gems",
-      "frame": {
-        "x": 618,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "paraiba-tourmaline": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "elaborately-carved-tourmaline": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "sapphire-star-of-adam": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "deepsea-pearl": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
-    "chrysoberyl-cats-eye": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
-    "red-coral": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
-    "carmen-lucia": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
-    "yellow-saphire": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "northern-sabers-eye": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "star-sapphire": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "agate": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "obsidian": {
-      "sheet": "gems",
-      "frame": {
-        "x": 206,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "fantastic-miss-shrimp": {
-      "sheet": "gems",
-      "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "geluanshi": {
-      "sheet": "gems",
-      "frame": {
-        "x": 824,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "the-burning-stone": {
-      "sheet": "gems",
-      "frame": {
-        "x": 0,
-        "y": 813,
-        "w": 206,
-        "h": 273
-      }
-    },
-    "ehome": {
-      "sheet": "gems",
-      "frame": {
-        "x": 1236,
-        "y": 813,
-        "w": 212,
-        "h": 273
-      }
-    },
-    "wings-stone": {
-      "sheet": "gems",
-      "frame": {
-        "x": 412,
-        "y": 813,
-        "w": 206,
-        "h": 273
+        "x": 384,
+        "y": 192,
+        "w": 64,
+        "h": 64
       }
     }
   }

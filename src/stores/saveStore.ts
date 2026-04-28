@@ -11,21 +11,21 @@ interface SaveStore {
 
 function mergePersistedSave(value: Partial<SaveState> | undefined): SaveState {
   const v = value ?? {};
+  const { shells: _legacyShells, ...rest } = v as Partial<SaveState> & { shells?: number };
   return {
     ...defaultSaveState,
-    ...v,
+    ...rest,
     version: 2,
-    shells: v.shells ?? defaultSaveState.shells,
-    bestWave: v.bestWave ?? defaultSaveState.bestWave,
-    wins: v.wins ?? defaultSaveState.wins,
-    discoveredRecipes: v.discoveredRecipes ?? defaultSaveState.discoveredRecipes,
-    unlockedSecrets: v.unlockedSecrets ?? defaultSaveState.unlockedSecrets,
-    skillInventory: v.skillInventory ?? defaultSaveState.skillInventory,
-    quests: v.quests ?? defaultSaveState.quests,
-    rank: v.rank ?? defaultSaveState.rank,
+    bestWave: rest.bestWave ?? defaultSaveState.bestWave,
+    wins: rest.wins ?? defaultSaveState.wins,
+    discoveredRecipes: rest.discoveredRecipes ?? defaultSaveState.discoveredRecipes,
+    unlockedSecrets: rest.unlockedSecrets ?? defaultSaveState.unlockedSecrets,
+    skillInventory: rest.skillInventory ?? defaultSaveState.skillInventory,
+    quests: rest.quests ?? defaultSaveState.quests,
+    rank: rest.rank ?? defaultSaveState.rank,
     settings: {
       ...defaultSaveState.settings,
-      ...v.settings,
+      ...rest.settings,
     },
   };
 }
