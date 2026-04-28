@@ -25,6 +25,7 @@ import type {
   RecipeDefinition,
   SaveState,
   SkillId,
+  TargetMode,
   TowerEffectDefinition,
   TowerState,
 } from './types';
@@ -33,6 +34,8 @@ const DRAFT_SIZE = 5;
 const TILE_EPSILON = 0.03;
 const MAX_MVP_AWARDS = 10;
 const MVP_AURA_RANGE = 2;
+const MERGE_ONE_LEVEL_COST = 200;
+const MERGE_TWO_LEVELS_COST = 450;
 const REQUIRED_WAVES = 50;
 const REPEAT_WAVE_SKILLS: readonly EnemySkill[] = [
   'vitality',
@@ -106,6 +109,7 @@ function makeTower(state: GameState, gem: GemDefinition, x: number, y: number): 
     mvpAwards: 0,
     stopped: false,
     targetId: null,
+    targetMode: 'first',
     buffUntil: 0,
     attackSpeedBuff: 0,
     rangeBuff: 0,
@@ -215,9 +219,15 @@ function rebuildPaths(state: GameState): void {
   state.occupied = buildOccupancy(state.config.map, state.towers, state.stones, state.draft);
   state.checkpointPaths = findCheckpointPaths(state.config.map, state.occupied);
   state.currentPath = flattenCheckpointPaths(state.checkpointPaths);
+  const flyingPath = getFlyingPath(state);
   for (let i = 0; i < state.enemies.length; i++) {
     const enemy = state.enemies[i];
     if (!enemy.alive) continue;
+    if (enemy.flying) {
+      enemy.path = flyingPath;
+      enemy.pathIndex = getNearestPathIndex(enemy, flyingPath);
+      continue;
+    }
     const start = {
       x: clamp(Math.round(enemy.x), 0, state.config.map.width - 1),
       y: clamp(Math.round(enemy.y), 0, state.config.map.height - 1),
@@ -231,7 +241,26 @@ function rebuildPaths(state: GameState): void {
   }
 }
 
+function getFlyingPath(state: GameState): GridPoint[] {
+  return [state.config.map.entrance, state.config.map.exit];
+}
+
+function getNearestPathIndex(enemy: EnemyState, path: readonly GridPoint[]): number {
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < path.length; i++) {
+    const dx = path[i].x - enemy.x;
+    const dy = path[i].y - enemy.y;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq >= bestDistance) continue;
+    bestDistance = distanceSq;
+    bestIndex = i;
+  }
+  return bestIndex;
+}
+
 function getEnemyTarget(state: GameState, enemy: EnemyState): GridPoint {
+  if (enemy.flying) return state.config.map.exit;
   if (enemy.checkpointIndex < state.config.map.checkpoints.length) {
     return state.config.map.checkpoints[enemy.checkpointIndex];
   }
@@ -297,7 +326,7 @@ function canBeginDraftRound(state: GameState): boolean {
     state.status !== 'running' &&
     state.status !== 'paused' &&
     state.status !== 'lost' &&
-    state.status !== 'won'
+    (state.status !== 'won' || state.stats.completedRequiredWaves)
   );
 }
 
@@ -383,34 +412,43 @@ interface MatchPiece {
 
 const recipePiecesScratch: MatchPiece[] = [];
 
-function collectNearbyPieces(state: GameState, x: number, y: number): MatchPiece[] {
+function pushRecipePiece(piece: MatchPiece, selected: boolean): void {
+  if (selected) recipePiecesScratch.unshift(piece);
+  else recipePiecesScratch.push(piece);
+}
+
+function collectRecipePieces(state: GameState, x: number, y: number): MatchPiece[] {
   recipePiecesScratch.length = 0;
   for (let i = 0; i < state.towers.length; i++) {
     const tower = state.towers[i];
-    if (Math.abs(tower.x - x) > 1 || Math.abs(tower.y - y) > 1) continue;
-    recipePiecesScratch.push({
-      source: 'tower',
-      index: i,
-      gemId: tower.gemId,
-      family: tower.family,
-      tier: tower.tier,
-      x: tower.x,
-      y: tower.y,
-    });
+    pushRecipePiece(
+      {
+        source: 'tower',
+        index: i,
+        gemId: tower.gemId,
+        family: tower.family,
+        tier: tower.tier,
+        x: tower.x,
+        y: tower.y,
+      },
+      tower.x === x && tower.y === y,
+    );
   }
   for (let i = 0; i < state.draft.length; i++) {
     const candidate = state.draft[i];
-    if (Math.abs(candidate.x - x) > 1 || Math.abs(candidate.y - y) > 1) continue;
     const gem = getGem(state.config, candidate.gemId);
-    recipePiecesScratch.push({
-      source: 'draft',
-      index: i,
-      gemId: candidate.gemId,
-      family: gem.family,
-      tier: gem.tier,
-      x: candidate.x,
-      y: candidate.y,
-    });
+    pushRecipePiece(
+      {
+        source: 'draft',
+        index: i,
+        gemId: candidate.gemId,
+        family: gem.family,
+        tier: gem.tier,
+        x: candidate.x,
+        y: candidate.y,
+      },
+      candidate.x === x && candidate.y === y,
+    );
   }
   return recipePiecesScratch;
 }
@@ -456,6 +494,7 @@ function matchedPiecesAreLegalForTile(
   let draftCount = 0;
   let towerCount = 0;
   let selectedDraftConsumed = false;
+  let selectedTowerConsumed = false;
   for (let i = 0; i < used.length; i++) {
     if (used[i] !== 1) continue;
     const piece = pieces[i];
@@ -464,9 +503,10 @@ function matchedPiecesAreLegalForTile(
       if (piece.x === x && piece.y === y) selectedDraftConsumed = true;
     } else {
       towerCount++;
+      if (piece.x === x && piece.y === y) selectedTowerConsumed = true;
     }
   }
-  if (draftCount === 0) return true;
+  if (draftCount === 0) return selectedTowerConsumed;
   return (
     towerCount === 0 &&
     draftCount === recipe.ingredients.length &&
@@ -507,7 +547,7 @@ export function findRecipeAt(state: GameState, x: number, y: number): RecipeDefi
     }
   }
 
-  const pieces = collectNearbyPieces(state, x, y);
+  const pieces = collectRecipePieces(state, x, y);
   const used = new Uint8Array(pieces.length);
   for (let r = 0; r < state.config.recipes.length; r++) {
     const recipe = state.config.recipes[r];
@@ -524,7 +564,7 @@ export function findRecipeAt(state: GameState, x: number, y: number): RecipeDefi
 function combineAt(state: GameState, x: number, y: number): void {
   const recipe = findRecipeAt(state, x, y);
   if (!recipe) return;
-  const pieces = collectNearbyPieces(state, x, y);
+  const pieces = collectRecipePieces(state, x, y);
   const used = new Uint8Array(pieces.length);
   if (!recipeMatches(recipe, pieces, used)) return;
   if (!matchedPiecesAreLegalForTile(state, x, y, recipe, pieces, used)) return;
@@ -587,6 +627,9 @@ function mergeAt(state: GameState, x: number, y: number, levels: 1 | 2): void {
   if (!tower || tower.classification !== 'gem') return;
   const nextTier = Math.min(6, tower.tier + levels) as GemTier;
   if (nextTier === tower.tier) return;
+  const cost = levels === 1 ? MERGE_ONE_LEVEL_COST : MERGE_TWO_LEVELS_COST;
+  if (state.gold < cost) return;
+  state.gold -= cost;
   const gem = getGem(state.config, `${tower.family}-${nextTier}`);
   Object.assign(tower, makeTowerFromExisting(state, tower, gem));
 }
@@ -626,7 +669,12 @@ function downgradeAt(state: GameState, x: number, y: number): void {
 }
 
 function startWave(state: GameState): void {
-  if (state.activeWaveId || state.status === 'lost' || state.status === 'won') return;
+  if (
+    state.activeWaveId ||
+    state.status === 'lost' ||
+    (state.status === 'won' && !state.stats.completedRequiredWaves)
+  )
+    return;
   if (state.pendingGemId || state.draft.length > 0 || state.draftQueue.length > 0) return;
   const wave = getCurrentWave(state);
   if (!wave) return;
@@ -661,6 +709,7 @@ function spawnEnemy(state: GameState): void {
   const waveScale = 1 + state.waveIndex * 0.14;
   const skills = mergeSkills(definition.skills, getWaveSkills(state, wave));
   const vitality = skills.includes('vitality') ? 1.28 : 1;
+  const flying = definition.flying || skills.includes('flying');
   const enemy: EnemyState = {
     id: state.nextEnemyId++,
     definitionId: definition.id,
@@ -673,7 +722,7 @@ function spawnEnemy(state: GameState): void {
     reward: definition.reward + Math.floor(state.waveIndex * 1.2),
     armor: definition.armor + (skills.includes('highArmor') ? 10 : 0),
     checkpointIndex: 0,
-    path: state.checkpointPaths[0],
+    path: flying ? getFlyingPath(state) : state.checkpointPaths[0],
     pathIndex: 0,
     alive: true,
     reachedExit: false,
@@ -692,7 +741,8 @@ function spawnEnemy(state: GameState): void {
     color: definition.color,
     skills,
     invisible: skills.includes('permanentInvisibility') || skills.includes('cloakAndDagger'),
-    flying: definition.flying || skills.includes('flying'),
+    flying,
+    boss: Boolean(definition.boss || wave.boss),
   };
   state.enemies.push(enemy);
 }
@@ -826,10 +876,70 @@ function hasEffect(tower: TowerState, type: TowerEffectDefinition['type']): bool
   return false;
 }
 
+function enemyProgress(enemy: EnemyState): number {
+  return enemy.checkpointIndex * 10000 + enemy.pathIndex + enemyPathSegmentProgress(enemy);
+}
+
+function enemyPathSegmentProgress(enemy: EnemyState): number {
+  const current = enemy.path[enemy.pathIndex];
+  const next = enemy.path[enemy.pathIndex + 1];
+  if (!current || !next) return 0;
+  const full = Math.hypot(next.x - current.x, next.y - current.y);
+  if (full <= 0) return 0;
+  const traveled = Math.hypot(enemy.x - current.x, enemy.y - current.y);
+  return clamp(traveled / full, 0, 1);
+}
+
+function targetModeAllows(enemy: EnemyState, mode: TargetMode, strict: boolean): boolean {
+  if (!strict) return true;
+  if (mode === 'flyingOnly') return enemy.flying;
+  if (mode === 'bossOnly') return enemy.boss;
+  return true;
+}
+
+function isPreferredTarget(
+  mode: TargetMode,
+  enemy: EnemyState,
+  current: EnemyState | null,
+  enemyDistanceSq: number,
+  currentDistanceSq: number,
+): boolean {
+  if (!current) return true;
+  if (mode === 'last') return enemyProgress(enemy) < enemyProgress(current);
+  if (mode === 'strongest') return enemy.hp > current.hp;
+  if (mode === 'weakest') return enemy.hp < current.hp;
+  if (mode === 'closest') return enemyDistanceSq < currentDistanceSq;
+  return enemyProgress(enemy) > enemyProgress(current);
+}
+
+function findAutomaticTarget(
+  state: GameState,
+  tower: TowerState,
+  tx: number,
+  ty: number,
+  range: number,
+  strictSpecialMode: boolean,
+): EnemyState | null {
+  let best: EnemyState | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < state.enemies.length; i++) {
+    const enemy = state.enemies[i];
+    if (!enemy.alive || !canTargetEnemy(tower, enemy)) continue;
+    if (!targetModeAllows(enemy, tower.targetMode, strictSpecialMode)) continue;
+    const dx = enemy.x + 0.5 - tx;
+    const dy = enemy.y + 0.5 - ty;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq > range * range) continue;
+    if (!isPreferredTarget(tower.targetMode, enemy, best, distanceSq, bestDistance)) continue;
+    best = enemy;
+    bestDistance = distanceSq;
+  }
+  return best;
+}
+
 function fireTower(state: GameState, tower: TowerState): void {
   if (tower.stopped) return;
   let best: EnemyState | null = tower.targetId ? findEnemyById(state, tower.targetId) : null;
-  let bestDistance = Number.POSITIVE_INFINITY;
   const tx = tower.x + 0.5;
   const ty = tower.y + 0.5;
   const range = effectiveRange(state, tower);
@@ -841,15 +951,10 @@ function fireTower(state: GameState, tower: TowerState): void {
     best = null;
   }
   if (!best) {
-    for (let i = 0; i < state.enemies.length; i++) {
-      const enemy = state.enemies[i];
-      if (!enemy.alive || !canTargetEnemy(tower, enemy)) continue;
-      const dx = enemy.x + 0.5 - tx;
-      const dy = enemy.y + 0.5 - ty;
-      const distanceSq = dx * dx + dy * dy;
-      if (distanceSq > range * range || distanceSq >= bestDistance) continue;
-      bestDistance = distanceSq;
-      best = enemy;
+    const strictSpecialMode = tower.targetMode === 'flyingOnly' || tower.targetMode === 'bossOnly';
+    best = findAutomaticTarget(state, tower, tx, ty, range, strictSpecialMode);
+    if (!best && strictSpecialMode) {
+      best = findAutomaticTarget(state, tower, tx, ty, range, false);
     }
   }
   if (!best) return;
@@ -893,7 +998,8 @@ function tickEnemies(state: GameState, dt: number): void {
     }
     const path = enemy.path;
     if (path.length <= 1 || enemy.pathIndex >= path.length - 1) {
-      advanceEnemyCheckpoint(state, enemy);
+      if (enemy.flying) leakEnemy(state, enemy);
+      else advanceEnemyCheckpoint(state, enemy);
       continue;
     }
     const next = path[enemy.pathIndex + 1];
@@ -946,6 +1052,10 @@ function advanceEnemyCheckpoint(state: GameState, enemy: EnemyState): void {
     }
     return;
   }
+  leakEnemy(state, enemy);
+}
+
+function leakEnemy(state: GameState, enemy: EnemyState): void {
   enemy.alive = false;
   enemy.reachedExit = true;
   state.stats.leaks += 1;
@@ -958,7 +1068,7 @@ function advanceEnemyCheckpoint(state: GameState, enemy: EnemyState): void {
     addText(state, enemy.x, enemy.y, 'Evade', '#7dd3fc');
     return;
   }
-  const damage = Math.max(1, (enemy.skills.includes('thief') ? 2 : 1) - guard);
+  const damage = Math.max(0, (enemy.boss ? 5 : 1) - guard);
   state.lives -= damage;
 }
 
@@ -1225,7 +1335,7 @@ function completeWaveIfDone(state: GameState): void {
     state.stats.completedRequiredWaves = true;
     completeQuests(state);
   }
-  state.status = 'ready';
+  state.status = state.stats.completedRequiredWaves ? 'won' : 'ready';
   state.phase = 'build';
   beginDraftRound(state);
 }
@@ -1469,6 +1579,11 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       if (tower) tower.targetId = action.targetId;
       break;
     }
+    case 'setTowerTargetMode': {
+      const tower = getTowerAt(state, action.x, action.y);
+      if (tower) tower.targetMode = action.targetMode;
+      break;
+    }
     case 'buySkill':
       buySkill(state, action.skillId);
       break;
@@ -1542,6 +1657,7 @@ export function createSnapshot(state: GameState): GameSnapshot {
       selectedTower &&
       selectedTower.classification === 'gem' &&
       selectedTower.tier < 6 &&
+      state.gold >= MERGE_ONE_LEVEL_COST &&
       state.waveIndex > 0 &&
       !state.activeWaveId &&
       !state.pendingGemId &&
@@ -1551,6 +1667,7 @@ export function createSnapshot(state: GameState): GameSnapshot {
       selectedTower &&
       selectedTower.classification === 'gem' &&
       selectedTower.tier < 5 &&
+      state.gold >= MERGE_TWO_LEVELS_COST &&
       state.waveIndex > 0 &&
       !state.activeWaveId &&
       !state.pendingGemId &&

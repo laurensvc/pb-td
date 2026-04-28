@@ -12,6 +12,7 @@ interface SaveStore {
 function mergePersistedSave(value: Partial<SaveState> | undefined): SaveState {
   const v = value ?? {};
   const { shells: _legacyShells, ...rest } = v as Partial<SaveState> & { shells?: number };
+  void _legacyShells;
   return {
     ...defaultSaveState,
     ...rest,

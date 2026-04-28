@@ -1236,7 +1236,7 @@ export const gameConfig: GameConfig = {
   ranks,
   economy: {
     startingGold: 625,
-    startingLives: 50,
+    startingLives: 100,
     downgradeCost: 200,
     sellRefundRate: 0.55,
   },

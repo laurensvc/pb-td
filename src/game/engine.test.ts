@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { gameConfig } from './config';
 import { createGame, createSnapshot, dispatchGameAction, tickGame } from './engine';
-import type { EnemyState, GemFamily, GemTier, TowerState, WaveDefinition } from './types';
+import type {
+  EnemyState,
+  GemFamily,
+  GemTier,
+  TargetMode,
+  TowerState,
+  WaveDefinition,
+} from './types';
 
 function tower(
   id: number,
@@ -33,6 +40,7 @@ function tower(
     mvpAwards: 0,
     stopped: false,
     targetId: null,
+    targetMode: 'first',
     buffUntil: 0,
     attackSpeedBuff: 0,
     rangeBuff: 0,
@@ -77,6 +85,7 @@ function enemy(id = 1, x = 5, y = 5): EnemyState {
     skills: [],
     invisible: false,
     flying: false,
+    boss: false,
   };
 }
 
@@ -104,6 +113,41 @@ function placeAndKeepDraft(game = createGame(gameConfig)) {
   dispatchGameAction(game, { type: 'placePendingGem', x: 5, y: 4 });
   dispatchGameAction(game, { type: 'keepDraftCandidate', x: 2, y: 4 });
   return game;
+}
+
+function runOneTowerTargetMode(mode: TargetMode, enemies: EnemyState[], manualTargetId?: number) {
+  const game = createGame(gameConfig);
+  game.pendingGemId = null;
+  game.draftQueue.length = 0;
+  game.draft = [];
+  game.status = 'running';
+  game.phase = 'attack';
+  const attacker = tower(1, 5, 5, 'topaz', 1);
+  attacker.range = 20;
+  attacker.damage = 0;
+  attacker.projectileSpeed = 0;
+  attacker.targetMode = mode;
+  attacker.targetId = manualTargetId ?? null;
+  game.towers.push(attacker);
+  game.enemies.push(...enemies);
+
+  tickGame(game, 0.01);
+
+  return game.projectiles.find((projectile) => projectile.active)?.targetId ?? null;
+}
+
+function setProgress(target: EnemyState, pathIndex: number): EnemyState {
+  target.path = [
+    { x: 0, y: 5 },
+    { x: 1, y: 5 },
+    { x: 2, y: 5 },
+    { x: 3, y: 5 },
+    { x: 4, y: 5 },
+    { x: 5, y: 5 },
+    { x: 6, y: 5 },
+  ];
+  target.pathIndex = pathIndex;
+  return target;
 }
 
 describe('game engine', () => {
@@ -191,6 +235,22 @@ describe('game engine', () => {
     expect(game.towers[0].gemId).toBe('ruby-2');
   });
 
+  it('combines recipe ingredients globally and outputs on the selected ingredient', () => {
+    const game = createGame(gameConfig);
+    game.towers.push(
+      tower(1, 2, 4, 'sapphire', 1),
+      tower(2, 12, 8, 'diamond', 1),
+      tower(3, 15, 3, 'topaz', 1),
+    );
+
+    dispatchGameAction(game, { type: 'combineAt', x: 12, y: 8 });
+
+    expect(game.towers).toHaveLength(1);
+    expect(game.towers[0].gemId).toBe('silver');
+    expect(game.towers[0].x).toBe(12);
+    expect(game.towers[0].y).toBe(8);
+  });
+
   it('supports build actions and player skills', () => {
     const game = createGame(gameConfig);
     game.gold = 2000;
@@ -208,6 +268,30 @@ describe('game engine', () => {
     expect(game.gold).toBeLessThan(2000);
   });
 
+  it('charges gold for merges and blocks unaffordable or max-level merges', () => {
+    const game = createGame(gameConfig);
+    game.gold = 450;
+    game.waveIndex = 1;
+    game.pendingGemId = null;
+    game.draft = [];
+    game.towers.push(tower(10, 4, 4, 'diamond', 3));
+
+    dispatchGameAction(game, { type: 'mergeAt', x: 4, y: 4, levels: 1 });
+    expect(game.towers[0].gemId).toBe('diamond-4');
+    expect(game.gold).toBe(250);
+
+    dispatchGameAction(game, { type: 'mergeAt', x: 4, y: 4, levels: 2 });
+    expect(game.towers[0].gemId).toBe('diamond-4');
+    expect(game.gold).toBe(250);
+
+    game.gold = 1000;
+    game.towers[0].tier = 6;
+    game.towers[0].gemId = 'diamond-6';
+    dispatchGameAction(game, { type: 'mergeAt', x: 4, y: 4, levels: 1 });
+    expect(game.towers[0].gemId).toBe('diamond-6');
+    expect(game.gold).toBe(1000);
+  });
+
   it('continues into repeat mode after the required 50 waves', () => {
     const game = placeAndKeepDraft(createGame({ ...gameConfig, waves: emptyWaves(50) }));
     game.waveIndex = 49;
@@ -215,12 +299,113 @@ describe('game engine', () => {
     tickGame(game, 0.2);
     const snapshot = createSnapshot(game);
     expect(game.waveIndex).toBe(50);
-    expect(game.status).toBe('ready');
+    expect(game.status).toBe('won');
     expect(game.phase).toBe('build');
     expect(game.stats.completedRequiredWaves).toBe(true);
     expect(snapshot.wave).toBe(51);
     expect(snapshot.currentWave?.wave).toBe(1);
     expect(snapshot.currentWaveSkills).toContain('rush');
+
+    game.pendingGemId = null;
+    game.draft.length = 0;
+    game.draftQueue.length = 0;
+    game.phase = 'attack';
+    expect(createSnapshot(game).canStartWave).toBe(true);
+    dispatchGameAction(game, { type: 'startWave' });
+    expect(game.status).toBe('running');
+  });
+
+  it('uses per-tower automatic targeting modes and manual focus override', () => {
+    const first = setProgress(enemy(1, 8, 5), 4);
+    const last = setProgress(enemy(2, 4, 5), 1);
+    const strong = enemy(3, 10, 5);
+    strong.hp = 900;
+    const weak = enemy(4, 9, 5);
+    weak.hp = 100;
+    const flying = enemy(5, 11, 5);
+    flying.flying = true;
+    const boss = enemy(6, 12, 5);
+    boss.boss = true;
+
+    expect(runOneTowerTargetMode('first', [last, first])).toBe(1);
+    expect(runOneTowerTargetMode('last', [last, first])).toBe(2);
+    expect(runOneTowerTargetMode('strongest', [weak, strong])).toBe(3);
+    expect(runOneTowerTargetMode('weakest', [weak, strong])).toBe(4);
+    expect(runOneTowerTargetMode('closest', [enemy(7, 14, 5), enemy(8, 6, 5)])).toBe(8);
+    expect(runOneTowerTargetMode('flyingOnly', [enemy(9, 6, 5), flying])).toBe(5);
+    expect(runOneTowerTargetMode('bossOnly', [enemy(10, 6, 5), boss])).toBe(6);
+    expect(runOneTowerTargetMode('strongest', [weak, strong], 4)).toBe(4);
+  });
+
+  it('applies normal and boss leak damage after guard reduction', () => {
+    const game = createGame(gameConfig);
+    game.status = 'running';
+    game.phase = 'attack';
+    game.pendingGemId = null;
+    game.draft = [];
+    const normal = enemy(1, 0, 0);
+    normal.path = [{ x: 0, y: 0 }];
+    normal.checkpointIndex = game.checkpointPaths.length;
+    const boss = enemy(2, 0, 0);
+    boss.path = [{ x: 0, y: 0 }];
+    boss.checkpointIndex = game.checkpointPaths.length;
+    boss.boss = true;
+    game.enemies.push(normal, boss);
+    game.skillInventory.set('guard', 2);
+    game.activeSkills.guardUntil = 10;
+
+    tickGame(game, 0.1);
+
+    expect(game.lives).toBe(game.config.economy.startingLives - 3);
+    expect(game.stats.leaks).toBe(2);
+  });
+
+  it('lets evade cancel castle leak damage when it triggers', () => {
+    const game = createGame(gameConfig);
+    game.status = 'running';
+    game.phase = 'attack';
+    game.rngSeed = 0;
+    game.pendingGemId = null;
+    game.draft = [];
+    const normal = enemy(1, 0, 0);
+    normal.path = [{ x: 0, y: 0 }];
+    normal.checkpointIndex = game.checkpointPaths.length;
+    game.enemies.push(normal);
+    game.skillInventory.set('evade', 4);
+    game.activeSkills.evadeUntil = 10;
+
+    tickGame(game, 0.1);
+
+    expect(game.lives).toBe(game.config.economy.startingLives);
+    expect(game.stats.leaks).toBe(1);
+  });
+
+  it('moves flying enemies directly to the castle while ground enemies use checkpoints', () => {
+    const game = placeAndKeepDraft(
+      createGame({
+        ...gameConfig,
+        waves: [
+          {
+            id: 'flying-test',
+            wave: 1,
+            name: 'Flying Test',
+            enemyId: 'baby-panda',
+            count: 1,
+            spawnInterval: 1,
+            skills: ['flying'],
+          },
+        ],
+      }),
+    );
+
+    dispatchGameAction(game, { type: 'startWave' });
+    tickGame(game, 0.1);
+
+    expect(game.enemies[0].flying).toBe(true);
+    expect(game.enemies[0].path).toEqual([game.config.map.entrance, game.config.map.exit]);
+    expect(game.checkpointPaths[0][game.checkpointPaths[0].length - 1]).toEqual(
+      game.config.map.checkpoints[0],
+    );
   });
 
   it('applies MVP caps, range, and nearby magic vulnerability', () => {
@@ -325,8 +510,8 @@ describe('game engine', () => {
     game.phase = 'build';
     game.draft = [
       { id: 1, gemId: 'sapphire-1', x: 2, y: 4 },
-      { id: 2, gemId: 'diamond-1', x: 3, y: 4 },
-      { id: 3, gemId: 'topaz-1', x: 2, y: 5 },
+      { id: 2, gemId: 'diamond-1', x: 12, y: 8 },
+      { id: 3, gemId: 'topaz-1', x: 15, y: 3 },
       { id: 4, gemId: 'ruby-1', x: 4, y: 4 },
       { id: 5, gemId: 'opal-1', x: 4, y: 5 },
     ];

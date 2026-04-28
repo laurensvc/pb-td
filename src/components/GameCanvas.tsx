@@ -27,10 +27,10 @@ export function GameCanvas({ controller }: GameCanvasProps) {
   }, [controller.game]);
 
   return (
-    <div className="arcade-panel min-h-0 flex-1 overflow-hidden rounded-md p-2">
+    <div className="pixel-panel pixel-board min-h-0 flex-1 overflow-hidden p-2">
       <canvas
         ref={canvasRef}
-        className="h-full min-h-[520px] w-full cursor-crosshair rounded bg-[#080812]"
+        className="h-full min-h-[520px] w-full cursor-crosshair bg-[#0d0d0b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-arcade-yellow"
         role="application"
         aria-label="PB TD game board"
         onPointerMove={(event) => {

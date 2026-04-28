@@ -32,6 +32,14 @@ export type EnemySkill =
   | 'krakenShell';
 
 export type TowerClass = 'gem' | 'basic' | 'intermediate' | 'advanced' | 'top' | 'secret';
+export type TargetMode =
+  | 'first'
+  | 'last'
+  | 'strongest'
+  | 'weakest'
+  | 'closest'
+  | 'flyingOnly'
+  | 'bossOnly';
 export type TowerEffect =
   | 'armorBreak'
   | 'speedAura'
@@ -231,6 +239,7 @@ export interface EnemyState {
   skills: EnemySkill[];
   invisible: boolean;
   flying: boolean;
+  boss: boolean;
 }
 
 export interface TowerState {
@@ -256,6 +265,7 @@ export interface TowerState {
   mvpAwards: number;
   stopped: boolean;
   targetId: number | null;
+  targetMode: TargetMode;
   buffUntil: number;
   attackSpeedBuff: number;
   rangeBuff: number;
@@ -439,6 +449,7 @@ export type GameAction =
   | { type: 'downgradeAt'; x: number; y: number }
   | { type: 'toggleTowerStop'; x: number; y: number }
   | { type: 'setTowerTarget'; x: number; y: number; targetId: number | null }
+  | { type: 'setTowerTargetMode'; x: number; y: number; targetMode: TargetMode }
   | { type: 'buySkill'; skillId: SkillId }
   | {
       type: 'activateSkill';

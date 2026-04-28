@@ -32,6 +32,7 @@ function tower(id: number, x: number, y: number): TowerState {
     mvpAwards: 0,
     stopped: false,
     targetId: null,
+    targetMode: 'first',
     buffUntil: 0,
     attackSpeedBuff: 0,
     rangeBuff: 0,
