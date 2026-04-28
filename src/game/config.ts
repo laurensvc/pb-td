@@ -812,23 +812,18 @@ function r(
 export const defaultMap: MapDefinition = {
   id: 'gem-castle-pass',
   name: 'Gem Castle Pass',
-  width: 18,
-  height: 12,
-  entrance: { x: 0, y: 5 },
+  width: 24,
+  height: 16,
+  entrance: { x: 0, y: 7 },
   checkpoints: [
-    { x: 3, y: 2 },
-    { x: 8, y: 9 },
-    { x: 13, y: 2 },
-    { x: 16, y: 8 },
-    { x: 17, y: 5 },
+    { x: 4, y: 3 },
+    { x: 10, y: 12 },
+    { x: 16, y: 3 },
+    { x: 21, y: 11 },
+    { x: 23, y: 7 },
   ],
-  exit: { x: 17, y: 5 },
-  blocked: [
-    { x: 6, y: 0 },
-    { x: 6, y: 1 },
-    { x: 11, y: 10 },
-    { x: 11, y: 11 },
-  ],
+  exit: { x: 23, y: 7 },
+  blocked: [],
 };
 
 export const enemies: readonly EnemyDefinition[] = [
@@ -1230,19 +1225,69 @@ export const ranks: readonly RankDefinition[] = [
   { id: 'crown', name: 'Crown', percentage: 'Top 100' },
 ];
 
+export const towerShop = [
+  { gemId: 'amethyst-1', cost: 95 },
+  { gemId: 'aquamarine-1', cost: 120 },
+  { gemId: 'diamond-1', cost: 145 },
+  { gemId: 'emerald-1', cost: 110 },
+  { gemId: 'opal-1', cost: 90 },
+  { gemId: 'ruby-1', cost: 130 },
+  { gemId: 'sapphire-1', cost: 115 },
+  { gemId: 'topaz-1', cost: 125 },
+] as const;
+
+const activeSkillIds = new Set<SkillDefinition['id']>([
+  'heal',
+  'guard',
+  'evade',
+  'revenge',
+  'adjacentSwap',
+  'attackSpeed',
+  'aim',
+  'crit',
+  'fatalBonds',
+  'swap',
+  'candyMaker',
+]);
+
+export const shopQuests: readonly QuestDefinition[] = [
+  q('full-health', 'Complete all levels with the Gem Castle at full health.'),
+  q('under-40', 'Complete all levels within 40 minutes.'),
+  q('under-60', 'Complete all levels within 60 minutes.'),
+  q('build-25-blocks', 'Place 25 free maze blocks.'),
+  q('buy-20-towers', 'Buy 20 shop towers.'),
+  q('upgrade-30-times', 'Buy 30 tower upgrades.'),
+  q('five-mvps', 'Complete all levels with 5 MVPs.'),
+  q('kill-golden-roshan', 'Complete all levels and kill Golden Baby Roshan.'),
+  q('kill-zard', 'Complete all levels and kill Zard-.'),
+  q('complete-all', 'Complete all levels.', true, 7),
+  q('season-award', 'Season award.', true, 30),
+];
+
 export const gameConfig: GameConfig = {
   map: defaultMap,
   gems,
-  recipes,
+  recipes: [],
+  towerShop,
+  towerUpgradeCosts: {
+    tierBase: 180,
+    tierGrowth: 1.72,
+    damageBase: 95,
+    speedBase: 115,
+    rangeBase: 105,
+    statGrowth: 1.55,
+    maxStatLevel: 5,
+  },
+  freeBlocksPerWave: 5,
+  maxBankedFreeBlocks: 15,
   enemies,
   waves,
-  skills,
-  quests,
+  skills: skills.filter((skill) => activeSkillIds.has(skill.id)),
+  quests: shopQuests,
   ranks,
   economy: {
     startingGold: 625,
     startingLives: 100,
-    downgradeCost: 200,
     sellRefundRate: 0.55,
   },
 };

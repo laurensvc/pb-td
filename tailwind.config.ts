@@ -5,8 +5,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Cinzel', 'Georgia', 'serif'],
-        body: ['Alegreya Sans', 'Segoe UI', 'sans-serif'],
+        display: ['Share Tech Mono', 'ui-monospace', 'monospace'],
+        body: ['Inter', 'Segoe UI', 'sans-serif'],
       },
       colors: {
         basalt: '#15120f',
@@ -26,6 +26,13 @@ export default {
         'arcade-red': '#ff4d6d',
         'arcade-violet': '#b86bff',
         'arcade-green': '#69ff8f',
+        'tactical-ink': '#d8eef4',
+        'tactical-muted': '#7f9ca8',
+        'tactical-cyan': '#8beaff',
+        'tactical-green': '#8df7b0',
+        'tactical-amber': '#f3ca72',
+        'tactical-red': '#ff6f86',
+        'tactical-violet': '#b8a5ff',
       },
       boxShadow: {
         forge: '0 24px 80px rgb(0 0 0 / 0.36)',

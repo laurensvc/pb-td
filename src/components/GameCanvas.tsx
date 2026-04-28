@@ -30,7 +30,7 @@ export function GameCanvas({ controller }: GameCanvasProps) {
     <div className="pixel-panel pixel-board min-h-0 flex-1 overflow-hidden p-2">
       <canvas
         ref={canvasRef}
-        className="h-full min-h-[520px] w-full cursor-crosshair bg-[#0d0d0b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-arcade-yellow"
+        className="h-full min-h-[520px] w-full cursor-crosshair bg-[#050b10] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tactical-cyan"
         role="application"
         aria-label="PB TD game board"
         onPointerMove={(event) => {
@@ -60,10 +60,10 @@ export function GameCanvas({ controller }: GameCanvasProps) {
             rect,
           );
           const tile = screenToTile(viewRef.current, game, event.clientX, event.clientY, rect);
-          if (tile && game.pendingGemId) {
-            controller.dispatch({ type: 'placePendingGem', x: tile.x, y: tile.y });
-          } else if (tile && game.draft.length === 5) {
-            controller.dispatch({ type: 'keepDraftCandidate', x: tile.x, y: tile.y });
+          if (tile && game.buildMode === 'mazeBlock') {
+            controller.dispatch({ type: 'placeMazeBlock', x: tile.x, y: tile.y });
+          } else if (tile && game.buildMode === 'shopTower') {
+            controller.dispatch({ type: 'placeShopTower', x: tile.x, y: tile.y });
           } else if (targetId && game.selectedTile && selectedTileHasTower(game)) {
             controller.dispatch({
               type: 'setTowerTarget',

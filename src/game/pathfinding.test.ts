@@ -38,6 +38,7 @@ function tower(id: number, x: number, y: number): TowerState {
     rangeBuff: 0,
     critBuff: 0,
     critMultiplier: 1,
+    upgradeLevels: { damage: 0, speed: 0, range: 0 },
   };
 }
 
@@ -54,10 +55,10 @@ describe('pathfinding', () => {
   it('rejects placements that fully block the checkpoint route', () => {
     const towers: TowerState[] = [];
     for (let y = 0; y < defaultMap.height; y++) {
-      if (y === 5) continue;
-      towers.push(tower(y + 1, 8, y));
+      if (y === 8) continue;
+      towers.push(tower(y + 1, 12, y));
     }
     const occupied = buildOccupancy(defaultMap, towers);
-    expect(canPlaceWithoutBlocking(defaultMap, occupied, 8, 5, [])).toBe(false);
+    expect(canPlaceWithoutBlocking(defaultMap, occupied, 12, 8, [])).toBe(false);
   });
 });

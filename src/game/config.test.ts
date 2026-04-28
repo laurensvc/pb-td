@@ -26,13 +26,12 @@ describe('PB TD gameplay data', () => {
     }
   });
 
-  it('resolves every recipe ingredient and result', () => {
-    for (const recipe of gameConfig.recipes) {
-      expect(() => getGem(gameConfig, recipe.resultGemId)).not.toThrow();
-      for (const ingredient of recipe.ingredients) {
-        if (ingredient.gemId) expect(() => getGem(gameConfig, ingredient.gemId!)).not.toThrow();
-        if (ingredient.towerId) expect(() => getGem(gameConfig, ingredient.towerId!)).not.toThrow();
-      }
+  it('defines a level-one shop entry for every gem family', () => {
+    expect(gameConfig.towerShop).toHaveLength(8);
+    for (const item of gameConfig.towerShop) {
+      const gem = getGem(gameConfig, item.gemId);
+      expect(gem.tier).toBe(1);
+      expect(item.cost).toBeGreaterThan(0);
     }
   });
 });

@@ -1,18 +1,34 @@
 import { useState } from 'react';
 import type React from 'react';
+import {
+  BookOpen,
+  Box,
+  Crosshair,
+  Hammer,
+  Map,
+  Medal,
+  RadioTower,
+  ScanLine,
+  ShieldAlert,
+  Sparkles,
+  Target,
+  Trash2,
+  TrendingUp,
+  Zap,
+} from 'lucide-react';
 import { gameConfig, getEnemy, getGem } from '../game/config';
-import { findRecipeAt } from '../game/engine';
-import type { GameController } from '../hooks/useGameController';
 import type {
   DamageType,
   EnemySkill,
   GameSnapshot,
-  RecipeIngredient,
   SaveState,
   TargetMode,
   TowerEffect,
   TowerEffectDefinition,
+  TowerShopItem,
+  TowerUpgradeStat,
 } from '../game/types';
+import type { GameController } from '../hooks/useGameController';
 import { useSaveStore } from '../stores/saveStore';
 
 interface SidePanelProps {
@@ -21,13 +37,13 @@ interface SidePanelProps {
   save: SaveState;
 }
 
-type Tab = 'build' | 'recipes' | 'quests' | 'help';
+type Tab = 'build' | 'quests' | 'help';
+type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
 
-const tabs: readonly { id: Tab; label: string }[] = [
-  { id: 'build', label: 'Build' },
-  { id: 'recipes', label: 'Recipes' },
-  { id: 'quests', label: 'Quests' },
-  { id: 'help', label: 'Help' },
+const tabs: readonly { id: Tab; label: string; icon: IconComponent }[] = [
+  { id: 'build', label: 'Build', icon: Hammer },
+  { id: 'quests', label: 'Quests', icon: Medal },
+  { id: 'help', label: 'Help', icon: BookOpen },
 ];
 
 const targetModeOptions: readonly { id: TargetMode; label: string }[] = [
@@ -104,159 +120,36 @@ export function SidePanel({ controller, snapshot, save }: SidePanelProps) {
   const [tab, setTab] = useState<Tab>('build');
   const resetSave = useSaveStore((state) => state.resetSave);
   const selected = snapshot.selectedTile;
-  const recipe = selected ? findRecipeAt(controller.game.current, selected.x, selected.y) : null;
 
   return (
     <aside className="grid max-h-none gap-3 overflow-visible lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] lg:overflow-y-auto lg:pr-1">
       <section className="pixel-panel p-2">
-        <div className="grid grid-cols-4 gap-1">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`pixel-tab ${tab === item.id ? 'pixel-tab-active' : ''}`}
-              onClick={() => setTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-1">
+          {tabs.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`pixel-tab ${tab === item.id ? 'pixel-tab-active' : ''}`}
+                onClick={() => setTab(item.id)}
+              >
+                <Icon size={15} />
+                <span className="hidden sm:inline">{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
       {tab === 'build' ? (
         <>
-          <section className="pixel-panel p-4">
-            <PanelTitle eyebrow="Command" title="Build Actions" />
-            <div className="mt-3 grid gap-2">
-              {snapshot.pendingGemId ? (
-                <PendingGem gemId={snapshot.pendingGemId} placed={snapshot.draft.length} />
-              ) : snapshot.draft.length === 0 ? (
-                <Info text="Place five candidates, keep one gem, and convert the rest into maze stones." />
-              ) : (
-                <div
-                  className="grid gap-2"
-                  onPointerLeave={() => controller.dispatch({ type: 'clearDraftRowHover' })}
-                >
-                  <p className="pixel-callout text-sm font-extrabold">
-                    Keep one candidate. Pick from this list or click the matching gem on the board.
-                  </p>
-                  {snapshot.draft.map((choice) => {
-                    const gem = getGem(gameConfig, choice.gemId);
-                    const panelHighlightsThis =
-                      snapshot.draftRowHover?.x === choice.x &&
-                      snapshot.draftRowHover?.y === choice.y;
-                    const boardSelectsThis = selected?.x === choice.x && selected?.y === choice.y;
-                    const rowActive = panelHighlightsThis || boardSelectsThis;
-                    return (
-                      <button
-                        key={choice.id}
-                        type="button"
-                        className={`pixel-row text-left ${rowActive ? 'pixel-row-active' : ''}`}
-                        onPointerEnter={() =>
-                          controller.dispatch({ type: 'hoverDraftRow', x: choice.x, y: choice.y })
-                        }
-                        onClick={() =>
-                          controller.dispatch({
-                            type: 'keepDraftCandidate',
-                            x: choice.x,
-                            y: choice.y,
-                          })
-                        }
-                        aria-label={`Keep ${gem.name} at cell ${choice.x + 1},${choice.y + 1}. The rest become maze stones.`}
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate font-black text-[#fff7d6]">
-                            {gem.name}
-                          </span>
-                          <span className="text-sm text-[#d8c991]/75">
-                            {choice.x + 1},{choice.y + 1} | {gem.damage} dmg | L{gem.tier} | keep
-                          </span>
-                        </span>
-                        <GemChip color={gem.color} />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <ActionButton
-                disabled={!selected || !recipe}
-                onClick={() =>
-                  selected &&
-                  controller.dispatch({ type: 'combineAt', x: selected.x, y: selected.y })
-                }
-              >
-                {recipe ? `COMBINE ${recipe.name}` : 'COMBINE'}
-              </ActionButton>
-              <ActionButton
-                disabled={!selected || !snapshot.canRemoveStone}
-                onClick={() =>
-                  selected &&
-                  controller.dispatch({ type: 'removeStone', x: selected.x, y: selected.y })
-                }
-              >
-                REMOVE STONE
-              </ActionButton>
-              <ActionButton
-                disabled={!selected || !snapshot.canMerge}
-                onClick={() =>
-                  selected &&
-                  controller.dispatch({ type: 'mergeAt', x: selected.x, y: selected.y, levels: 1 })
-                }
-              >
-                MERGE +1 200G
-              </ActionButton>
-              <ActionButton
-                disabled={!selected || !snapshot.canMergePlus}
-                onClick={() =>
-                  selected &&
-                  controller.dispatch({ type: 'mergeAt', x: selected.x, y: selected.y, levels: 2 })
-                }
-              >
-                MERGE +2 450G
-              </ActionButton>
-              <ActionButton
-                disabled={!selected || !snapshot.canDowngrade}
-                onClick={() =>
-                  selected &&
-                  controller.dispatch({ type: 'downgradeAt', x: selected.x, y: selected.y })
-                }
-              >
-                DOWNGRADE 200G
-              </ActionButton>
-              <ActionButton
-                disabled={!selected || !snapshot.selectedTower}
-                onClick={() =>
-                  selected &&
-                  controller.dispatch({ type: 'toggleTowerStop', x: selected.x, y: selected.y })
-                }
-              >
-                STOP / FIRE
-              </ActionButton>
-              <ActionButton
-                disabled={!selected || !snapshot.selectedTower || !snapshot.selectedTower.targetId}
-                onClick={() =>
-                  selected &&
-                  controller.dispatch({
-                    type: 'setTowerTarget',
-                    x: selected.x,
-                    y: selected.y,
-                    targetId: null,
-                  })
-                }
-              >
-                CLEAR TARGET
-              </ActionButton>
-            </div>
-          </section>
-
+          <BuildPanel controller={controller} snapshot={snapshot} />
           <SelectedPanel controller={controller} snapshot={snapshot} selected={selected} />
           <WavePanel snapshot={snapshot} />
         </>
       ) : null}
 
-      {tab === 'recipes' ? <RecipesPanel snapshot={snapshot} /> : null}
       {tab === 'quests' ? (
         <QuestsPanel
           snapshot={snapshot}
@@ -270,6 +163,95 @@ export function SidePanel({ controller, snapshot, save }: SidePanelProps) {
   );
 }
 
+function BuildPanel({
+  controller,
+  snapshot,
+}: {
+  controller: GameController;
+  snapshot: GameSnapshot;
+}) {
+  const selectedShop = snapshot.selectedShopGemId;
+  return (
+    <section className="pixel-panel p-4">
+      <PanelTitle icon={<Hammer size={18} />} eyebrow="Command" title="Build Console" />
+      <div className="mt-3 grid gap-3">
+        <div className="pixel-row">
+          <div className="min-w-0">
+            <div className="font-display text-xs uppercase text-tactical-amber">
+              Free Maze Blocks
+            </div>
+            <div className="text-2xl font-black text-tactical-ink">{snapshot.bankedMazeBlocks}</div>
+          </div>
+          <button
+            className={`arcade-button-secondary px-3 py-2 text-sm font-black ${
+              snapshot.buildMode === 'mazeBlock' ? 'border-tactical-cyan/80' : ''
+            }`}
+            disabled={!snapshot.canPlaceMazeBlock}
+            onClick={() => controller.dispatch({ type: 'placeMazeBlock', x: -1, y: -1 })}
+          >
+            <Map size={15} />
+            PLACE BLOCK
+          </button>
+        </div>
+        <div className="grid gap-2">
+          <div className="font-display text-xs uppercase text-tactical-cyan">Tower Shop</div>
+          <div className="grid grid-cols-2 gap-2">
+            {snapshot.towerShop.map((item) => (
+              <ShopButton
+                key={item.gemId}
+                item={item}
+                active={selectedShop === item.gemId}
+                affordable={snapshot.gold >= item.cost}
+                onSelect={() => controller.dispatch({ type: 'selectShopTower', gemId: item.gemId })}
+              />
+            ))}
+          </div>
+        </div>
+        {selectedShop ? (
+          <button
+            className="arcade-mini w-full justify-center"
+            onClick={() => controller.dispatch({ type: 'clearShopSelection' })}
+          >
+            CLEAR SHOP SELECTION
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ShopButton({
+  active,
+  affordable,
+  item,
+  onSelect,
+}: {
+  active: boolean;
+  affordable: boolean;
+  item: TowerShopItem;
+  onSelect: () => void;
+}) {
+  const gem = getGem(gameConfig, item.gemId);
+  return (
+    <button
+      type="button"
+      className={`pixel-row min-h-[6rem] items-start text-left ${active ? 'pixel-row-active' : ''}`}
+      disabled={!affordable}
+      onClick={onSelect}
+    >
+      <span className="min-w-0">
+        <span className="flex items-center gap-2 font-black text-tactical-ink">
+          <GemChip color={gem.color} />
+          {gem.family}
+        </span>
+        <span className="mt-1 block text-sm text-tactical-muted">
+          {item.cost}g | {gem.damage} dmg | {gem.range.toFixed(1)} rng | {gem.cooldown.toFixed(2)}s
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function SelectedPanel({
   controller,
   snapshot,
@@ -279,21 +261,22 @@ function SelectedPanel({
   snapshot: GameSnapshot;
   selected: GameSnapshot['selectedTile'];
 }) {
+  const costs = snapshot.selectedTowerUpgradeCosts;
   return (
     <section className="pixel-panel p-4">
-      <PanelTitle eyebrow="Focus" title="Selected" />
+      <PanelTitle icon={<Target size={18} />} eyebrow="Focus" title="Selected" />
       {snapshot.selectedTower ? (
         <div className="mt-3 grid gap-3">
           <div className="pixel-row">
             <div className="flex min-w-0 items-center gap-3">
               <GemChip color={snapshot.selectedTower.color} large />
               <div className="min-w-0">
-                <div className="truncate font-black text-[#fff7d6]">
+                <div className="truncate font-black text-tactical-ink">
                   {snapshot.selectedTower.name}
                 </div>
-                <div className="text-sm text-[#d8c991]/75">
+                <div className="text-sm text-tactical-muted">
                   {snapshot.selectedTower.damage} dmg | {snapshot.selectedTower.cooldown.toFixed(2)}
-                  s | MVP {snapshot.selectedTower.mvpAwards}/10
+                  s | {snapshot.selectedTower.range.toFixed(1)} range
                 </div>
               </div>
             </div>
@@ -304,19 +287,51 @@ function SelectedPanel({
             <Stat label="Kills" value={snapshot.selectedTower.kills} />
             <Stat label="Target" value={snapshot.selectedTowerTarget?.name ?? 'auto'} />
             <Stat label="Mode" value={targetModeLabels[snapshot.selectedTower.targetMode]} />
-            <Stat label="Round" value={Math.round(snapshot.selectedTower.roundDamage)} />
-            <Stat label="Total" value={Math.round(snapshot.selectedTower.totalDamage)} />
+            <Stat label="Tier" value={snapshot.selectedTower.tier} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <UpgradeButton
+              icon={<Sparkles size={15} />}
+              label="Tier"
+              level={snapshot.selectedTower.tier}
+              cost={costs?.tier ?? null}
+              onClick={() =>
+                selected &&
+                controller.dispatch({ type: 'upgradeTowerTier', x: selected.x, y: selected.y })
+              }
+            />
+            <UpgradeButton
+              icon={<TrendingUp size={15} />}
+              label="Damage"
+              level={snapshot.selectedTower.upgradeLevels.damage}
+              cost={costs?.damage ?? null}
+              onClick={() => selected && upgradeStat(controller, selected, 'damage')}
+            />
+            <UpgradeButton
+              icon={<Zap size={15} />}
+              label="Speed"
+              level={snapshot.selectedTower.upgradeLevels.speed}
+              cost={costs?.speed ?? null}
+              onClick={() => selected && upgradeStat(controller, selected, 'speed')}
+            />
+            <UpgradeButton
+              icon={<Crosshair size={15} />}
+              label="Range"
+              level={snapshot.selectedTower.upgradeLevels.range}
+              cost={costs?.range ?? null}
+              onClick={() => selected && upgradeStat(controller, selected, 'range')}
+            />
           </div>
           <div className="grid gap-1.5">
             <label
-              className="text-xs font-black uppercase tracking-[0.12em] text-arcade-cyan"
+              className="font-display text-xs uppercase text-tactical-cyan"
               htmlFor="tower-target-mode"
             >
               Target Mode
             </label>
             <select
               id="tower-target-mode"
-              className="border-2 border-[#5f5130] bg-[#171713] px-3 py-2 text-sm font-black text-[#fff7d6] outline-none focus:border-arcade-yellow"
+              className="border border-tactical-cyan/25 bg-[#071016] px-3 py-2 font-display text-sm text-tactical-ink outline-none focus:border-tactical-cyan"
               value={snapshot.selectedTower.targetMode}
               onChange={(event) =>
                 selected &&
@@ -346,18 +361,89 @@ function SelectedPanel({
               <Badge tone="muted">No effects</Badge>
             )}
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <ActionButton
+              icon={<RadioTower size={15} />}
+              disabled={!selected}
+              onClick={() =>
+                selected &&
+                controller.dispatch({ type: 'toggleTowerStop', x: selected.x, y: selected.y })
+              }
+            >
+              STOP / FIRE
+            </ActionButton>
+            <ActionButton
+              icon={<Crosshair size={15} />}
+              disabled={!selected || !snapshot.selectedTower.targetId}
+              onClick={() =>
+                selected &&
+                controller.dispatch({
+                  type: 'setTowerTarget',
+                  x: selected.x,
+                  y: selected.y,
+                  targetId: null,
+                })
+              }
+            >
+              CLEAR TARGET
+            </ActionButton>
+          </div>
         </div>
       ) : snapshot.canRemoveStone && selected ? (
         <div className="mt-3 grid gap-2">
-          <p className="font-black text-[#fff7d6]">Maze stone</p>
-          <p className="text-sm text-[#d8c991]/75">
-            Destroy this stone to open the tile. Refund: 0 gold.
+          <p className="font-black text-tactical-ink">Maze block</p>
+          <p className="flex gap-2 text-sm text-tactical-muted">
+            <ShieldAlert size={15} className="mt-0.5 shrink-0 text-tactical-amber" />
+            Towers can replace this block. You can also remove it manually.
           </p>
+          <ActionButton
+            icon={<Trash2 size={15} />}
+            disabled={!selected}
+            onClick={() =>
+              selected && controller.dispatch({ type: 'removeStone', x: selected.x, y: selected.y })
+            }
+          >
+            REMOVE BLOCK
+          </ActionButton>
         </div>
       ) : (
-        <Info text="Select a gem, tower, draft candidate, or stone on the board." />
+        <Info text="Select a tower or maze block. Pick a shop tower or block mode, then click the board to build." />
       )}
     </section>
+  );
+}
+
+function upgradeStat(
+  controller: GameController,
+  selected: { x: number; y: number },
+  stat: TowerUpgradeStat,
+) {
+  controller.dispatch({ type: 'upgradeTowerStat', x: selected.x, y: selected.y, stat });
+}
+
+function UpgradeButton({
+  cost,
+  icon,
+  label,
+  level,
+  onClick,
+}: {
+  cost: number | null;
+  icon: React.ReactNode;
+  label: string;
+  level: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="arcade-button-secondary min-h-12 px-3 py-2 text-sm font-black"
+      disabled={cost === null}
+      onClick={onClick}
+    >
+      {icon}
+      {label} {level}
+      <span className="text-tactical-amber">{cost === null ? 'MAX' : `${cost}G`}</span>
+    </button>
   );
 }
 
@@ -368,7 +454,7 @@ function WavePanel({ snapshot }: { snapshot: GameSnapshot }) {
 
   return (
     <section className="pixel-panel p-4">
-      <PanelTitle eyebrow="Scout" title="Wave Intel" />
+      <PanelTitle icon={<ScanLine size={18} />} eyebrow="Scout" title="Wave Intel" />
       {wave && enemy ? (
         <div className="mt-3 grid gap-3">
           <div className="grid grid-cols-2 gap-2 text-sm">
@@ -398,68 +484,6 @@ function WavePanel({ snapshot }: { snapshot: GameSnapshot }) {
   );
 }
 
-function RecipesPanel({ snapshot }: { snapshot: GameSnapshot }) {
-  const knownRecipes = gameConfig.recipes.filter(
-    (recipe) =>
-      snapshot.discoveredRecipes.includes(recipe.id) ||
-      !recipe.hidden ||
-      snapshot.unlockedSecrets.includes(recipe.id),
-  );
-  const hiddenCount = gameConfig.recipes.length - knownRecipes.length;
-
-  return (
-    <section className="pixel-panel p-4">
-      <PanelTitle eyebrow="Forge" title="Recipe Tree" />
-      <div className="mt-3 grid gap-3">
-        <Info text="Recipes match ingredients anywhere on the board. Select one ingredient tile, then Combine; the result appears on that selected tile." />
-        {knownRecipes.map((recipe) => {
-          const gem = getGem(gameConfig, recipe.resultGemId);
-          return (
-            <div key={recipe.id} className="border-2 border-[#3c3323] bg-[#171713] p-3 shadow-pixel">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-black leading-tight text-[#fff7d6]">{recipe.name}</span>
-                    <Badge tone={recipe.hidden ? 'gold' : 'effect'}>{recipe.classification}</Badge>
-                    {recipe.oneRoundOnly ? <Badge tone="danger">draft only</Badge> : null}
-                  </div>
-                  <div className="mt-1 text-sm font-bold leading-snug text-[#d8c991]/78">
-                    {recipe.description}
-                  </div>
-                </div>
-                <div className="grid shrink-0 justify-items-end gap-1">
-                  <GemChip color={gem.color} />
-                  <span className="max-w-[7rem] text-right text-[0.66rem] font-black uppercase leading-tight tracking-[0.08em] text-arcade-yellow">
-                    creates
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 grid gap-1.5">
-                {recipe.ingredients.map((ingredient, index) => (
-                  <div
-                    key={`${recipe.id}-${index}`}
-                    className="flex items-center gap-2 border border-[#5f5130] bg-[#0d0d0b] px-2 py-1.5 text-sm"
-                  >
-                    <span className="grid h-7 w-7 shrink-0 place-items-center border border-arcade-yellow bg-[#332711] text-xs font-black text-[#ffeaa0]">
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0 font-bold leading-tight text-[#fff7d6]">
-                      {formatIngredient(ingredient)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-        {hiddenCount > 0 ? (
-          <Info text={`${hiddenCount} secret formulas are hidden until discovered. Secret formulas use the current five draft gems only.`} />
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
 function QuestsPanel({
   snapshot,
   save,
@@ -475,7 +499,7 @@ function QuestsPanel({
   return (
     <>
       <section className="pixel-panel p-4">
-        <PanelTitle eyebrow="League" title="Rank" />
+        <PanelTitle icon={<Medal size={18} />} eyebrow="League" title="Rank" />
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <Stat label="Season" value={rank?.name ?? snapshot.rank.seasonRankId} />
           <Stat label="Bracket" value={rank?.percentage ?? 'n/a'} />
@@ -487,11 +511,12 @@ function QuestsPanel({
           disabled={snapshot.rank.claimedSeasonReward}
           onClick={onClaim}
         >
+          <Box size={16} />
           CLAIM LOCAL SEASON
         </button>
       </section>
       <section className="pixel-panel p-4">
-        <PanelTitle eyebrow="Run Log" title="Quests" />
+        <PanelTitle icon={<Map size={18} />} eyebrow="Run Log" title="Quests" />
         <div className="mt-3 grid gap-2">
           {gameConfig.quests.map((quest) => {
             const progress = snapshot.quests.find((item) => item.id === quest.id);
@@ -500,10 +525,10 @@ function QuestsPanel({
             return (
               <div key={quest.id} className="pixel-row items-start">
                 <div className="min-w-0 flex-1">
-                  <div className="font-black leading-tight text-[#fff7d6]">{quest.name}</div>
-                  <div className="mt-2 h-2 border border-[#5f5130] bg-[#171713]">
+                  <div className="font-black leading-tight text-tactical-ink">{quest.name}</div>
+                  <div className="mt-2 h-2 border border-tactical-cyan/20 bg-[#071016]">
                     <div
-                      className={`h-full ${complete ? 'bg-arcade-green' : 'bg-arcade-yellow'}`}
+                      className={`h-full ${complete ? 'bg-tactical-green' : 'bg-tactical-amber'}`}
                       style={{ width: `${amount}%` }}
                     />
                   </div>
@@ -517,6 +542,7 @@ function QuestsPanel({
           <Stat label="Wins" value={save.wins} />
         </div>
         <button className="arcade-button-danger mt-3 w-full px-3 py-2 font-bold" onClick={onClear}>
+          <Trash2 size={16} />
           CLEAR LOCAL PROGRESSION
         </button>
       </section>
@@ -527,70 +553,38 @@ function QuestsPanel({
 function HelpPanel() {
   return (
     <section className="pixel-panel p-4">
-      <PanelTitle eyebrow="Manual" title="Field Guide" />
+      <PanelTitle icon={<BookOpen size={18} />} eyebrow="Manual" title="Field Guide" />
       <div className="mt-3 grid gap-3">
         <HelpBlock
           title="Build Flow"
-          text="Place five candidates, keep the strongest fit, then use the rest of the draft to bend the maze."
+          text="Each build phase grants five free maze blocks, banked up to fifteen. Buy towers from the shop and start the wave when ready."
+        />
+        <HelpBlock
+          title="Tower Placement"
+          text="Shop towers can be placed on empty valid tiles or directly over maze blocks, replacing the block."
+        />
+        <HelpBlock
+          title="Upgrades"
+          text="Selected towers can buy tier upgrades plus separate damage, speed, and range upgrades."
         />
         <HelpBlock
           title="Damage"
           text="Physical cares about armor, magic handles many utility towers, and pure damage ignores normal defenses."
         />
-        <HelpBlock
-          title="Combines"
-          text="Recipe ingredients can be far apart. Select the ingredient tile where you want the finished tower to appear."
-        />
-        <HelpBlock
-          title="Invisible Enemies"
-          text="Emerald level 2+ and Overlook towers can see invisible enemies. Overlook hits briefly reveal them so other valid towers can help."
-        />
-        <div className="grid gap-2">
-          <div className="text-xs font-black uppercase tracking-[0.18em] text-arcade-yellow">
-            Enemy Marks
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              ['flying', 'magicImmune', 'physicalImmune', 'rush', 'blink', 'krakenShell'] as const
-            ).map((skill) => (
-              <Badge key={skill} tone="danger">
-                {enemySkillLabels[skill]}
-              </Badge>
-            ))}
-          </div>
-        </div>
       </div>
     </section>
-  );
-}
-
-function PendingGem({ gemId, placed }: { gemId: string; placed: number }) {
-  const gem = getGem(gameConfig, gemId);
-  return (
-    <div className="border-2 border-arcade-yellow bg-[#171713] p-3 shadow-pixel">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xs font-black uppercase tracking-[0.16em] text-arcade-yellow">
-            Candidate {placed + 1} / 5
-          </div>
-          <div className="truncate font-black text-[#fff7d6]">{gem.name}</div>
-          <div className="text-sm text-[#d8c991]/75">
-            {gem.damage} dmg | {gem.range.toFixed(1)} range | L{gem.tier}
-          </div>
-        </div>
-        <GemChip color={gem.color} large />
-      </div>
-    </div>
   );
 }
 
 function ActionButton({
   children,
   disabled,
+  icon,
   onClick,
 }: {
   children: React.ReactNode;
   disabled: boolean;
+  icon?: React.ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -599,34 +593,44 @@ function ActionButton({
       disabled={disabled}
       onClick={onClick}
     >
+      {icon}
       {children}
     </button>
   );
 }
 
-function PanelTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
+function PanelTitle({
+  eyebrow,
+  icon,
+  title,
+}: {
+  eyebrow: string;
+  icon?: React.ReactNode;
+  title: string;
+}) {
   return (
-    <div>
-      <div className="text-xs font-black uppercase tracking-[0.18em] text-arcade-yellow">
-        {eyebrow}
+    <div className="flex items-start gap-2">
+      <span className="mt-0.5 text-tactical-cyan">{icon}</span>
+      <div className="min-w-0">
+        <div className="font-display text-xs uppercase text-tactical-amber">{eyebrow}</div>
+        <h2 className="truncate font-display text-2xl leading-none text-tactical-ink">{title}</h2>
       </div>
-      <h2 className="font-display text-2xl font-black leading-none text-[#fff7d6]">{title}</h2>
     </div>
   );
 }
 
 function HelpBlock({ title, text }: { title: string; text: string }) {
   return (
-    <div className="border-2 border-[#3c3323] bg-[#171713] p-3">
-      <div className="font-black text-[#fff7d6]">{title}</div>
-      <div className="mt-1 text-sm leading-snug text-[#d8c991]/75">{text}</div>
+    <div className="border border-tactical-cyan/18 bg-[#071016]/68 p-3">
+      <div className="font-black text-tactical-ink">{title}</div>
+      <div className="mt-1 text-sm leading-snug text-tactical-muted">{text}</div>
     </div>
   );
 }
 
 function Info({ text }: { text: string }) {
   return (
-    <div className="border-2 border-[#3c3323] bg-[#171713] p-3 text-sm leading-snug text-[#d8c991]/78">
+    <div className="border border-tactical-cyan/18 bg-[#071016]/68 p-3 text-sm leading-snug text-tactical-muted">
       {text}
     </div>
   );
@@ -640,16 +644,16 @@ function Badge({
   tone: 'danger' | 'effect' | 'gold' | 'muted' | 'success';
 }) {
   const toneClass = {
-    danger: 'border-arcade-red/70 bg-[#32171a] text-[#ffb3bf]',
-    effect: 'border-arcade-cyan/60 bg-[#10292a] text-[#a8f5ff]',
-    gold: 'border-arcade-yellow/70 bg-[#332711] text-[#ffeaa0]',
-    muted: 'border-[#5f5130] bg-[#171713] text-[#d8c991]',
-    success: 'border-arcade-green/60 bg-[#12301a] text-[#b7ffc8]',
+    danger: 'border-tactical-red/70 bg-tactical-red/10 text-[#ffd4dc]',
+    effect: 'border-tactical-cyan/60 bg-tactical-cyan/10 text-tactical-cyan',
+    gold: 'border-tactical-amber/70 bg-tactical-amber/10 text-[#ffe2a1]',
+    muted: 'border-tactical-cyan/20 bg-[#071016]/70 text-tactical-muted',
+    success: 'border-tactical-green/60 bg-tactical-green/10 text-[#c6ffd6]',
   }[tone];
 
   return (
     <span
-      className={`inline-flex max-w-full items-center border px-1.5 py-0.5 text-[0.68rem] font-black uppercase leading-tight tracking-[0.08em] ${toneClass}`}
+      className={`inline-flex max-w-full items-center border px-1.5 py-0.5 font-display text-[0.68rem] uppercase leading-tight ${toneClass}`}
     >
       {children}
     </span>
@@ -668,23 +672,10 @@ function GemChip({ color, large = false }: { color: string; large?: boolean }) {
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="pixel-stat min-w-0 px-3 py-2">
-      <div className="truncate text-xs font-black uppercase tracking-[0.12em] text-arcade-cyan">
-        {label}
-      </div>
-      <div className="break-words font-bold leading-tight text-[#fff7d6]">{value}</div>
+      <div className="truncate font-display text-xs uppercase text-tactical-cyan">{label}</div>
+      <div className="break-words font-bold leading-tight text-tactical-ink">{value}</div>
     </div>
   );
-}
-
-function formatIngredient(ingredient: RecipeIngredient): string {
-  if (ingredient.gemId) return getGem(gameConfig, ingredient.gemId).name;
-  if (ingredient.towerId) return getGem(gameConfig, ingredient.towerId).name;
-  const family = ingredient.family ? formatFamily(ingredient.family) : 'Any family';
-  return ingredient.tier ? `${family} level ${ingredient.tier}+` : family;
-}
-
-function formatFamily(family: string): string {
-  return family.charAt(0).toUpperCase() + family.slice(1);
 }
 
 function formatEffect(effect: TowerEffectDefinition): string {

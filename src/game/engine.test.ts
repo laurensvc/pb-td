@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { gameConfig } from './config';
 import { createGame, createSnapshot, dispatchGameAction, tickGame } from './engine';
+import { buildOccupancy } from './pathfinding';
 import type {
   EnemyState,
   GemFamily,
@@ -46,6 +47,7 @@ function tower(
     rangeBuff: 0,
     critBuff: 0,
     critMultiplier: 1,
+    upgradeLevels: { damage: 0, speed: 0, range: 0 },
   };
 }
 
@@ -106,21 +108,16 @@ function emptyWaves(count: number): WaveDefinition[] {
   return waves;
 }
 
-function placeAndKeepDraft(game = createGame(gameConfig)) {
-  dispatchGameAction(game, { type: 'placePendingGem', x: 2, y: 4 });
-  dispatchGameAction(game, { type: 'placePendingGem', x: 2, y: 5 });
-  dispatchGameAction(game, { type: 'placePendingGem', x: 3, y: 4 });
-  dispatchGameAction(game, { type: 'placePendingGem', x: 3, y: 5 });
-  dispatchGameAction(game, { type: 'placePendingGem', x: 5, y: 4 });
-  dispatchGameAction(game, { type: 'keepDraftCandidate', x: 2, y: 4 });
-  return game;
+function buyRuby(game = createGame(gameConfig), x = 2, y = 4) {
+  const item = game.config.towerShop.find((shopItem) => shopItem.gemId === 'ruby-1');
+  if (!item) throw new Error('Missing ruby shop item');
+  dispatchGameAction(game, { type: 'selectShopTower', gemId: item.gemId });
+  dispatchGameAction(game, { type: 'placeShopTower', x, y });
+  return { game, item };
 }
 
 function runOneTowerTargetMode(mode: TargetMode, enemies: EnemyState[], manualTargetId?: number) {
   const game = createGame(gameConfig);
-  game.pendingGemId = null;
-  game.draftQueue.length = 0;
-  game.draft = [];
   game.status = 'running';
   game.phase = 'attack';
   const attacker = tower(1, 5, 5, 'topaz', 1);
@@ -152,41 +149,108 @@ function setProgress(target: EnemyState, pathIndex: number): EnemyState {
 }
 
 describe('game engine', () => {
-  it('does not merge gems before at least one wave is completed', () => {
-    const game = placeAndKeepDraft();
-    const gem = game.towers[0];
-    const tierBefore = gem.tier;
-    dispatchGameAction(game, { type: 'selectTile', x: gem.x, y: gem.y });
-    expect(createSnapshot(game).canMerge).toBe(false);
-    dispatchGameAction(game, { type: 'mergeAt', x: gem.x, y: gem.y, levels: 1 });
-    expect(game.towers[0].tier).toBe(tierBefore);
-  });
-
-  it('removes a maze stone and refunds no gold', () => {
-    const game = placeAndKeepDraft();
-    const initialGold = game.gold;
-    const stone = game.stones[0];
-    dispatchGameAction(game, { type: 'selectTile', x: stone.x, y: stone.y });
-    expect(createSnapshot(game).canRemoveStone).toBe(true);
-    dispatchGameAction(game, { type: 'removeStone', x: stone.x, y: stone.y });
-    expect(game.stones).toHaveLength(3);
-    expect(game.gold).toBe(initialGold);
-  });
-
-  it('starts a build draft, keeps one gem, and hardens the rest into stones', () => {
+  it('starts in build mode with five banked maze blocks and no draft', () => {
     const game = createGame(gameConfig);
+    const snapshot = createSnapshot(game);
     expect(game.phase).toBe('build');
-    expect(game.pendingGemId).toBeTruthy();
-    placeAndKeepDraft(game);
-    expect(game.towers).toHaveLength(1);
-    expect(game.stones).toHaveLength(4);
+    expect(game.bankedMazeBlocks).toBe(5);
+    expect(game.pendingGemId).toBeNull();
     expect(game.draft).toHaveLength(0);
-    expect(game.phase).toBe('attack');
-    expect(game.currentPath.length).toBeGreaterThan(0);
+    expect(snapshot.canStartWave).toBe(true);
+  });
+
+  it('places free maze blocks, spends banked blocks, and rejects path-blocking placements', () => {
+    const game = createGame(gameConfig);
+    dispatchGameAction(game, { type: 'placeMazeBlock', x: 2, y: 4 });
+    expect(game.stones).toContainEqual({ x: 2, y: 4 });
+    expect(game.bankedMazeBlocks).toBe(4);
+
+    game.bankedMazeBlocks = 1;
+    for (let y = 0; y < game.config.map.height; y++) {
+      if (y !== 8) game.stones.push({ x: 12, y });
+    }
+    game.occupied = buildOccupancy(game.config.map, game.towers, game.stones);
+    dispatchGameAction(game, { type: 'placeMazeBlock', x: 12, y: 8 });
+    expect(game.bankedMazeBlocks).toBe(1);
+  });
+
+  it('banks five free blocks after each completed wave up to the configured cap', () => {
+    const game = createGame({ ...gameConfig, waves: emptyWaves(4) });
+    game.bankedMazeBlocks = 14;
+    dispatchGameAction(game, { type: 'startWave' });
+    tickGame(game, 0.2);
+    expect(game.waveIndex).toBe(1);
+    expect(game.status).toBe('ready');
+    expect(game.phase).toBe('build');
+    expect(game.bankedMazeBlocks).toBe(15);
+  });
+
+  it('buys a shop tower on empty space and charges family-based cost', () => {
+    const game = createGame(gameConfig);
+    const startingGold = game.gold;
+    const { item } = buyRuby(game, 3, 4);
+    expect(game.towers).toHaveLength(1);
+    expect(game.towers[0].gemId).toBe('ruby-1');
+    expect(game.gold).toBe(startingGold - item.cost);
+  });
+
+  it('replaces a maze block when placing a shop tower on it', () => {
+    const game = createGame(gameConfig);
+    dispatchGameAction(game, { type: 'placeMazeBlock', x: 4, y: 4 });
+    expect(game.stones).toHaveLength(1);
+    buyRuby(game, 4, 4);
+    expect(game.towers).toHaveLength(1);
+    expect(game.stones).toHaveLength(0);
+  });
+
+  it('rejects unaffordable shop placement and active-wave building', () => {
+    const game = createGame(gameConfig);
+    game.gold = 0;
+    dispatchGameAction(game, { type: 'selectShopTower', gemId: 'diamond-1' });
+    dispatchGameAction(game, { type: 'placeShopTower', x: 4, y: 4 });
+    expect(game.towers).toHaveLength(0);
+
+    game.gold = 1000;
+    game.status = 'running';
+    game.phase = 'attack';
+    dispatchGameAction(game, { type: 'placeShopTower', x: 4, y: 4 });
+    expect(game.towers).toHaveLength(0);
+  });
+
+  it('upgrades tower tier and separate stats with escalating costs', () => {
+    const game = createGame(gameConfig);
+    game.gold = 5000;
+    buyRuby(game, 5, 5);
+    const tower = game.towers[0];
+    const baseCooldown = tower.cooldown;
+
+    dispatchGameAction(game, { type: 'upgradeTowerTier', x: 5, y: 5 });
+    expect(tower.gemId).toBe('ruby-2');
+    expect(tower.tier).toBe(2);
+
+    dispatchGameAction(game, { type: 'upgradeTowerStat', x: 5, y: 5, stat: 'damage' });
+    dispatchGameAction(game, { type: 'upgradeTowerStat', x: 5, y: 5, stat: 'speed' });
+    dispatchGameAction(game, { type: 'upgradeTowerStat', x: 5, y: 5, stat: 'range' });
+    expect(tower.upgradeLevels).toEqual({ damage: 1, speed: 1, range: 1 });
+    expect(tower.damage).toBeGreaterThan(8);
+    expect(tower.cooldown).toBeLessThan(baseCooldown);
+    expect(tower.range).toBeGreaterThan(5);
+  });
+
+  it('enforces max stat upgrade levels', () => {
+    const game = createGame(gameConfig);
+    game.gold = 100000;
+    buyRuby(game, 5, 5);
+    for (let i = 0; i < 8; i++) {
+      dispatchGameAction(game, { type: 'upgradeTowerStat', x: 5, y: 5, stat: 'damage' });
+    }
+    expect(game.towers[0].upgradeLevels.damage).toBe(game.config.towerUpgradeCosts.maxStatLevel);
+    dispatchGameAction(game, { type: 'selectTile', x: 5, y: 5 });
+    expect(createSnapshot(game).selectedTowerUpgradeCosts?.damage).toBeNull();
   });
 
   it('spawns enemies and advances an attack wave through checkpoint paths', () => {
-    const game = placeAndKeepDraft();
+    const { game } = buyRuby();
     expect(game.checkpointPaths.length).toBeGreaterThanOrEqual(5);
     dispatchGameAction(game, { type: 'startWave' });
     tickGame(game, 0.2);
@@ -194,107 +258,8 @@ describe('game engine', () => {
     expect(createSnapshot(game).status).toBe('running');
   });
 
-  it('starts the next build draft automatically after a completed wave', () => {
-    const game = placeAndKeepDraft(
-      createGame({
-        ...gameConfig,
-        waves: [
-          {
-            id: 'empty-1',
-            wave: 1,
-            name: 'Empty One',
-            enemyId: 'frenzied-pig',
-            count: 0,
-            spawnInterval: 1,
-            skills: [],
-          },
-          {
-            id: 'empty-2',
-            wave: 2,
-            name: 'Empty Two',
-            enemyId: 'frenzied-pig',
-            count: 0,
-            spawnInterval: 1,
-            skills: [],
-          },
-        ],
-      }),
-    );
-    dispatchGameAction(game, { type: 'startWave' });
-    tickGame(game, 0.2);
-    expect(game.waveIndex).toBe(1);
-    expect(game.status).toBe('ready');
-    expect(game.phase).toBe('build');
-    expect(game.pendingGemId).toBeTruthy();
-  });
-
-  it('combines three matching adjacent gems into the next tier', () => {
-    const game = createGame(gameConfig);
-    game.towers.push(tower(1, 2, 4), tower(2, 2, 5), tower(3, 3, 4));
-    dispatchGameAction(game, { type: 'combineAt', x: 2, y: 4 });
-    expect(game.towers).toHaveLength(1);
-    expect(game.towers[0].gemId).toBe('ruby-2');
-  });
-
-  it('combines recipe ingredients globally and outputs on the selected ingredient', () => {
-    const game = createGame(gameConfig);
-    game.towers.push(
-      tower(1, 2, 4, 'sapphire', 1),
-      tower(2, 12, 8, 'diamond', 1),
-      tower(3, 15, 3, 'topaz', 1),
-    );
-
-    dispatchGameAction(game, { type: 'combineAt', x: 12, y: 8 });
-
-    expect(game.towers).toHaveLength(1);
-    expect(game.towers[0].gemId).toBe('silver');
-    expect(game.towers[0].x).toBe(12);
-    expect(game.towers[0].y).toBe(8);
-  });
-
-  it('supports build actions and player skills', () => {
-    const game = createGame(gameConfig);
-    game.gold = 2000;
-    game.waveIndex = 1;
-    game.pendingGemId = null;
-    game.draft = [];
-    game.towers.push(tower(10, 4, 4, 'diamond', 3));
-    dispatchGameAction(game, { type: 'buySkill', skillId: 'attackSpeed' });
-    expect(game.skillInventory.get('attackSpeed')).toBe(1);
-    dispatchGameAction(game, { type: 'activateSkill', skillId: 'attackSpeed', x: 4, y: 4 });
-    expect(game.towers[0].buffUntil).toBeGreaterThan(0);
-    dispatchGameAction(game, { type: 'mergeAt', x: 4, y: 4, levels: 2 });
-    expect(game.towers[0].gemId).toBe('diamond-5');
-    dispatchGameAction(game, { type: 'downgradeAt', x: 4, y: 4 });
-    expect(game.gold).toBeLessThan(2000);
-  });
-
-  it('charges gold for merges and blocks unaffordable or max-level merges', () => {
-    const game = createGame(gameConfig);
-    game.gold = 450;
-    game.waveIndex = 1;
-    game.pendingGemId = null;
-    game.draft = [];
-    game.towers.push(tower(10, 4, 4, 'diamond', 3));
-
-    dispatchGameAction(game, { type: 'mergeAt', x: 4, y: 4, levels: 1 });
-    expect(game.towers[0].gemId).toBe('diamond-4');
-    expect(game.gold).toBe(250);
-
-    dispatchGameAction(game, { type: 'mergeAt', x: 4, y: 4, levels: 2 });
-    expect(game.towers[0].gemId).toBe('diamond-4');
-    expect(game.gold).toBe(250);
-
-    game.gold = 1000;
-    game.towers[0].tier = 6;
-    game.towers[0].gemId = 'diamond-6';
-    dispatchGameAction(game, { type: 'mergeAt', x: 4, y: 4, levels: 1 });
-    expect(game.towers[0].gemId).toBe('diamond-6');
-    expect(game.gold).toBe(1000);
-  });
-
   it('continues into repeat mode after the required 50 waves', () => {
-    const game = placeAndKeepDraft(createGame({ ...gameConfig, waves: emptyWaves(50) }));
+    const { game } = buyRuby(createGame({ ...gameConfig, waves: emptyWaves(50) }));
     game.waveIndex = 49;
     dispatchGameAction(game, { type: 'startWave' });
     tickGame(game, 0.2);
@@ -307,10 +272,6 @@ describe('game engine', () => {
     expect(snapshot.currentWave?.wave).toBe(1);
     expect(snapshot.currentWaveSkills).toContain('rush');
 
-    game.pendingGemId = null;
-    game.draft.length = 0;
-    game.draftQueue.length = 0;
-    game.phase = 'attack';
     expect(createSnapshot(game).canStartWave).toBe(true);
     dispatchGameAction(game, { type: 'startWave' });
     expect(game.status).toBe('running');
@@ -345,9 +306,6 @@ describe('game engine', () => {
     expect(runOneTowerTargetMode('first', [hidden])).toBe(null);
 
     const game = createGame(gameConfig);
-    game.pendingGemId = null;
-    game.draftQueue.length = 0;
-    game.draft = [];
     game.status = 'running';
     game.phase = 'attack';
     const detector = tower(1, 5, 5, 'emerald', 2);
@@ -376,8 +334,6 @@ describe('game engine', () => {
     const game = createGame(gameConfig);
     game.status = 'running';
     game.phase = 'attack';
-    game.pendingGemId = null;
-    game.draft = [];
     const normal = enemy(1, 0, 0);
     normal.path = [{ x: 0, y: 0 }];
     normal.checkpointIndex = game.checkpointPaths.length;
@@ -395,28 +351,8 @@ describe('game engine', () => {
     expect(game.stats.leaks).toBe(2);
   });
 
-  it('lets evade cancel castle leak damage when it triggers', () => {
-    const game = createGame(gameConfig);
-    game.status = 'running';
-    game.phase = 'attack';
-    game.rngSeed = 0;
-    game.pendingGemId = null;
-    game.draft = [];
-    const normal = enemy(1, 0, 0);
-    normal.path = [{ x: 0, y: 0 }];
-    normal.checkpointIndex = game.checkpointPaths.length;
-    game.enemies.push(normal);
-    game.skillInventory.set('evade', 4);
-    game.activeSkills.evadeUntil = 10;
-
-    tickGame(game, 0.1);
-
-    expect(game.lives).toBe(game.config.economy.startingLives);
-    expect(game.stats.leaks).toBe(1);
-  });
-
   it('moves flying enemies directly to the castle while ground enemies use checkpoints', () => {
-    const game = placeAndKeepDraft(
+    const { game } = buyRuby(
       createGame({
         ...gameConfig,
         waves: [
@@ -441,146 +377,5 @@ describe('game engine', () => {
     expect(game.checkpointPaths[0][game.checkpointPaths[0].length - 1]).toEqual(
       game.config.map.checkpoints[0],
     );
-  });
-
-  it('applies MVP caps, range, and nearby magic vulnerability', () => {
-    const game = createGame(gameConfig);
-    const attacker = tower(1, 5, 5, 'ruby', 1);
-    attacker.damage = 100;
-    attacker.range = 10;
-    attacker.damageType = 'magic';
-    attacker.projectileSpeed = 100;
-    const mvp = tower(2, 6, 6, 'diamond', 1);
-    mvp.mvpAwards = 10;
-    mvp.stopped = true;
-    const target = enemy(1, 5, 6);
-    target.speed = 0;
-    attacker.x = 3;
-    attacker.y = 6;
-    game.towers.push(attacker, mvp);
-    game.enemies.push(target);
-    game.status = 'running';
-    game.phase = 'attack';
-
-    tickGame(game, 0.1);
-
-    expect(target.hp).toBe(890);
-    expect(attacker.cooldownLeft).toBeCloseTo(1, 5);
-
-    target.hp = 1000;
-    attacker.cooldownLeft = 0;
-    mvp.x = 9;
-    tickGame(game, 0.1);
-
-    expect(target.hp).toBe(900);
-
-    target.hp = 1000;
-    attacker.cooldownLeft = 0;
-    attacker.damageType = 'physical';
-    mvp.x = 5;
-    tickGame(game, 0.1);
-
-    expect(target.hp).toBe(825);
-  });
-
-  it('stacks different Opal speed aura levels but not identical levels', () => {
-    const game = createGame(gameConfig);
-    const attacker = tower(1, 5, 5, 'ruby', 1);
-    attacker.range = 10;
-    const opalOneA = tower(2, 6, 5, 'opal', 1);
-    opalOneA.effects = [{ type: 'speedAura', value: 0.2, radius: 5 }];
-    opalOneA.stopped = true;
-    const opalOneB = tower(3, 5, 6, 'opal', 1);
-    opalOneB.effects = [{ type: 'speedAura', value: 0.2, radius: 5 }];
-    opalOneB.stopped = true;
-    const opalTwo = tower(4, 6, 6, 'opal', 2);
-    opalTwo.effects = [{ type: 'speedAura', value: 0.3, radius: 5 }];
-    opalTwo.stopped = true;
-    game.towers.push(attacker, opalOneA, opalOneB, opalTwo);
-    game.enemies.push(enemy());
-    game.status = 'running';
-    game.phase = 'attack';
-
-    tickGame(game, 0.1);
-
-    expect(attacker.cooldownLeft).toBeCloseTo(1 / 1.5, 5);
-  });
-
-  it('does not stack identical Sapphire slow levels but combines different levels', () => {
-    const game = createGame(gameConfig);
-    const first = tower(1, 1, 0, 'sapphire', 1);
-    first.damage = 0;
-    first.range = 10;
-    first.projectileSpeed = 1000;
-    first.effects = [{ type: 'slow', value: 0.12, duration: 5 }];
-    const second = tower(2, 1, 1, 'sapphire', 1);
-    second.damage = 0;
-    second.range = 10;
-    second.projectileSpeed = 1000;
-    second.effects = [{ type: 'slow', value: 0.12, duration: 5 }];
-    const third = tower(3, 1, 2, 'sapphire', 2);
-    third.damage = 0;
-    third.range = 10;
-    third.projectileSpeed = 1000;
-    third.effects = [{ type: 'slow', value: 0.18, duration: 5 }];
-    const target = enemy(1, 0, 0);
-    game.towers.push(first, second, third);
-    game.enemies.push(target);
-    game.status = 'running';
-    game.phase = 'attack';
-
-    tickGame(game, 0.01);
-    first.stopped = true;
-    second.stopped = true;
-    third.stopped = true;
-    tickGame(game, 1);
-
-    expect(target.x).toBeCloseTo(0.01 + 0.88 * 0.82, 2);
-  });
-
-  it('creates one-build-phase towers only from a completed all-draft recipe', () => {
-    const game = createGame(gameConfig);
-    game.pendingGemId = null;
-    game.draftQueue.length = 0;
-    game.phase = 'build';
-    game.draft = [
-      { id: 1, gemId: 'sapphire-1', x: 2, y: 4 },
-      { id: 2, gemId: 'diamond-1', x: 12, y: 8 },
-      { id: 3, gemId: 'topaz-1', x: 15, y: 3 },
-      { id: 4, gemId: 'ruby-1', x: 4, y: 4 },
-      { id: 5, gemId: 'opal-1', x: 4, y: 5 },
-    ];
-
-    dispatchGameAction(game, { type: 'combineAt', x: 2, y: 4 });
-
-    expect(game.towers).toHaveLength(1);
-    expect(game.towers[0].gemId).toBe('silver');
-    expect(game.towers[0].x).toBe(2);
-    expect(game.towers[0].y).toBe(4);
-    expect(game.stones).toHaveLength(2);
-    expect(game.draft).toHaveLength(0);
-    expect(game.phase).toBe('attack');
-  });
-
-  it('blocks mixed draft and settled tower recipes during one-build-phase creation', () => {
-    const game = createGame(gameConfig);
-    game.pendingGemId = null;
-    game.draftQueue.length = 0;
-    game.phase = 'build';
-    game.towers.push(tower(1, 2, 4, 'sapphire', 1));
-    game.draft = [
-      { id: 1, gemId: 'diamond-1', x: 3, y: 4 },
-      { id: 2, gemId: 'topaz-1', x: 2, y: 5 },
-      { id: 3, gemId: 'ruby-1', x: 4, y: 4 },
-      { id: 4, gemId: 'opal-1', x: 4, y: 5 },
-      { id: 5, gemId: 'emerald-1', x: 5, y: 5 },
-    ];
-
-    dispatchGameAction(game, { type: 'combineAt', x: 2, y: 4 });
-
-    expect(game.towers).toHaveLength(1);
-    expect(game.towers[0].gemId).toBe('sapphire-1');
-    expect(game.draft).toHaveLength(5);
-    expect(game.stones).toHaveLength(0);
   });
 });

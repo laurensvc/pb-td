@@ -191,14 +191,40 @@ export interface RankDefinition {
 export interface EconomyConfig {
   startingGold: number;
   startingLives: number;
-  downgradeCost: number;
   sellRefundRate: number;
+}
+
+export type TowerUpgradeStat = 'damage' | 'speed' | 'range';
+
+export interface TowerUpgradeLevels {
+  damage: number;
+  speed: number;
+  range: number;
+}
+
+export interface TowerShopItem {
+  gemId: string;
+  cost: number;
+}
+
+export interface TowerUpgradeCosts {
+  tierBase: number;
+  tierGrowth: number;
+  damageBase: number;
+  speedBase: number;
+  rangeBase: number;
+  statGrowth: number;
+  maxStatLevel: number;
 }
 
 export interface GameConfig {
   map: MapDefinition;
   gems: readonly GemDefinition[];
   recipes: readonly RecipeDefinition[];
+  towerShop: readonly TowerShopItem[];
+  towerUpgradeCosts: TowerUpgradeCosts;
+  freeBlocksPerWave: number;
+  maxBankedFreeBlocks: number;
   enemies: readonly EnemyDefinition[];
   waves: readonly WaveDefinition[];
   skills: readonly SkillDefinition[];
@@ -272,6 +298,7 @@ export interface TowerState {
   rangeBuff: number;
   critBuff: number;
   critMultiplier: number;
+  upgradeLevels: TowerUpgradeLevels;
 }
 
 export interface ProjectileState {
@@ -336,6 +363,9 @@ export interface GameStats {
   mvpAwards: number;
   secretTowersBuilt: number;
   oneRoundTowersBuilt: number;
+  mazeBlocksPlaced: number;
+  shopTowersBought: number;
+  towerUpgradesBought: number;
   killedGoldenRoshan: boolean;
   killedZard: boolean;
   completedRequiredWaves: boolean;
@@ -354,6 +384,9 @@ export interface GameState {
   activeWaveId: string | null;
   enemiesToSpawn: number;
   spawnTimer: number;
+  bankedMazeBlocks: number;
+  buildMode: 'select' | 'mazeBlock' | 'shopTower';
+  selectedShopGemId: string | null;
   draft: DraftCandidate[];
   draftQueue: string[];
   draftWaveIndex: number | null;
@@ -409,6 +442,10 @@ export interface GameSnapshot {
   activeEnemies: number;
   towers: number;
   stones: number;
+  bankedMazeBlocks: number;
+  buildMode: GameState['buildMode'];
+  selectedShopGemId: string | null;
+  towerShop: readonly TowerShopItem[];
   draft: DraftCandidate[];
   draftRemaining: number;
   pendingGemId: string | null;
@@ -427,27 +464,31 @@ export interface GameSnapshot {
   quests: QuestProgress[];
   rank: RankState;
   canStartWave: boolean;
+  canPlaceMazeBlock: boolean;
+  selectedShopItem: TowerShopItem | null;
   canKeepDraft: boolean;
-  canMerge: boolean;
-  canMergePlus: boolean;
-  canDowngrade: boolean;
+  selectedTowerUpgradeCosts: {
+    tier: number | null;
+    damage: number | null;
+    speed: number | null;
+    range: number | null;
+  } | null;
   canRemoveStone: boolean;
   message: string;
 }
 
 export type GameAction =
   | { type: 'startWave' }
-  | { type: 'keepDraftCandidate'; x: number; y: number }
-  | { type: 'placePendingGem'; x: number; y: number }
+  | { type: 'selectShopTower'; gemId: string }
+  | { type: 'clearShopSelection' }
+  | { type: 'placeMazeBlock'; x: number; y: number }
+  | { type: 'placeShopTower'; x: number; y: number }
+  | { type: 'upgradeTowerTier'; x: number; y: number }
+  | { type: 'upgradeTowerStat'; x: number; y: number; stat: TowerUpgradeStat }
   | { type: 'selectTile'; x: number; y: number }
-  | { type: 'hoverDraftRow'; x: number; y: number }
-  | { type: 'clearDraftRowHover' }
   | { type: 'hoverTile'; x: number; y: number }
   | { type: 'clearHover' }
-  | { type: 'combineAt'; x: number; y: number }
   | { type: 'removeStone'; x: number; y: number }
-  | { type: 'mergeAt'; x: number; y: number; levels: 1 | 2 }
-  | { type: 'downgradeAt'; x: number; y: number }
   | { type: 'toggleTowerStop'; x: number; y: number }
   | { type: 'setTowerTarget'; x: number; y: number; targetId: number | null }
   | { type: 'setTowerTargetMode'; x: number; y: number; targetMode: TargetMode }

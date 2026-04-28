@@ -8,7 +8,6 @@ import {
 } from './pathfinding';
 import type {
   DamageType,
-  DraftCandidate,
   EnemySkill,
   EnemyState,
   FloatingText,
@@ -26,16 +25,21 @@ import type {
   SaveState,
   SkillId,
   TargetMode,
+  TowerUpgradeLevels,
+  TowerUpgradeStat,
   TowerEffectDefinition,
   TowerState,
 } from './types';
 
-const DRAFT_SIZE = 5;
+const DRAFT_SIZE = 5; // Legacy recipe helpers only; active gameplay uses shop placement.
 const TILE_EPSILON = 0.03;
 const MAX_MVP_AWARDS = 10;
 const MVP_AURA_RANGE = 2;
-const MERGE_ONE_LEVEL_COST = 200;
-const MERGE_TWO_LEVELS_COST = 450;
+const STAT_UPGRADE_MODIFIERS = {
+  damage: 0.18,
+  speed: 0.08,
+  range: 0.35,
+} as const;
 const REQUIRED_WAVES = 50;
 const REPEAT_WAVE_SKILLS: readonly EnemySkill[] = [
   'vitality',
@@ -85,7 +89,26 @@ function cloneEffects(effects: readonly TowerEffectDefinition[]): TowerEffectDef
   return result;
 }
 
+function emptyUpgradeLevels(): TowerUpgradeLevels {
+  return { damage: 0, speed: 0, range: 0 };
+}
+
+function applyUpgradeStats(
+  gem: GemDefinition,
+  upgradeLevels: TowerUpgradeLevels,
+): Pick<TowerState, 'damage' | 'range' | 'cooldown'> {
+  return {
+    damage: Math.round(gem.damage * (1 + upgradeLevels.damage * STAT_UPGRADE_MODIFIERS.damage)),
+    range: Number((gem.range + upgradeLevels.range * STAT_UPGRADE_MODIFIERS.range).toFixed(2)),
+    cooldown: Number(
+      (gem.cooldown * Math.pow(1 - STAT_UPGRADE_MODIFIERS.speed, upgradeLevels.speed)).toFixed(3),
+    ),
+  };
+}
+
 function makeTower(state: GameState, gem: GemDefinition, x: number, y: number): TowerState {
+  const upgradeLevels = emptyUpgradeLevels();
+  const upgradedStats = applyUpgradeStats(gem, upgradeLevels);
   return {
     id: state.nextTowerId++,
     gemId: gem.id,
@@ -95,9 +118,9 @@ function makeTower(state: GameState, gem: GemDefinition, x: number, y: number): 
     classification: gem.classification,
     x,
     y,
-    damage: gem.damage,
-    range: gem.range,
-    cooldown: gem.cooldown,
+    damage: upgradedStats.damage,
+    range: upgradedStats.range,
+    cooldown: upgradedStats.cooldown,
     cooldownLeft: 0,
     projectileSpeed: gem.projectileSpeed,
     color: gem.color,
@@ -115,6 +138,7 @@ function makeTower(state: GameState, gem: GemDefinition, x: number, y: number): 
     rangeBuff: 0,
     critBuff: 0,
     critMultiplier: 1,
+    upgradeLevels,
   };
 }
 
@@ -156,6 +180,9 @@ export function createGame(
     activeWaveId: null,
     enemiesToSpawn: 0,
     spawnTimer: 0,
+    bankedMazeBlocks: config.freeBlocksPerWave,
+    buildMode: 'select',
+    selectedShopGemId: null,
     draft: [],
     draftQueue: [],
     draftWaveIndex: null,
@@ -192,13 +219,15 @@ export function createGame(
       mvpAwards: 0,
       secretTowersBuilt: 0,
       oneRoundTowersBuilt: 0,
+      mazeBlocksPlaced: 0,
+      shopTowersBought: 0,
+      towerUpgradesBought: 0,
       killedGoldenRoshan: false,
       killedZard: false,
       completedRequiredWaves: false,
     },
   };
   rebuildPaths(state);
-  beginDraftRound(state);
   return state;
 }
 
@@ -315,38 +344,66 @@ function chooseGemId(state: GameState): string {
   return `${family}-${tier}`;
 }
 
-function canBeginDraftRound(state: GameState): boolean {
+function canBuildBetweenWaves(state: GameState): boolean {
   return (
     state.phase === 'build' &&
-    state.draft.length === 0 &&
-    state.draftQueue.length === 0 &&
-    state.draftWaveIndex !== state.waveIndex &&
-    !state.pendingGemId &&
     !state.activeWaveId &&
     state.status !== 'running' &&
     state.status !== 'paused' &&
-    state.status !== 'lost' &&
-    (state.status !== 'won' || state.stats.completedRequiredWaves)
+    state.status !== 'lost'
   );
 }
 
-function beginDraftRound(state: GameState): void {
-  if (!canBeginDraftRound(state)) return;
-  state.phase = 'build';
+function grantBuildPhaseBlocks(state: GameState): void {
+  state.bankedMazeBlocks = Math.min(
+    state.config.maxBankedFreeBlocks,
+    state.bankedMazeBlocks + state.config.freeBlocksPerWave,
+  );
   state.activeSkills.candyAvailable = true;
-  state.draftQueue.length = 0;
-  for (let i = 0; i < DRAFT_SIZE; i++) state.draftQueue.push(chooseGemId(state));
-  state.draftWaveIndex = state.waveIndex;
-  state.pendingGemId = state.draftQueue.shift() ?? null;
+  state.buildMode = 'select';
+  state.selectedShopGemId = null;
 }
 
-function placePendingGem(state: GameState, x: number, y: number): void {
-  if (!state.pendingGemId || state.phase !== 'build') return;
-  const enemyCells = getActiveEnemyCells(state);
-  if (!canPlaceWithoutBlocking(state.config.map, state.occupied, x, y, enemyCells)) return;
-  state.draft.push({ id: state.nextDraftId++, gemId: state.pendingGemId, x, y });
-  state.pendingGemId = state.draftQueue.shift() ?? null;
+function placeMazeBlock(state: GameState, x: number, y: number): void {
+  if (!canBuildBetweenWaves(state) || state.bankedMazeBlocks <= 0) return;
+  if (!canPlaceWithoutBlocking(state.config.map, state.occupied, x, y, getActiveEnemyCells(state)))
+    return;
+  state.stones.push({ x, y });
+  state.bankedMazeBlocks -= 1;
   state.selectedTile = { x, y };
+  state.stats.mazeBlocksPlaced += 1;
+  maybeCompleteQuestProgress(state, 'build-25-blocks', state.stats.mazeBlocksPlaced / 25);
+  rebuildPaths(state);
+}
+
+function getShopItem(state: GameState, gemId: string | null) {
+  if (!gemId) return null;
+  for (let i = 0; i < state.config.towerShop.length; i++) {
+    if (state.config.towerShop[i].gemId === gemId) return state.config.towerShop[i];
+  }
+  return null;
+}
+
+function placeShopTower(state: GameState, x: number, y: number): void {
+  if (!canBuildBetweenWaves(state)) return;
+  const item = getShopItem(state, state.selectedShopGemId);
+  if (!item || state.gold < item.cost || getTowerAt(state, x, y)) return;
+  const stoneIndex = getStoneAt(state, x, y);
+  if (
+    stoneIndex < 0 &&
+    !canPlaceWithoutBlocking(state.config.map, state.occupied, x, y, getActiveEnemyCells(state))
+  )
+    return;
+
+  if (stoneIndex >= 0) {
+    state.stones[stoneIndex] = state.stones[state.stones.length - 1];
+    state.stones.length -= 1;
+  }
+  state.gold -= item.cost;
+  state.towers.push(makeTower(state, getGem(state.config, item.gemId), x, y));
+  state.selectedTile = { x, y };
+  state.stats.shopTowersBought += 1;
+  maybeCompleteQuestProgress(state, 'buy-20-towers', state.stats.shopTowersBought / 20);
   rebuildPaths(state);
 }
 
@@ -358,46 +415,11 @@ function getTowerAt(state: GameState, x: number, y: number): TowerState | null {
   return null;
 }
 
-function getDraftCandidateAt(state: GameState, x: number, y: number): DraftCandidate | null {
-  for (let i = 0; i < state.draft.length; i++) {
-    const candidate = state.draft[i];
-    if (candidate.x === x && candidate.y === y) return candidate;
-  }
-  return null;
-}
-
 function getStoneAt(state: GameState, x: number, y: number): number {
   for (let i = 0; i < state.stones.length; i++) {
     if (state.stones[i].x === x && state.stones[i].y === y) return i;
   }
   return -1;
-}
-
-function syncDraftRowHoverFromPointerTile(state: GameState, x: number, y: number): void {
-  if (state.draft.length === 5 && !state.pendingGemId && getDraftCandidateAt(state, x, y)) {
-    state.draftRowHover = { x, y };
-  } else {
-    state.draftRowHover = null;
-  }
-}
-
-function keepDraftCandidate(state: GameState, x: number, y: number): void {
-  if (state.pendingGemId || state.draft.length !== DRAFT_SIZE || state.phase !== 'build') return;
-  const kept = getDraftCandidateAt(state, x, y);
-  if (!kept) return;
-  for (let i = 0; i < state.draft.length; i++) {
-    const candidate = state.draft[i];
-    if (candidate.id === kept.id) continue;
-    state.stones.push({ x: candidate.x, y: candidate.y });
-  }
-  const gem = getGem(state.config, kept.gemId);
-  state.towers.push(makeTower(state, gem, kept.x, kept.y));
-  state.draft.length = 0;
-  state.draftQueue.length = 0;
-  state.selectedTile = { x: kept.x, y: kept.y };
-  state.draftRowHover = null;
-  state.phase = 'attack';
-  rebuildPaths(state);
 }
 
 interface MatchPiece {
@@ -561,56 +583,6 @@ export function findRecipeAt(state: GameState, x: number, y: number): RecipeDefi
   return null;
 }
 
-function combineAt(state: GameState, x: number, y: number): void {
-  const recipe = findRecipeAt(state, x, y);
-  if (!recipe) return;
-  const pieces = collectRecipePieces(state, x, y);
-  const used = new Uint8Array(pieces.length);
-  if (!recipeMatches(recipe, pieces, used)) return;
-  if (!matchedPiecesAreLegalForTile(state, x, y, recipe, pieces, used)) return;
-
-  const consumedTowerIndexes: number[] = [];
-  const consumedDraftIndexes: number[] = [];
-  for (let i = 0; i < used.length; i++) {
-    if (used[i] !== 1) continue;
-    const piece = pieces[i];
-    if (piece.source === 'tower') consumedTowerIndexes.push(piece.index);
-    else consumedDraftIndexes.push(piece.index);
-  }
-
-  consumedTowerIndexes.sort((a, b) => b - a);
-  for (let i = 0; i < consumedTowerIndexes.length; i++) {
-    const index = consumedTowerIndexes[i];
-    state.towers[index] = state.towers[state.towers.length - 1];
-    state.towers.length -= 1;
-  }
-
-  if (consumedDraftIndexes.length > 0) {
-    for (let i = 0; i < state.draft.length; i++) {
-      let consumed = false;
-      for (let c = 0; c < consumedDraftIndexes.length; c++) {
-        if (consumedDraftIndexes[c] === i) consumed = true;
-      }
-      if (!consumed) state.stones.push({ x: state.draft[i].x, y: state.draft[i].y });
-    }
-    state.draft.length = 0;
-    state.draftQueue.length = 0;
-    state.pendingGemId = null;
-    state.phase = 'attack';
-    if (recipe.oneRoundOnly) state.stats.oneRoundTowersBuilt += 1;
-  }
-
-  const gem = getGem(state.config, recipe.resultGemId);
-  state.towers.push(makeTower(state, gem, x, y));
-  state.discoveredRecipes.add(recipe.id);
-  if (recipe.hidden || recipe.classification === 'secret') {
-    state.unlockedSecrets.add(recipe.id);
-    state.stats.secretTowersBuilt += 1;
-  }
-  state.selectedTile = { x, y };
-  rebuildPaths(state);
-}
-
 function removeStone(state: GameState, x: number, y: number): void {
   const index = getStoneAt(state, x, y);
   if (index < 0) return;
@@ -619,19 +591,44 @@ function removeStone(state: GameState, x: number, y: number): void {
   rebuildPaths(state);
 }
 
-function mergeAt(state: GameState, x: number, y: number, levels: 1 | 2): void {
-  if (state.waveIndex < 1) return;
-  if (state.activeWaveId) return;
-  if (state.pendingGemId !== null || state.draft.length > 0) return;
+function getTierUpgradeCost(state: GameState, tower: TowerState): number | null {
+  if (tower.classification !== 'gem' || tower.tier >= 6) return null;
+  return Math.round(
+    state.config.towerUpgradeCosts.tierBase *
+      Math.pow(state.config.towerUpgradeCosts.tierGrowth, tower.tier - 1),
+  );
+}
+
+function getStatUpgradeCost(
+  state: GameState,
+  tower: TowerState,
+  stat: TowerUpgradeStat,
+): number | null {
+  const level = tower.upgradeLevels[stat];
+  if (level >= state.config.towerUpgradeCosts.maxStatLevel) return null;
+  const base =
+    stat === 'damage'
+      ? state.config.towerUpgradeCosts.damageBase
+      : stat === 'speed'
+        ? state.config.towerUpgradeCosts.speedBase
+        : state.config.towerUpgradeCosts.rangeBase;
+  return Math.round(base * Math.pow(state.config.towerUpgradeCosts.statGrowth, level));
+}
+
+function upgradeTowerTier(state: GameState, x: number, y: number): void {
+  if (!canBuildBetweenWaves(state)) return;
   const tower = getTowerAt(state, x, y);
   if (!tower || tower.classification !== 'gem') return;
-  const nextTier = Math.min(6, tower.tier + levels) as GemTier;
+  const nextTier = Math.min(6, tower.tier + 1) as GemTier;
   if (nextTier === tower.tier) return;
-  const cost = levels === 1 ? MERGE_ONE_LEVEL_COST : MERGE_TWO_LEVELS_COST;
+  const cost = getTierUpgradeCost(state, tower);
+  if (cost === null) return;
   if (state.gold < cost) return;
   state.gold -= cost;
   const gem = getGem(state.config, `${tower.family}-${nextTier}`);
   Object.assign(tower, makeTowerFromExisting(state, tower, gem));
+  state.stats.towerUpgradesBought += 1;
+  maybeCompleteQuestProgress(state, 'upgrade-30-times', state.stats.towerUpgradesBought / 30);
 }
 
 function makeTowerFromExisting(
@@ -639,33 +636,39 @@ function makeTowerFromExisting(
   tower: TowerState,
   gem: GemDefinition,
 ): Partial<TowerState> {
+  const upgradeLevels = { ...tower.upgradeLevels };
+  const upgradedStats = applyUpgradeStats(gem, upgradeLevels);
   return {
     gemId: gem.id,
     name: gem.name,
     family: gem.family,
     tier: gem.tier,
     classification: gem.classification,
-    damage: gem.damage,
-    range: gem.range,
-    cooldown: gem.cooldown,
+    damage: upgradedStats.damage,
+    range: upgradedStats.range,
+    cooldown: upgradedStats.cooldown,
     projectileSpeed: gem.projectileSpeed,
     color: gem.color,
     damageType: gem.damageType,
     effects: cloneEffects(gem.effects),
     cooldownLeft: Math.min(tower.cooldownLeft, gem.cooldown),
     buffUntil: state.time > tower.buffUntil ? 0 : tower.buffUntil,
+    upgradeLevels,
   };
 }
 
-function downgradeAt(state: GameState, x: number, y: number): void {
+function upgradeTowerStat(state: GameState, x: number, y: number, stat: TowerUpgradeStat): void {
+  if (!canBuildBetweenWaves(state)) return;
   const tower = getTowerAt(state, x, y);
-  if (!tower || tower.classification !== 'gem' || tower.tier <= 1) return;
-  if (state.gold < state.config.economy.downgradeCost) return;
-  state.gold -= state.config.economy.downgradeCost;
-  const tier = rollInt(state, 1, tower.tier - 1) as GemTier;
-  const family = gemFamilies[Math.floor(nextRandom(state) * gemFamilies.length)];
-  const gem = getGem(state.config, `${family}-${tier}`);
+  if (!tower) return;
+  const cost = getStatUpgradeCost(state, tower, stat);
+  if (cost === null || state.gold < cost) return;
+  state.gold -= cost;
+  tower.upgradeLevels[stat] += 1;
+  const gem = getGem(state.config, tower.gemId);
   Object.assign(tower, makeTowerFromExisting(state, tower, gem));
+  state.stats.towerUpgradesBought += 1;
+  maybeCompleteQuestProgress(state, 'upgrade-30-times', state.stats.towerUpgradesBought / 30);
 }
 
 function startWave(state: GameState): void {
@@ -675,7 +678,6 @@ function startWave(state: GameState): void {
     (state.status === 'won' && !state.stats.completedRequiredWaves)
   )
     return;
-  if (state.pendingGemId || state.draft.length > 0 || state.draftQueue.length > 0) return;
   const wave = getCurrentWave(state);
   if (!wave) return;
   state.status = 'running';
@@ -1341,7 +1343,7 @@ function completeWaveIfDone(state: GameState): void {
   }
   state.status = state.stats.completedRequiredWaves ? 'won' : 'ready';
   state.phase = 'build';
-  beginDraftRound(state);
+  grantBuildPhaseBlocks(state);
 }
 
 function awardMvp(state: GameState): void {
@@ -1373,11 +1375,9 @@ function updateRank(state: GameState): void {
 function completeQuests(state: GameState): void {
   maybeCompleteQuest(state, 'complete-all');
   if (state.lives === state.config.economy.startingLives) maybeCompleteQuest(state, 'full-health');
-  if (state.stats.oneRoundTowersBuilt > 0) maybeCompleteQuest(state, 'secret-only');
   const elapsedMinutes = state.time / 60;
   if (elapsedMinutes <= 40) maybeCompleteQuest(state, 'under-40');
   if (elapsedMinutes <= 60) maybeCompleteQuest(state, 'under-60');
-  if (state.stats.secretTowersBuilt === 0) maybeCompleteQuest(state, 'no-single-round');
   if (state.stats.killedGoldenRoshan) maybeCompleteQuest(state, 'kill-golden-roshan');
   if (state.stats.mvpAwards >= 5) maybeCompleteQuest(state, 'five-mvps');
   if (state.stats.killedZard) maybeCompleteQuest(state, 'kill-zard');
@@ -1388,6 +1388,13 @@ function maybeCompleteQuest(state: GameState, questId: string): void {
   if (!progress || progress.completed) return;
   progress.completed = true;
   progress.progress = 1;
+}
+
+function maybeCompleteQuestProgress(state: GameState, questId: string, amount: number): void {
+  const progress = state.quests.get(questId);
+  if (!progress || progress.completed) return;
+  progress.progress = Math.max(progress.progress, Math.min(1, amount));
+  if (progress.progress >= 1) progress.completed = true;
 }
 
 function buySkill(state: GameState, skillId: SkillId): void {
@@ -1538,40 +1545,38 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
     case 'startWave':
       startWave(state);
       break;
-    case 'keepDraftCandidate':
-      keepDraftCandidate(state, action.x, action.y);
+    case 'selectShopTower':
+      state.selectedShopGemId = getShopItem(state, action.gemId) ? action.gemId : null;
+      state.buildMode = state.selectedShopGemId ? 'shopTower' : 'select';
       break;
-    case 'placePendingGem':
-      placePendingGem(state, action.x, action.y);
+    case 'clearShopSelection':
+      state.selectedShopGemId = null;
+      state.buildMode = 'select';
+      break;
+    case 'placeMazeBlock':
+      state.buildMode = 'mazeBlock';
+      placeMazeBlock(state, action.x, action.y);
+      break;
+    case 'placeShopTower':
+      placeShopTower(state, action.x, action.y);
+      break;
+    case 'upgradeTowerTier':
+      upgradeTowerTier(state, action.x, action.y);
+      break;
+    case 'upgradeTowerStat':
+      upgradeTowerStat(state, action.x, action.y, action.stat);
       break;
     case 'selectTile':
       state.selectedTile = { x: action.x, y: action.y };
       break;
-    case 'hoverDraftRow':
-      state.draftRowHover = { x: action.x, y: action.y };
-      break;
-    case 'clearDraftRowHover':
-      state.draftRowHover = null;
-      break;
     case 'hoverTile':
       state.hoverTile = { x: action.x, y: action.y };
-      syncDraftRowHoverFromPointerTile(state, action.x, action.y);
       break;
     case 'clearHover':
       state.hoverTile = null;
-      state.draftRowHover = null;
-      break;
-    case 'combineAt':
-      combineAt(state, action.x, action.y);
       break;
     case 'removeStone':
       removeStone(state, action.x, action.y);
-      break;
-    case 'mergeAt':
-      mergeAt(state, action.x, action.y, action.levels);
-      break;
-    case 'downgradeAt':
-      downgradeAt(state, action.x, action.y);
       break;
     case 'toggleTowerStop': {
       const tower = getTowerAt(state, action.x, action.y);
@@ -1622,6 +1627,14 @@ export function createSnapshot(state: GameState): GameSnapshot {
     state.selectedTile && getStoneAt(state, state.selectedTile.x, state.selectedTile.y) >= 0;
   const currentWave = getWaveAtIndex(state, state.waveIndex);
   const nextWave = getWaveAtIndex(state, state.waveIndex + 1);
+  const selectedTowerUpgradeCosts = selectedTower
+    ? {
+        tier: getTierUpgradeCost(state, selectedTower),
+        damage: getStatUpgradeCost(state, selectedTower, 'damage'),
+        speed: getStatUpgradeCost(state, selectedTower, 'speed'),
+        range: getStatUpgradeCost(state, selectedTower, 'range'),
+      }
+    : null;
   return {
     status: state.status,
     phase: state.phase,
@@ -1633,6 +1646,10 @@ export function createSnapshot(state: GameState): GameSnapshot {
     activeEnemies: countActiveEnemies(state),
     towers: state.towers.length,
     stones: state.stones.length,
+    bankedMazeBlocks: state.bankedMazeBlocks,
+    buildMode: state.buildMode,
+    selectedShopGemId: state.selectedShopGemId,
+    towerShop: state.config.towerShop,
     draft: state.draft,
     draftRemaining: state.pendingGemId ? state.draftQueue.length + 1 : 0,
     pendingGemId: state.pendingGemId,
@@ -1651,38 +1668,15 @@ export function createSnapshot(state: GameState): GameSnapshot {
     quests: Array.from(state.quests.values()),
     rank: state.rank,
     canStartWave:
-      state.phase === 'attack' &&
+      state.phase === 'build' &&
       !state.activeWaveId &&
       state.status !== 'lost' &&
       !state.pendingGemId &&
       state.draft.length === 0,
-    canKeepDraft: !state.pendingGemId && state.draft.length === DRAFT_SIZE,
-    canMerge: Boolean(
-      selectedTower &&
-      selectedTower.classification === 'gem' &&
-      selectedTower.tier < 6 &&
-      state.gold >= MERGE_ONE_LEVEL_COST &&
-      state.waveIndex > 0 &&
-      !state.activeWaveId &&
-      !state.pendingGemId &&
-      state.draft.length === 0,
-    ),
-    canMergePlus: Boolean(
-      selectedTower &&
-      selectedTower.classification === 'gem' &&
-      selectedTower.tier < 5 &&
-      state.gold >= MERGE_TWO_LEVELS_COST &&
-      state.waveIndex > 0 &&
-      !state.activeWaveId &&
-      !state.pendingGemId &&
-      state.draft.length === 0,
-    ),
-    canDowngrade: Boolean(
-      selectedTower &&
-      selectedTower.classification === 'gem' &&
-      selectedTower.tier > 1 &&
-      state.gold >= state.config.economy.downgradeCost,
-    ),
+    canPlaceMazeBlock: canBuildBetweenWaves(state) && state.bankedMazeBlocks > 0,
+    selectedShopItem: getShopItem(state, state.selectedShopGemId),
+    canKeepDraft: false,
+    selectedTowerUpgradeCosts,
     canRemoveStone: Boolean(selectedStone),
     message: getMessage(state),
   };
@@ -1691,13 +1685,13 @@ export function createSnapshot(state: GameState): GameSnapshot {
 function getMessage(state: GameState): string {
   if (state.status === 'won') return 'Wave 50 cleared. The Gem Castle stands.';
   if (state.status === 'lost') return 'The Gem Castle has fallen. Rebuild the maze.';
-  if (state.pendingGemId)
-    return `Build phase: place candidate ${state.draft.length + 1} of ${DRAFT_SIZE}.`;
-  if (state.draft.length === DRAFT_SIZE)
-    return 'Select one gem to keep, or combine a one-round recipe.';
+  if (state.buildMode === 'mazeBlock')
+    return 'Build phase: place free maze blocks before the wave.';
+  if (state.buildMode === 'shopTower' && state.selectedShopGemId)
+    return 'Build phase: place the selected shop tower on an empty tile or maze block.';
   if (state.activeWaveId) return 'Attack phase: towers may be stopped or focused for MVP control.';
   if (state.stats.completedRequiredWaves) return 'Wave 50 cleared. Repeat waves are open.';
-  return 'Build resolved. Start the next wave when the maze is ready.';
+  return 'Build phase: buy towers, place maze blocks, upgrade, or start the next wave.';
 }
 
 function countActiveEnemies(state: GameState): number {
