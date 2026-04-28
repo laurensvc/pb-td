@@ -81,6 +81,7 @@ function enemy(id = 1, x = 5, y = 5): EnemyState {
     refraction: 0,
     blinkCooldown: 0,
     rechargeTimer: 0,
+    revealedUntil: 0,
     color: '#fca5a5',
     skills: [],
     invisible: false,
@@ -335,6 +336,40 @@ describe('game engine', () => {
     expect(runOneTowerTargetMode('flyingOnly', [enemy(9, 6, 5), flying])).toBe(5);
     expect(runOneTowerTargetMode('bossOnly', [enemy(10, 6, 5), boss])).toBe(6);
     expect(runOneTowerTargetMode('strongest', [weak, strong], 4)).toBe(4);
+  });
+
+  it('requires detection for invisible enemies and lets overlook reveal them for other towers', () => {
+    const hidden = enemy(1, 6, 5);
+    hidden.invisible = true;
+
+    expect(runOneTowerTargetMode('first', [hidden])).toBe(null);
+
+    const game = createGame(gameConfig);
+    game.pendingGemId = null;
+    game.draftQueue.length = 0;
+    game.draft = [];
+    game.status = 'running';
+    game.phase = 'attack';
+    const detector = tower(1, 5, 5, 'emerald', 2);
+    detector.range = 20;
+    detector.damage = 0;
+    detector.projectileSpeed = 100;
+    detector.effects = [{ type: 'overlook', value: 1, duration: 4 }];
+    const helper = tower(2, 5, 6, 'ruby', 1);
+    helper.range = 20;
+    helper.damage = 0;
+    helper.projectileSpeed = 0;
+    helper.cooldownLeft = 0.2;
+    const target = enemy(1, 6, 5);
+    target.invisible = true;
+    game.towers.push(detector, helper);
+    game.enemies.push(target);
+
+    tickGame(game, 0.1);
+    expect(game.enemies[0].revealedUntil).toBeGreaterThan(game.time);
+
+    tickGame(game, 0.2);
+    expect(game.projectiles.some((projectile) => projectile.towerId === helper.id)).toBe(true);
   });
 
   it('applies normal and boss leak damage after guard reduction', () => {

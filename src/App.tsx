@@ -1,3 +1,4 @@
+import { BentoIntro } from './components/BentoIntro';
 import { GameCanvas } from './components/GameCanvas';
 import { Hud } from './components/Hud';
 import { SidePanel } from './components/SidePanel';
@@ -15,6 +16,7 @@ export default function App() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#11110f] text-[#f7f0d2]">
       <div className="pixel-backdrop absolute inset-0" />
+      <BentoIntro />
       <div className="relative mx-auto grid min-h-screen max-w-[1760px] grid-cols-1 gap-3 p-2 sm:p-3 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-4 lg:p-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex min-h-[640px] flex-col gap-3">
           <Hud

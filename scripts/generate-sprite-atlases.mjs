@@ -111,9 +111,7 @@ writePng(join(outDir, 'gems.png'), gems);
 writeFileSync(join(outDir, 'sprites.json'), `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
 
 const outDirForLog = outDir.split(/[/\\]/).join('/');
-console.log(
-  `Sprite atlases: ${enemies.length} monsters, ${gemIds.length} gems -> ${outDirForLog}`,
-);
+console.log(`Sprite atlases: ${enemies.length} monsters, ${gemIds.length} gems -> ${outDirForLog}`);
 
 function readEnemies() {
   const config = readFileSync(join(root, 'src', 'game', 'config.ts'), 'utf8');
@@ -260,7 +258,8 @@ function drawMonsterSprite(image, enemy, ox, oy) {
   const p = monsterPalette(enemy);
   const outline = '#090807';
   const variant = hash(enemy.id) % 5;
-  const heavy = enemy.boss || enemy.skills.includes('highArmor') || enemy.skills.includes('reactiveArmor');
+  const heavy =
+    enemy.boss || enemy.skills.includes('highArmor') || enemy.skills.includes('reactiveArmor');
   const spectral =
     enemy.skills.includes('magicImmune') ||
     enemy.skills.includes('permanentInvisibility') ||
@@ -299,7 +298,8 @@ function drawFlyingBase(image, ox, oy, enemy, p, outline, variant) {
   circleO(image, ox + 33, oy + 32, 12, outline, p[2]);
   rectO(image, ox + 25, oy + 41, 17, 9, outline, p[1]);
   if (enemy.name.toLowerCase().includes('fish') || enemy.name.toLowerCase().includes('jelly')) {
-    for (let i = 0; i < 4; i++) line(image, ox + 24 + i * 5, oy + 43, ox + 20 + i * 7, oy + 55, p[3]);
+    for (let i = 0; i < 4; i++)
+      line(image, ox + 24 + i * 5, oy + 43, ox + 20 + i * 7, oy + 55, p[3]);
   } else {
     flame(image, ox + 31, oy + 17, 5, outline, p[2], p[3]);
   }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import publicSpriteAtlas from '../../public/assets/sprites/sprites.json';
 import { gameConfig } from './config';
 import { spriteMetadata, type SpriteRect } from './spriteMetadata';
 
@@ -31,9 +30,7 @@ describe('sprite metadata', () => {
   });
 
   it('keeps the public atlas in sync: sheets, frame size, monsters, and base gem keys', () => {
-    const publicMetadata = JSON.parse(
-      readFileSync(join(process.cwd(), 'public', 'assets', 'sprites', 'sprites.json'), 'utf8'),
-    ) as {
+    const publicMetadata = publicSpriteAtlas as {
       frameSize: number;
       sheets: (typeof spriteMetadata)['sheets'];
       monsters: (typeof spriteMetadata)['monsters'];

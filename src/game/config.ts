@@ -77,7 +77,12 @@ const gemStats: Record<
     range: [5, 5, 5, 5, 5, 5],
     cooldown: [1, 1, 1, 1, 1, 1],
     damageType: 'magic',
-    effects: (tier) => [{ type: 'poison', value: [2, 4, 8, 16, 32, 128][tier - 1], duration: 5 }],
+    effects: (tier) => [
+      { type: 'poison', value: [2, 4, 8, 16, 32, 128][tier - 1], duration: 5 },
+      ...(tier >= 2
+        ? ([{ type: 'overlook', value: 1, duration: 4 }] satisfies TowerEffectDefinition[])
+        : []),
+    ],
   },
   opal: {
     damage: [1, 2, 3, 4, 5, 6],

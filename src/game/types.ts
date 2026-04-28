@@ -235,6 +235,7 @@ export interface EnemyState {
   refraction: number;
   blinkCooldown: number;
   rechargeTimer: number;
+  revealedUntil: number;
   color: string;
   skills: EnemySkill[];
   invisible: boolean;

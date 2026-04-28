@@ -399,41 +399,62 @@ function WavePanel({ snapshot }: { snapshot: GameSnapshot }) {
 }
 
 function RecipesPanel({ snapshot }: { snapshot: GameSnapshot }) {
+  const knownRecipes = gameConfig.recipes.filter(
+    (recipe) =>
+      snapshot.discoveredRecipes.includes(recipe.id) ||
+      !recipe.hidden ||
+      snapshot.unlockedSecrets.includes(recipe.id),
+  );
+  const hiddenCount = gameConfig.recipes.length - knownRecipes.length;
+
   return (
     <section className="pixel-panel p-4">
       <PanelTitle eyebrow="Forge" title="Recipe Tree" />
-      <div className="mt-3 grid gap-2">
-        {gameConfig.recipes.map((recipe) => {
-          const known =
-            snapshot.discoveredRecipes.includes(recipe.id) ||
-            !recipe.hidden ||
-            snapshot.unlockedSecrets.includes(recipe.id);
+      <div className="mt-3 grid gap-3">
+        <Info text="Recipes match ingredients anywhere on the board. Select one ingredient tile, then Combine; the result appears on that selected tile." />
+        {knownRecipes.map((recipe) => {
           const gem = getGem(gameConfig, recipe.resultGemId);
           return (
-            <div key={recipe.id} className="pixel-row items-start">
-              <div className="min-w-0">
-                <div className="truncate font-black text-[#fff7d6]">
-                  {known ? recipe.name : 'Secret Formula'}
+            <div key={recipe.id} className="border-2 border-[#3c3323] bg-[#171713] p-3 shadow-pixel">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-black leading-tight text-[#fff7d6]">{recipe.name}</span>
+                    <Badge tone={recipe.hidden ? 'gold' : 'effect'}>{recipe.classification}</Badge>
+                    {recipe.oneRoundOnly ? <Badge tone="danger">draft only</Badge> : null}
+                  </div>
+                  <div className="mt-1 text-sm font-bold leading-snug text-[#d8c991]/78">
+                    {recipe.description}
+                  </div>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {known ? (
-                    recipe.ingredients.map((ingredient, index) => (
-                      <Badge key={`${recipe.id}-${index}`} tone="muted">
-                        {formatIngredient(ingredient)}
-                      </Badge>
-                    ))
-                  ) : (
-                    <Badge tone="muted">{recipe.ingredients.length} hidden pieces</Badge>
-                  )}
+                <div className="grid shrink-0 justify-items-end gap-1">
+                  <GemChip color={gem.color} />
+                  <span className="max-w-[7rem] text-right text-[0.66rem] font-black uppercase leading-tight tracking-[0.08em] text-arcade-yellow">
+                    creates
+                  </span>
                 </div>
               </div>
-              <div className="grid shrink-0 justify-items-end gap-1">
-                <GemChip color={known ? gem.color : '#3f3f35'} />
-                <Badge tone={recipe.hidden ? 'gold' : 'effect'}>{recipe.classification}</Badge>
+              <div className="mt-3 grid gap-1.5">
+                {recipe.ingredients.map((ingredient, index) => (
+                  <div
+                    key={`${recipe.id}-${index}`}
+                    className="flex items-center gap-2 border border-[#5f5130] bg-[#0d0d0b] px-2 py-1.5 text-sm"
+                  >
+                    <span className="grid h-7 w-7 shrink-0 place-items-center border border-arcade-yellow bg-[#332711] text-xs font-black text-[#ffeaa0]">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 font-bold leading-tight text-[#fff7d6]">
+                      {formatIngredient(ingredient)}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           );
         })}
+        {hiddenCount > 0 ? (
+          <Info text={`${hiddenCount} secret formulas are hidden until discovered. Secret formulas use the current five draft gems only.`} />
+        ) : null}
       </div>
     </section>
   );
@@ -518,20 +539,24 @@ function HelpPanel() {
         />
         <HelpBlock
           title="Combines"
-          text="Select a tower tile and use Combine when a known recipe is available. Secret recipes reveal after discovery."
+          text="Recipe ingredients can be far apart. Select the ingredient tile where you want the finished tower to appear."
+        />
+        <HelpBlock
+          title="Invisible Enemies"
+          text="Emerald level 2+ and Overlook towers can see invisible enemies. Overlook hits briefly reveal them so other valid towers can help."
         />
         <div className="grid gap-2">
           <div className="text-xs font-black uppercase tracking-[0.18em] text-arcade-yellow">
             Enemy Marks
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {(['flying', 'magicImmune', 'physicalImmune', 'rush', 'blink', 'krakenShell'] as const).map(
-              (skill) => (
-                <Badge key={skill} tone="danger">
-                  {enemySkillLabels[skill]}
-                </Badge>
-              ),
-            )}
+            {(
+              ['flying', 'magicImmune', 'physicalImmune', 'rush', 'blink', 'krakenShell'] as const
+            ).map((skill) => (
+              <Badge key={skill} tone="danger">
+                {enemySkillLabels[skill]}
+              </Badge>
+            ))}
           </div>
         </div>
       </div>
@@ -652,10 +677,14 @@ function Stat({ label, value }: { label: string; value: number | string }) {
 }
 
 function formatIngredient(ingredient: RecipeIngredient): string {
-  if (ingredient.gemId) return getGem(gameConfig, ingredient.gemId).code;
+  if (ingredient.gemId) return getGem(gameConfig, ingredient.gemId).name;
   if (ingredient.towerId) return getGem(gameConfig, ingredient.towerId).name;
-  const family = ingredient.family ? ingredient.family.slice(0, 3).toUpperCase() : 'Any';
-  return ingredient.tier ? `${family} L${ingredient.tier}` : family;
+  const family = ingredient.family ? formatFamily(ingredient.family) : 'Any family';
+  return ingredient.tier ? `${family} level ${ingredient.tier}+` : family;
+}
+
+function formatFamily(family: string): string {
+  return family.charAt(0).toUpperCase() + family.slice(1);
 }
 
 function formatEffect(effect: TowerEffectDefinition): string {

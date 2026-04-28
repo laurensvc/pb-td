@@ -15,7 +15,9 @@ describe('PB TD gameplay data', () => {
   });
 
   it('defines eight gem families with six levels each', () => {
-    const families = new Set(gameConfig.gems.filter((gem) => gem.classification === 'gem').map((gem) => gem.family));
+    const families = new Set(
+      gameConfig.gems.filter((gem) => gem.classification === 'gem').map((gem) => gem.family),
+    );
     expect(families.size).toBe(8);
     for (const family of families) {
       for (let tier = 1; tier <= 6; tier++) {

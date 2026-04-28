@@ -102,7 +102,9 @@ function Metric({
       <div className="truncate text-[0.66rem] font-black uppercase tracking-[0.12em] text-[#d8c991]/75">
         {label}
       </div>
-      <div className={`truncate font-display text-xl font-black leading-none sm:text-2xl ${toneClass}`}>
+      <div
+        className={`truncate font-display text-xl font-black leading-none sm:text-2xl ${toneClass}`}
+      >
         {value}
       </div>
     </div>

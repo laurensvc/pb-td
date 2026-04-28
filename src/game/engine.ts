@@ -738,6 +738,7 @@ function spawnEnemy(state: GameState): void {
     refraction: skills.includes('refraction') ? 3 : 0,
     blinkCooldown: skills.includes('blink') ? 4 : 0,
     rechargeTimer: 0,
+    revealedUntil: 0,
     color: definition.color,
     skills,
     invisible: skills.includes('permanentInvisibility') || skills.includes('cloakAndDagger'),
@@ -863,8 +864,9 @@ function effectiveRange(state: GameState, tower: TowerState): number {
   return tower.range + (tower.buffUntil > state.time ? tower.rangeBuff : 0);
 }
 
-function canTargetEnemy(tower: TowerState, enemy: EnemyState): boolean {
-  if (enemy.invisible && !hasEffect(tower, 'overlook')) return false;
+function canTargetEnemy(state: GameState, tower: TowerState, enemy: EnemyState): boolean {
+  if (enemy.invisible && enemy.revealedUntil <= state.time && !hasEffect(tower, 'overlook'))
+    return false;
   if (enemy.flying && !hasEffect(tower, 'antiFly') && tower.family !== 'topaz') return false;
   return true;
 }
@@ -924,7 +926,7 @@ function findAutomaticTarget(
   let bestDistance = Number.POSITIVE_INFINITY;
   for (let i = 0; i < state.enemies.length; i++) {
     const enemy = state.enemies[i];
-    if (!enemy.alive || !canTargetEnemy(tower, enemy)) continue;
+    if (!enemy.alive || !canTargetEnemy(state, tower, enemy)) continue;
     if (!targetModeAllows(enemy, tower.targetMode, strictSpecialMode)) continue;
     const dx = enemy.x + 0.5 - tx;
     const dy = enemy.y + 0.5 - ty;
@@ -943,7 +945,7 @@ function fireTower(state: GameState, tower: TowerState): void {
   const tx = tower.x + 0.5;
   const ty = tower.y + 0.5;
   const range = effectiveRange(state, tower);
-  if (best && canTargetEnemy(tower, best)) {
+  if (best && canTargetEnemy(state, tower, best)) {
     const dx = best.x + 0.5 - tx;
     const dy = best.y + 0.5 - ty;
     if (dx * dx + dy * dy > range * range) best = null;
@@ -1162,6 +1164,8 @@ function applyProjectileEffects(
       enemy.armor = Math.max(-64, enemy.armor - Math.ceil(effect.value * 20));
     } else if (effect.type === 'recover' && tower && nextRandom(state) < 0.08) {
       state.lives = Math.min(state.config.economy.startingLives, state.lives + 1);
+    } else if (effect.type === 'overlook' && enemy.invisible) {
+      enemy.revealedUntil = Math.max(enemy.revealedUntil, state.time + (effect.duration ?? 4));
     }
   }
 }

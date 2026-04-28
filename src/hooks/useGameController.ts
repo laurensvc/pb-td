@@ -23,7 +23,7 @@ export function useGameController(): GameController {
   const speedRef = useRef(useUiStore.getState().speed);
   const gameRef = useRef(createGame(gameConfig, save));
   const terminalStatusRef = useRef<string | null>(null);
-  const requiredClearSavedRef = useRef(gameRef.current.stats.completedRequiredWaves);
+  const requiredClearSavedRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = useUiStore.subscribe((state) => {
@@ -69,7 +69,8 @@ export function useGameController(): GameController {
           setSave(commitProgressToSave(game, useSaveStore.getState().save));
         }
         if (
-          (game.status === 'won' || (game.status === 'lost' && !game.stats.completedRequiredWaves)) &&
+          (game.status === 'won' ||
+            (game.status === 'lost' && !game.stats.completedRequiredWaves)) &&
           terminalStatusRef.current !== game.status
         ) {
           terminalStatusRef.current = game.status;

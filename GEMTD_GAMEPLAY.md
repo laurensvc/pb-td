@@ -104,7 +104,7 @@ onCellChanged():
     accept placement
 ```
 
-For an MVP, use A* or BFS on a grid.
+For an MVP, use A\* or BFS on a grid.
 
 ---
 
@@ -144,15 +144,15 @@ A bad gem in a great location may still be useful. A perfect gem in a bad locati
 
 ### 4.3 Build phase actions
 
-| Action | Purpose |
-|---|---|
-| **Select / Check** | Keep the selected gem. The other newly placed gems become stones. |
-| **Remove / Stone** | Remove a selected stone if the rules allow it. |
-| **Merge / ^** | Upgrade the selected gem by one quality level. |
-| **Merge / ^^** | Upgrade the selected gem by two quality levels. |
-| **Combine / Tower** | Convert a valid recipe into a named tower. |
-| **Downgrade / Gem** | Convert a gem into a lower random quality, usually at a gold cost. |
-| **Swap** | Move or exchange tower positions if the player has the relevant skill. |
+| Action              | Purpose                                                                |
+| ------------------- | ---------------------------------------------------------------------- |
+| **Select / Check**  | Keep the selected gem. The other newly placed gems become stones.      |
+| **Remove / Stone**  | Remove a selected stone if the rules allow it.                         |
+| **Merge / ^**       | Upgrade the selected gem by one quality level.                         |
+| **Merge / ^^**      | Upgrade the selected gem by two quality levels.                        |
+| **Combine / Tower** | Convert a valid recipe into a named tower.                             |
+| **Downgrade / Gem** | Convert a gem into a lower random quality, usually at a gold cost.     |
+| **Swap**            | Move or exchange tower positions if the player has the relevant skill. |
 
 ---
 
@@ -162,16 +162,16 @@ Base gems are the primitive tower pieces. They can attack by themselves, but the
 
 ### 5.1 Base gem types
 
-| Gem | Code | Primary role |
-|---|---:|---|
-| Amethyst | P | Armor reduction and piercing support |
-| Aquamarine | Q | Very fast attacks and attack speed utility |
-| Diamond | D | Direct single-target damage |
-| Emerald | G | Poison and damage-over-time |
-| Opal | E | Attack speed aura |
-| Ruby | R | Cleave and area damage |
-| Sapphire | B | Slow and crowd control |
-| Topaz | Y | Multi-target split attacks |
+| Gem        | Code | Primary role                               |
+| ---------- | ---: | ------------------------------------------ |
+| Amethyst   |    P | Armor reduction and piercing support       |
+| Aquamarine |    Q | Very fast attacks and attack speed utility |
+| Diamond    |    D | Direct single-target damage                |
+| Emerald    |    G | Poison and damage-over-time                |
+| Opal       |    E | Attack speed aura                          |
+| Ruby       |    R | Cleave and area damage                     |
+| Sapphire   |    B | Slow and crowd control                     |
+| Topaz      |    Y | Multi-target split attacks                 |
 
 ### 5.2 Gem quality / level
 
@@ -310,10 +310,10 @@ Combining is different from merging.
 
 ### 7.1 Merge vs combine
 
-| System | Input | Output | Purpose |
-|---|---|---|---|
-| Merge | One gem | Same gem type, higher level | Upgrade quality |
-| Combine | Multiple gems/towers | New named tower | Unlock special effects |
+| System  | Input                | Output                      | Purpose                |
+| ------- | -------------------- | --------------------------- | ---------------------- |
+| Merge   | One gem              | Same gem type, higher level | Upgrade quality        |
+| Combine | Multiple gems/towers | New named tower             | Unlock special effects |
 
 Example:
 
@@ -383,13 +383,13 @@ During build phase:
 
 Named towers can be grouped into tiers.
 
-| Tier | Role |
-|---|---|
-| Basic | First recipes made from low-level gems |
-| Intermediate | Stronger recipes using basic towers or mid-level gems |
-| Advanced | Major power spikes with multiple effects |
-| Top | Endgame towers requiring advanced towers and level 6 gems |
-| Secret | Special one-hit or challenge towers |
+| Tier         | Role                                                      |
+| ------------ | --------------------------------------------------------- |
+| Basic        | First recipes made from low-level gems                    |
+| Intermediate | Stronger recipes using basic towers or mid-level gems     |
+| Advanced     | Major power spikes with multiple effects                  |
+| Top          | Endgame towers requiring advanced towers and level 6 gems |
+| Secret       | Special one-hit or challenge towers                       |
 
 ---
 
@@ -415,12 +415,12 @@ Gameplay identity:
 
 Example recipes:
 
-| Tower | Example requirement |
-|---|---|
-| Silver | Sapphire 1 + Diamond 1 + Topaz 1 |
-| Silver Knight | Silver + Aquamarine 2 + Ruby 3 |
-| Pink Diamond | Diamond 5 + Diamond 3 + Topaz 3 |
-| Huge Pink Diamond | Pink Diamond + Silver Knight + Silver |
+| Tower              | Example requirement                        |
+| ------------------ | ------------------------------------------ |
+| Silver             | Sapphire 1 + Diamond 1 + Topaz 1           |
+| Silver Knight      | Silver + Aquamarine 2 + Ruby 3             |
+| Pink Diamond       | Diamond 5 + Diamond 3 + Topaz 3            |
+| Huge Pink Diamond  | Pink Diamond + Silver Knight + Silver      |
 | Koh-i-noor Diamond | Huge Pink Diamond + Amethyst 6 + Diamond 6 |
 
 ### 9.2 Malachite / Uranium branch
@@ -441,12 +441,12 @@ Gameplay identity:
 
 Example recipes:
 
-| Tower | Example requirement |
-|---|---|
-| Malachite | Opal 1 + Emerald 1 + Aquamarine 1 |
-| Vivid Malachite | Malachite + Diamond 2 + Topaz 3 |
-| Uranium-238 | Topaz 5 + Sapphire 3 + Opal 2 |
-| Uranium-235 | Uranium-238 + Malachite + Vivid Malachite |
+| Tower           | Example requirement                       |
+| --------------- | ----------------------------------------- |
+| Malachite       | Opal 1 + Emerald 1 + Aquamarine 1         |
+| Vivid Malachite | Malachite + Diamond 2 + Topaz 3           |
+| Uranium-238     | Topaz 5 + Sapphire 3 + Opal 2             |
+| Uranium-235     | Uranium-238 + Malachite + Vivid Malachite |
 
 ### 9.3 Ruby / Bloodstone branch
 
@@ -471,13 +471,13 @@ Gameplay identity:
 
 Example recipes:
 
-| Tower | Example requirement |
-|---|---|
-| Asteriated Ruby | Ruby 2 + Ruby 1 + Amethyst 1 |
-| Volcano | Asteriated Ruby + Ruby 4 + Amethyst 3 |
-| Bloodstone | Ruby 5 + Aquamarine 4 + Amethyst 3 |
-| Antique Bloodstone | Bloodstone + Volcano + Ruby 2 |
-| The Crown Prince | Antique Bloodstone + Ruby 6 + Emerald 6 |
+| Tower              | Example requirement                     |
+| ------------------ | --------------------------------------- |
+| Asteriated Ruby    | Ruby 2 + Ruby 1 + Amethyst 1            |
+| Volcano            | Asteriated Ruby + Ruby 4 + Amethyst 3   |
+| Bloodstone         | Ruby 5 + Aquamarine 4 + Amethyst 3      |
+| Antique Bloodstone | Bloodstone + Volcano + Ruby 2           |
+| The Crown Prince   | Antique Bloodstone + Ruby 6 + Emerald 6 |
 
 ### 9.4 Jade branch
 
@@ -499,11 +499,11 @@ Gameplay identity:
 
 Example recipes:
 
-| Tower | Example requirement |
-|---|---|
-| Jade | Emerald 3 + Opal 3 + Sapphire 2 |
-| Grey Jade | Jade + Sapphire 4 + Aquamarine 3 |
-| Monkey King Jade | Grey Jade + Emerald 4 + Amethyst 2 |
+| Tower            | Example requirement                       |
+| ---------------- | ----------------------------------------- |
+| Jade             | Emerald 3 + Opal 3 + Sapphire 2           |
+| Grey Jade        | Jade + Sapphire 4 + Aquamarine 3          |
+| Monkey King Jade | Grey Jade + Emerald 4 + Amethyst 2        |
 | Diamond Cullinan | Monkey King Jade + Diamond 6 + Sapphire 6 |
 
 ### 9.5 Anti-flying branch
@@ -526,12 +526,12 @@ Gameplay identity:
 
 Example recipes:
 
-| Tower | Example requirement |
-|---|---|
-| Quartz | Emerald 4 + Ruby 3 + Amethyst 2 |
-| Lucky Chinese Jade | Quartz + Jade + Emerald 3 |
-| Charming Lazurite | Quartz + Amethyst 4 + Topaz 2 |
-| Golden Jubilee | Charming Lazurite + Topaz 6 + Ruby 6 |
+| Tower              | Example requirement                  |
+| ------------------ | ------------------------------------ |
+| Quartz             | Emerald 4 + Ruby 3 + Amethyst 2      |
+| Lucky Chinese Jade | Quartz + Jade + Emerald 3            |
+| Charming Lazurite  | Quartz + Amethyst 4 + Topaz 2        |
+| Golden Jubilee     | Charming Lazurite + Topaz 6 + Ruby 6 |
 
 ### 9.6 Aura branch
 
@@ -554,12 +554,12 @@ Gameplay identity:
 
 Example recipes:
 
-| Tower | Example requirement |
-|---|---|
-| Deepsea Pearl | Aquamarine 4 + Diamond 4 + Opal 2 |
-| Chrysoberyl Cat's Eye | Opal 5 + Diamond 4 + Aquamarine 3 |
-| Red Coral | Deepsea Pearl + Chrysoberyl Cat's Eye + Opal 4 |
-| Carmen-Lucia | Red Coral + Opal 6 + Aquamarine 6 |
+| Tower                 | Example requirement                            |
+| --------------------- | ---------------------------------------------- |
+| Deepsea Pearl         | Aquamarine 4 + Diamond 4 + Opal 2              |
+| Chrysoberyl Cat's Eye | Opal 5 + Diamond 4 + Aquamarine 3              |
+| Red Coral             | Deepsea Pearl + Chrysoberyl Cat's Eye + Opal 4 |
+| Carmen-Lucia          | Red Coral + Opal 6 + Aquamarine 6              |
 
 ---
 
@@ -677,15 +677,15 @@ Towers should support automatic and manual targeting.
 
 Recommended targeting modes:
 
-| Mode | Behavior |
-|---|---|
-| First | Target enemy closest to the castle |
-| Last | Target enemy farthest from the castle |
-| Strongest | Target enemy with highest current health |
-| Weakest | Target enemy with lowest current health |
-| Closest | Target nearest enemy |
-| Flying only | Target flying enemies if possible |
-| Boss only | Target boss enemies if possible |
+| Mode        | Behavior                                 |
+| ----------- | ---------------------------------------- |
+| First       | Target enemy closest to the castle       |
+| Last        | Target enemy farthest from the castle    |
+| Strongest   | Target enemy with highest current health |
+| Weakest     | Target enemy with lowest current health  |
+| Closest     | Target nearest enemy                     |
+| Flying only | Target flying enemies if possible        |
+| Boss only   | Target boss enemies if possible          |
 
 ### 12.2 Manual focus
 
@@ -778,30 +778,30 @@ Wave 50: final boss
 
 ### 14.2 Enemy movement types
 
-| Type | Behavior |
-|---|---|
-| Ground | Follows the maze |
-| Flying | Ignores the maze |
-| Boss | High health, often special abilities |
+| Type   | Behavior                             |
+| ------ | ------------------------------------ |
+| Ground | Follows the maze                     |
+| Flying | Ignores the maze                     |
+| Boss   | High health, often special abilities |
 
 ### 14.3 Enemy abilities
 
-| Ability | Gameplay effect |
-|---|---|
-| Magic Immunity | Ignores or reduces magic damage |
-| Physical Immunity | Ignores or reduces physical damage |
-| Disarm | Temporarily prevents some towers from attacking |
-| Flying | Ignores ground maze pathing |
-| Evasion | Has a chance to avoid attacks |
-| Refraction | Blocks or reduces incoming damage instances |
-| Blink | Teleports forward or dodges path pressure |
-| Rush | Moves faster than normal |
-| Thief | Steals or reduces player resources |
-| Permanent Invisibility | Requires detection or specific counters |
-| High Armor | Strong against physical attacks |
-| Reactive Armor | Becomes harder to kill under repeated hits |
-| Recharge | Regenerates or restores defenses |
-| Kraken Shell | Reduces disables or incoming debuffs |
+| Ability                | Gameplay effect                                 |
+| ---------------------- | ----------------------------------------------- |
+| Magic Immunity         | Ignores or reduces magic damage                 |
+| Physical Immunity      | Ignores or reduces physical damage              |
+| Disarm                 | Temporarily prevents some towers from attacking |
+| Flying                 | Ignores ground maze pathing                     |
+| Evasion                | Has a chance to avoid attacks                   |
+| Refraction             | Blocks or reduces incoming damage instances     |
+| Blink                  | Teleports forward or dodges path pressure       |
+| Rush                   | Moves faster than normal                        |
+| Thief                  | Steals or reduces player resources              |
+| Permanent Invisibility | Requires detection or specific counters         |
+| High Armor             | Strong against physical attacks                 |
+| Reactive Armor         | Becomes harder to kill under repeated hits      |
+| Recharge               | Regenerates or restores defenses                |
+| Kraken Shell           | Reduces disables or incoming debuffs            |
 
 ### 14.4 Why wave variety matters
 
@@ -848,40 +848,40 @@ Skills add controlled player agency to a random game.
 
 ### 16.1 Defensive skills
 
-| Skill | Purpose |
-|---|---|
-| Heal | Restores castle health |
-| Guard | Reduces leak damage |
-| Evade | Gives the castle a chance to ignore leak damage |
+| Skill   | Purpose                                          |
+| ------- | ------------------------------------------------ |
+| Heal    | Restores castle health                           |
+| Guard   | Reduces leak damage                              |
+| Evade   | Gives the castle a chance to ignore leak damage  |
 | Revenge | Increases tower damage when castle health is low |
 
 ### 16.2 Gem-control skills
 
-| Skill | Purpose |
-|---|---|
-| Gem Pray | Improves chance for a chosen gem type |
-| Gem Quality Pray | Improves chance for a chosen quality |
-| Flawless Pray | Improves chance for high-quality gems |
-| Perfect Pray | Improves chance for perfect gems |
-| Timelapse | Rerolls or replaces current build-phase gems |
-| Hammer | Downgrades a gem by one level |
+| Skill            | Purpose                                      |
+| ---------------- | -------------------------------------------- |
+| Gem Pray         | Improves chance for a chosen gem type        |
+| Gem Quality Pray | Improves chance for a chosen quality         |
+| Flawless Pray    | Improves chance for high-quality gems        |
+| Perfect Pray     | Improves chance for perfect gems             |
+| Timelapse        | Rerolls or replaces current build-phase gems |
+| Hammer           | Downgrades a gem by one level                |
 
 ### 16.3 Position-control skills
 
-| Skill | Purpose |
-|---|---|
+| Skill         | Purpose                         |
+| ------------- | ------------------------------- |
 | Adjacent Swap | Swaps a gem with a nearby stone |
-| Swap | Swaps two tower positions |
+| Swap          | Swaps two tower positions       |
 
 ### 16.4 Combat skills
 
-| Skill | Purpose |
-|---|---|
-| Attack Speed | Temporarily boosts one tower |
-| Aim | Temporarily increases one tower's range |
-| Crit | Temporarily gives one tower critical hits |
-| Fatal Bonds | Links enemies so shared damage becomes bonus damage |
-| Candy Maker | Places a lure that pulls or attaches enemies |
+| Skill        | Purpose                                             |
+| ------------ | --------------------------------------------------- |
+| Attack Speed | Temporarily boosts one tower                        |
+| Aim          | Temporarily increases one tower's range             |
+| Crit         | Temporarily gives one tower critical hits           |
+| Fatal Bonds  | Links enemies so shared damage becomes bonus damage |
+| Candy Maker  | Places a lure that pulls or attaches enemies        |
 
 ---
 
@@ -891,13 +891,13 @@ Bosses should appear every 10 waves.
 
 Recommended boss wave pattern:
 
-| Wave | Boss concept |
-|---:|---|
-| 10 | First durability check |
-| 20 | First mechanic check |
-| 30 | Flying or alternate boss |
-| 40 | Heavy resistance boss |
-| 50 | Final boss with multiple traits |
+| Wave | Boss concept                    |
+| ---: | ------------------------------- |
+|   10 | First durability check          |
+|   20 | First mechanic check            |
+|   30 | Flying or alternate boss        |
+|   40 | Heavy resistance boss           |
+|   50 | Final boss with multiple traits |
 
 Bosses should test whether the player has enough focused damage, not just a long maze.
 
@@ -983,18 +983,18 @@ Build only the following first:
 
 Recommended first named towers:
 
-| Tower | Reason |
-|---|---|
-| Silver | Introduces recipes and slow |
-| Silver Knight | Introduces recipe chains |
-| Malachite | Introduces split attacks |
+| Tower           | Reason                           |
+| --------------- | -------------------------------- |
+| Silver          | Introduces recipes and slow      |
+| Silver Knight   | Introduces recipe chains         |
+| Malachite       | Introduces split attacks         |
 | Vivid Malachite | Introduces stronger multi-target |
-| Asteriated Ruby | Introduces burn |
-| Volcano | Introduces upgraded burn |
-| Jade | Introduces poison |
-| Grey Jade | Introduces upgraded poison |
-| Quartz | Introduces anti-flying |
-| Deepsea Pearl | Introduces aura/support |
+| Asteriated Ruby | Introduces burn                  |
+| Volcano         | Introduces upgraded burn         |
+| Jade            | Introduces poison                |
+| Grey Jade       | Introduces upgraded poison       |
+| Quartz          | Introduces anti-flying           |
+| Deepsea Pearl   | Introduces aura/support          |
 
 ### 19.3 MVP data model
 
@@ -1003,7 +1003,7 @@ Recommended first named towers:
 ```ts
 type Gem = {
   id: string;
-  type: "amethyst" | "aquamarine" | "diamond" | "emerald" | "opal" | "ruby" | "sapphire" | "topaz";
+  type: 'amethyst' | 'aquamarine' | 'diamond' | 'emerald' | 'opal' | 'ruby' | 'sapphire' | 'topaz';
   level: 1 | 2 | 3 | 4 | 5 | 6;
   position: GridPosition;
 };
@@ -1015,7 +1015,7 @@ type Gem = {
 type Tower = {
   id: string;
   towerType: string;
-  tier: "base" | "basic" | "intermediate" | "advanced" | "top" | "secret";
+  tier: 'base' | 'basic' | 'intermediate' | 'advanced' | 'top' | 'secret';
   position: GridPosition;
   damage: number;
   range: number;
@@ -1039,8 +1039,8 @@ type Recipe = {
 
 ```ts
 type RecipeRequirement =
-  | { kind: "gem"; type: string; level: number }
-  | { kind: "tower"; towerType: string };
+  | { kind: 'gem'; type: string; level: number }
+  | { kind: 'tower'; towerType: string };
 ```
 
 #### Enemy
@@ -1049,7 +1049,7 @@ type RecipeRequirement =
 type Enemy = {
   id: string;
   wave: number;
-  type: "ground" | "flying" | "boss";
+  type: 'ground' | 'flying' | 'boss';
   health: number;
   maxHealth: number;
   armor: number;
@@ -1095,13 +1095,13 @@ generateRandomGem():
 Example level weights:
 
 | Level | Chance |
-|---:|---:|
-| 1 | 45% |
-| 2 | 25% |
-| 3 | 15% |
-| 4 | 9% |
-| 5 | 5% |
-| 6 | 1% |
+| ----: | -----: |
+|     1 |    45% |
+|     2 |    25% |
+|     3 |    15% |
+|     4 |     9% |
+|     5 |     5% |
+|     6 |     1% |
 
 ### 20.3 Merge algorithm
 
@@ -1331,18 +1331,18 @@ Decide these before implementation:
 
 Recommended MVP answers:
 
-| Question | MVP answer |
-|---|---|
-| Towers block path? | Yes |
-| Sell towers? | No |
-| Combine range? | Global ingredients, output on selected ingredient |
-| Merge cost? | Gold |
-| Flying path? | Fixed direct route |
-| Damage types? | Physical, magical, pure |
-| Aura self-affect? | No |
-| MVP max? | 10 |
-| Inherit MVP? | No |
-| Move towers? | Only through rare swap skill |
+| Question           | MVP answer                                        |
+| ------------------ | ------------------------------------------------- |
+| Towers block path? | Yes                                               |
+| Sell towers?       | No                                                |
+| Combine range?     | Global ingredients, output on selected ingredient |
+| Merge cost?        | Gold                                              |
+| Flying path?       | Fixed direct route                                |
+| Damage types?      | Physical, magical, pure                           |
+| Aura self-affect?  | No                                                |
+| MVP max?           | 10                                                |
+| Inherit MVP?       | No                                                |
+| Move towers?       | Only through rare swap skill                      |
 
 ---
 
