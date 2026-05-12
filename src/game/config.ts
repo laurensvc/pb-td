@@ -79,9 +79,11 @@ const gemStats: Record<
     damageType: 'magic',
     effects: (tier) => [
       { type: 'poison', value: [2, 4, 8, 16, 32, 128][tier - 1], duration: 5 },
-      ...(tier >= 2
-        ? ([{ type: 'overlook', value: 1, duration: 4 }] satisfies TowerEffectDefinition[])
-        : []),
+      {
+        type: 'overlook',
+        value: 1,
+        duration: tier >= 2 ? 4 : 2.5,
+      },
     ],
   },
   opal: {
@@ -187,6 +189,7 @@ for (const family of gemFamilies) {
 gems.push(
   tower('silver', 'Silver', 'basic', 'sapphire', '#cbd5e1', 22, 6, 0.85, 'magic', [
     { type: 'slow', value: 0.24, duration: 1.8 },
+    { type: 'antiFly', value: 1 },
   ]),
   tower(
     'silver-knight',
@@ -201,6 +204,7 @@ gems.push(
     [
       { type: 'cleave', value: 0.5, radius: 4, damageType: 'pure' },
       { type: 'slow', value: 0.3, duration: 2 },
+      { type: 'antiFly', value: 1 },
     ],
   ),
   tower(
@@ -293,6 +297,7 @@ gems.push(
   ]),
   tower('jade', 'Jade', 'basic', 'emerald', '#22c55e', 54, 5, 0.82, 'magic', [
     { type: 'poison', value: 16, duration: 5 },
+    { type: 'overlook', value: 1, duration: 4 },
   ]),
   tower('grey-jade', 'Grey Jade', 'intermediate', 'emerald', '#86efac', 96, 6, 0.72, 'magic', [
     { type: 'poison', value: 32, duration: 5 },
@@ -591,7 +596,7 @@ export const recipes: readonly RecipeDefinition[] = [
     'ruby-6',
     'emerald-6',
   ]),
-  r('jade', 'Jade', 'basic', 'Poison 4', 'jade', ['emerald-3', 'opal-3', 'sapphire-2']),
+  r('jade', 'Jade', 'basic', 'Poison 4 and reveal', 'jade', ['emerald-3', 'opal-3', 'sapphire-2']),
   r('grey-jade', 'Grey Jade', 'intermediate', 'Overlook and Poison 5', 'grey-jade', [
     'jade',
     'sapphire-4',
