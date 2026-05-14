@@ -29,7 +29,9 @@ describe('cosmic siege simulation', () => {
   });
 
   it('fires cooldown-limited AoE missiles that kill enemies and grant stars', () => {
-    const game = createGame();
+    const game = createGame({ ...createDefaultSave(), stars: 200 });
+    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
+    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-2' });
     dispatchGameAction(game, { type: 'startWave' });
     runFor(0.1, (dt) => tickGame(game, dt));
 
@@ -91,7 +93,10 @@ describe('cosmic siege simulation', () => {
     dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
     dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-nature' });
     dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-arcane' });
-    dispatchGameAction(game, { type: 'selectLoadout', towerIds: ['kinetic', 'nature', 'arcane', 'nova'] });
+    dispatchGameAction(game, {
+      type: 'selectLoadout',
+      towerIds: ['kinetic', 'nature', 'arcane', 'nova'],
+    });
 
     expect(game.loadout).toEqual(['kinetic', 'nature', 'arcane']);
   });

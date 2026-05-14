@@ -26,7 +26,7 @@ import { PhaserGameHost } from './components/PhaserGameHost';
 import { useCosmicGame } from './hooks/useCosmicGame';
 
 const branchLabels: Record<UpgradeBranch, string> = {
-  missile: 'Starfall Missile',
+  missile: 'Orbital Barrage',
   kinetic: 'Kinetic',
   nature: 'Nature',
   arcane: 'Arcane',
@@ -51,15 +51,19 @@ export default function App() {
           <span className="eyebrow">Cosmic Siege</span>
           <strong>{snapshot.areaName}</strong>
           <span>
-            {snapshot.tierId.toUpperCase()} · Wave {snapshot.wave}/{snapshot.totalWaves}
+            Horde TD · {snapshot.tierId.toUpperCase()} · Wave {snapshot.wave}/{snapshot.totalWaves}
           </span>
         </div>
-        <StatChip icon={<Target size={16} />} label="Lives" value={`${snapshot.lives}/${snapshot.maxLives}`} />
+        <StatChip
+          icon={<Target size={16} />}
+          label="Lives"
+          value={`${snapshot.lives}/${snapshot.maxLives}`}
+        />
         <StatChip icon={<Sparkles size={16} />} label="Stars" value={snapshot.stars} />
         <StatChip icon={<Crown size={16} />} label="Crowns" value={snapshot.crowns} />
         <StatChip
           icon={<MousePointer2 size={16} />}
-          label="Missile"
+          label="Orbital strike"
           value={
             snapshot.missileCooldownLeft <= 0
               ? 'Ready'

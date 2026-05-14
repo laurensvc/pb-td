@@ -8,15 +8,17 @@ import type {
   TowerStat,
   UpgradeDefinition,
 } from './types';
+import { borderBuildSlots } from './pathBuild';
 
 export const BOARD_WIDTH = 16;
 export const BOARD_HEIGHT = 10;
 export const LOADOUT_LIMIT = 3;
 export const STARTING_LIVES = 8;
+/** Screen-clear style active — tuned to matter vs dense mid/late waves. */
 export const MISSILE_BASE = {
-  damage: 62,
-  radius: 1.15,
-  cooldown: 2.8,
+  damage: 78,
+  radius: 1.28,
+  cooldown: 2.35,
 };
 
 export const enemyDefinitions: Record<string, EnemyDefinition> = {
@@ -113,7 +115,7 @@ export const towerDefinitions: Record<TowerId, TowerDefinition> = {
   nova: {
     id: 'nova',
     name: 'Nova Mortar',
-    role: 'Slow splash against dense squads.',
+    role: 'Slow splash when the path turns into a carpet of bodies.',
     branch: 'nova',
     damage: 34,
     range: 2.7,
@@ -126,151 +128,119 @@ export const towerDefinitions: Record<TowerId, TowerDefinition> = {
 
 const areaOnePath = [
   { x: 0, y: 5 },
-  { x: 3, y: 5 },
-  { x: 3, y: 2 },
-  { x: 7, y: 2 },
-  { x: 7, y: 7 },
-  { x: 12, y: 7 },
-  { x: 12, y: 4 },
-  { x: 15, y: 4 },
+  { x: 10, y: 5 },
+  { x: 10, y: 8 },
+  { x: 15, y: 8 },
 ];
 
 const areaTwoPath = [
-  { x: 0, y: 3 },
-  { x: 4, y: 3 },
-  { x: 4, y: 7 },
-  { x: 8, y: 7 },
-  { x: 8, y: 2 },
-  { x: 13, y: 2 },
-  { x: 13, y: 6 },
-  { x: 15, y: 6 },
+  { x: 0, y: 4 },
+  { x: 9, y: 4 },
+  { x: 9, y: 7 },
+  { x: 15, y: 7 },
 ];
 
 const areaThreePath = [
-  { x: 0, y: 6 },
-  { x: 2, y: 6 },
-  { x: 2, y: 2 },
-  { x: 6, y: 2 },
-  { x: 6, y: 5 },
-  { x: 10, y: 5 },
-  { x: 10, y: 8 },
-  { x: 14, y: 8 },
-  { x: 14, y: 3 },
-  { x: 15, y: 3 },
+  { x: 0, y: 3 },
+  { x: 11, y: 3 },
+  { x: 11, y: 6 },
+  { x: 15, y: 6 },
 ];
 
 export const areaDefinitions: AreaDefinition[] = [
   {
     id: 'a1',
     name: 'Orion Breach',
-    subtitle: 'A narrow approach where early missiles win stars and towers finish the clear.',
+    subtitle: 'Corridor horde route — choke them on the path, then bomb the clump.',
     path: areaOnePath,
-    buildSlots: [
-      { x: 2, y: 4 },
-      { x: 5, y: 3 },
-      { x: 8, y: 6 },
-      { x: 11, y: 5 },
-    ],
+    buildSlots: borderBuildSlots(areaOnePath, BOARD_WIDTH, BOARD_HEIGHT),
     tiers: {
       normal: {
         waves: [
-          { id: 'a1n1', enemyId: 'scout', count: 10, spawnInterval: 0.8 },
-          { id: 'a1n2', enemyId: 'trooper', count: 12, spawnInterval: 0.76 },
-          { id: 'a1n3', enemyId: 'bulwark', count: 8, spawnInterval: 0.92 },
+          { id: 'a1n1', enemyId: 'scout', count: 18, spawnInterval: 0.3 },
+          { id: 'a1n2', enemyId: 'trooper', count: 72, spawnInterval: 0.18 },
+          { id: 'a1n3', enemyId: 'bulwark', count: 54, spawnInterval: 0.2 },
         ],
-        enemyHpMultiplier: 1,
-        enemySpeedMultiplier: 1,
-        starMultiplier: 1,
+        enemyHpMultiplier: 1.38,
+        enemySpeedMultiplier: 0.98,
+        starMultiplier: 1.08,
       },
       hard: {
         waves: [
-          { id: 'a1h1', enemyId: 'trooper', count: 14, spawnInterval: 0.68 },
-          { id: 'a1h2', enemyId: 'bulwark', count: 12, spawnInterval: 0.74 },
-          { id: 'a1h3', enemyId: 'striker', count: 10, spawnInterval: 0.7 },
+          { id: 'a1h1', enemyId: 'trooper', count: 22, spawnInterval: 0.24 },
+          { id: 'a1h2', enemyId: 'bulwark', count: 58, spawnInterval: 0.18 },
+          { id: 'a1h3', enemyId: 'striker', count: 48, spawnInterval: 0.17 },
         ],
-        enemyHpMultiplier: 1.35,
-        enemySpeedMultiplier: 1.08,
-        starMultiplier: 1.18,
+        enemyHpMultiplier: 1.72,
+        enemySpeedMultiplier: 1.04,
+        starMultiplier: 1.22,
       },
     },
   },
   {
     id: 'a2',
     name: 'Lunar Causeway',
-    subtitle: 'Fast squads punish missed cooldowns and weak range coverage.',
+    subtitle: 'Double-bend meat grinder — expect floods; save your strike for the stack.',
     path: areaTwoPath,
-    buildSlots: [
-      { x: 2, y: 2 },
-      { x: 5, y: 6 },
-      { x: 7, y: 3 },
-      { x: 10, y: 3 },
-      { x: 12, y: 5 },
-    ],
+    buildSlots: borderBuildSlots(areaTwoPath, BOARD_WIDTH, BOARD_HEIGHT),
     tiers: {
       normal: {
         waves: [
-          { id: 'a2n1', enemyId: 'scout', count: 16, spawnInterval: 0.58 },
-          { id: 'a2n2', enemyId: 'striker', count: 12, spawnInterval: 0.68 },
-          { id: 'a2n3', enemyId: 'warden', count: 9, spawnInterval: 0.9 },
+          { id: 'a2n1', enemyId: 'scout', count: 18, spawnInterval: 0.3 },
+          { id: 'a2n2', enemyId: 'striker', count: 64, spawnInterval: 0.18 },
+          { id: 'a2n3', enemyId: 'warden', count: 42, spawnInterval: 0.22 },
         ],
-        enemyHpMultiplier: 1.28,
-        enemySpeedMultiplier: 1.06,
-        starMultiplier: 1.2,
+        enemyHpMultiplier: 1.48,
+        enemySpeedMultiplier: 1.02,
+        starMultiplier: 1.25,
       },
       hard: {
         waves: [
-          { id: 'a2h1', enemyId: 'striker', count: 16, spawnInterval: 0.58 },
-          { id: 'a2h2', enemyId: 'warden', count: 12, spawnInterval: 0.78 },
-          { id: 'a2h3', enemyId: 'vanguard', count: 6, spawnInterval: 1.05 },
+          { id: 'a2h1', enemyId: 'striker', count: 22, spawnInterval: 0.22 },
+          { id: 'a2h2', enemyId: 'warden', count: 46, spawnInterval: 0.2 },
+          { id: 'a2h3', enemyId: 'vanguard', count: 18, spawnInterval: 0.32 },
         ],
-        enemyHpMultiplier: 1.6,
-        enemySpeedMultiplier: 1.12,
-        starMultiplier: 1.35,
+        enemyHpMultiplier: 1.82,
+        enemySpeedMultiplier: 1.08,
+        starMultiplier: 1.38,
       },
     },
   },
   {
     id: 'a3',
     name: 'Crownfall Gate',
-    subtitle: 'Shielded elites and mixed speeds demand a real loadout plan.',
+    subtitle: 'Elite tide on a wide bend — splash, shields, and a well-timed bombardment.',
     path: areaThreePath,
-    buildSlots: [
-      { x: 1, y: 5 },
-      { x: 4, y: 3 },
-      { x: 7, y: 4 },
-      { x: 9, y: 6 },
-      { x: 12, y: 7 },
-      { x: 13, y: 4 },
-    ],
+    buildSlots: borderBuildSlots(areaThreePath, BOARD_WIDTH, BOARD_HEIGHT),
     tiers: {
       normal: {
         waves: [
-          { id: 'a3n1', enemyId: 'trooper', count: 18, spawnInterval: 0.54 },
-          { id: 'a3n2', enemyId: 'warden', count: 13, spawnInterval: 0.7 },
-          { id: 'a3n3', enemyId: 'vanguard', count: 8, spawnInterval: 0.98 },
+          { id: 'a3n1', enemyId: 'trooper', count: 20, spawnInterval: 0.28 },
+          { id: 'a3n2', enemyId: 'warden', count: 52, spawnInterval: 0.2 },
+          { id: 'a3n3', enemyId: 'vanguard', count: 24, spawnInterval: 0.28 },
         ],
-        enemyHpMultiplier: 1.55,
-        enemySpeedMultiplier: 1.08,
-        starMultiplier: 1.45,
+        enemyHpMultiplier: 1.78,
+        enemySpeedMultiplier: 1.04,
+        starMultiplier: 1.52,
       },
       hard: {
         waves: [
-          { id: 'a3h1', enemyId: 'striker', count: 20, spawnInterval: 0.5 },
-          { id: 'a3h2', enemyId: 'warden', count: 16, spawnInterval: 0.64 },
-          { id: 'a3h3', enemyId: 'vanguard', count: 10, spawnInterval: 0.84 },
+          { id: 'a3h1', enemyId: 'striker', count: 24, spawnInterval: 0.22 },
+          { id: 'a3h2', enemyId: 'warden', count: 54, spawnInterval: 0.18 },
+          { id: 'a3h3', enemyId: 'vanguard', count: 28, spawnInterval: 0.26 },
         ],
-        enemyHpMultiplier: 1.9,
-        enemySpeedMultiplier: 1.14,
-        starMultiplier: 1.7,
+        enemyHpMultiplier: 2.12,
+        enemySpeedMultiplier: 1.1,
+        starMultiplier: 1.75,
       },
     },
   },
 ];
 
 const upgradeDefinitions: UpgradeDefinition[] = [
-  ...makeMissileUpgrades('damage', 'Starfall Payload', 30, 10, 9),
-  ...makeMissileUpgrades('radius', 'Blast Radius', 28, 8, 0.15),
-  ...makeMissileUpgrades('cooldown', 'Launch Relay', 34, 11, -0.18),
+  ...makeMissileUpgrades('damage', 'Payload Yield', 30, 10, 9),
+  ...makeMissileUpgrades('radius', 'Blast Footprint', 28, 8, 0.15),
+  ...makeMissileUpgrades('cooldown', 'Launch Cycle', 34, 11, -0.18),
   ...makeTowerStatUpgrades('kinetic', 'damage', 'Kinetic Damage', 26, 9, 0.14),
   ...makeTowerStatUpgrades('kinetic', 'range', 'Kinetic Range', 24, 8, 0.16),
   ...makeTowerStatUpgrades('kinetic', 'rate', 'Kinetic Actuator', 28, 10, -0.06),

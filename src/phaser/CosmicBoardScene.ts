@@ -1,6 +1,13 @@
 import Phaser from 'phaser';
 import { BOARD_HEIGHT, BOARD_WIDTH, getArea, getTower } from '../game/content';
-import type { EnemyState, GameState, MissileState, ProjectileState, TowerState, Vec2 } from '../game/types';
+import type {
+  EnemyState,
+  GameState,
+  MissileState,
+  ProjectileState,
+  TowerState,
+  Vec2,
+} from '../game/types';
 import { getBridge } from './bridge';
 
 interface BoardLayout {
@@ -105,7 +112,8 @@ export class CosmicBoardScene extends Phaser.Scene {
 
     drawPath(g, this.layout, area.path);
     for (let index = 0; index < area.buildSlots.length; index++) {
-      drawSlot(g, this.layout, area.buildSlots[index], index === state.selectedSlotIndex);
+      const highlighted = index === state.selectedSlotIndex || index === this.hoveredSlot;
+      drawSlot(g, this.layout, area.buildSlots[index], highlighted);
     }
   }
 
@@ -151,7 +159,11 @@ function computeLayout(width: number, height: number): BoardLayout {
   };
 }
 
-function drawPath(g: Phaser.GameObjects.Graphics, layout: BoardLayout, path: readonly Vec2[]): void {
+function drawPath(
+  g: Phaser.GameObjects.Graphics,
+  layout: BoardLayout,
+  path: readonly Vec2[],
+): void {
   g.lineStyle(Math.max(10, layout.cell * 0.28), COLORS.path, 0.18);
   strokePath(g, layout, path);
   g.lineStyle(Math.max(4, layout.cell * 0.1), COLORS.path, 0.74);
@@ -164,7 +176,11 @@ function drawPath(g: Phaser.GameObjects.Graphics, layout: BoardLayout, path: rea
   g.fillCircle(end.x, end.y, layout.cell * 0.18);
 }
 
-function strokePath(g: Phaser.GameObjects.Graphics, layout: BoardLayout, path: readonly Vec2[]): void {
+function strokePath(
+  g: Phaser.GameObjects.Graphics,
+  layout: BoardLayout,
+  path: readonly Vec2[],
+): void {
   g.beginPath();
   const start = boardToScreen(layout, path[0]);
   g.moveTo(start.x, start.y);
@@ -175,12 +191,24 @@ function strokePath(g: Phaser.GameObjects.Graphics, layout: BoardLayout, path: r
   g.strokePath();
 }
 
-function drawSlot(g: Phaser.GameObjects.Graphics, layout: BoardLayout, slot: Vec2, selected: boolean): void {
+function drawSlot(
+  g: Phaser.GameObjects.Graphics,
+  layout: BoardLayout,
+  slot: Vec2,
+  highlighted: boolean,
+): void {
   const point = boardToScreen(layout, slot);
-  g.fillStyle(0x0e2534, 0.96);
-  g.fillCircle(point.x, point.y, layout.cell * 0.33);
-  g.lineStyle(selected ? 4 : 2, COLORS.slot, selected ? 0.95 : 0.48);
-  g.strokeCircle(point.x, point.y, layout.cell * 0.34);
+  if (highlighted) {
+    g.fillStyle(0x0e2534, 0.94);
+    g.fillCircle(point.x, point.y, layout.cell * 0.33);
+    g.lineStyle(3, COLORS.slot, 0.92);
+    g.strokeCircle(point.x, point.y, layout.cell * 0.35);
+    return;
+  }
+  g.fillStyle(0x0e2534, 0.38);
+  g.fillCircle(point.x, point.y, layout.cell * 0.2);
+  g.lineStyle(1, COLORS.slot, 0.2);
+  g.strokeCircle(point.x, point.y, layout.cell * 0.22);
 }
 
 function drawTower(g: Phaser.GameObjects.Graphics, layout: BoardLayout, tower: TowerState): void {
@@ -230,14 +258,22 @@ function drawEnemy(g: Phaser.GameObjects.Graphics, layout: BoardLayout, enemy: E
   }
 }
 
-function drawProjectile(g: Phaser.GameObjects.Graphics, layout: BoardLayout, projectile: ProjectileState): void {
+function drawProjectile(
+  g: Phaser.GameObjects.Graphics,
+  layout: BoardLayout,
+  projectile: ProjectileState,
+): void {
   const color = Phaser.Display.Color.HexStringToColor(projectile.color).color;
   const point = boardToScreen(layout, projectile);
   g.fillStyle(color, 0.95);
   g.fillCircle(point.x, point.y, Math.max(3, layout.cell * 0.07));
 }
 
-function drawMissile(g: Phaser.GameObjects.Graphics, layout: BoardLayout, missile: MissileState): void {
+function drawMissile(
+  g: Phaser.GameObjects.Graphics,
+  layout: BoardLayout,
+  missile: MissileState,
+): void {
   const point = boardToScreen(layout, missile);
   const radius = missile.radius * layout.cell;
   if (missile.active) {
@@ -259,7 +295,12 @@ function boardToScreen(layout: BoardLayout, point: Vec2): Vec2 {
 }
 
 function screenToBoard(layout: BoardLayout, x: number, y: number): Vec2 | null {
-  if (x < layout.left || y < layout.top || x > layout.left + layout.width || y > layout.top + layout.height) {
+  if (
+    x < layout.left ||
+    y < layout.top ||
+    x > layout.left + layout.width ||
+    y > layout.top + layout.height
+  ) {
     return null;
   }
   return {
@@ -268,10 +309,18 @@ function screenToBoard(layout: BoardLayout, x: number, y: number): Vec2 | null {
   };
 }
 
+const SLOT_PICK_RADIUS = 0.72;
+
 function getSlotAtPoint(state: GameState, point: Vec2): number | null {
   const slots = getArea(state.areaId).buildSlots;
+  let bestIndex: number | null = null;
+  let bestDist = SLOT_PICK_RADIUS;
   for (let index = 0; index < slots.length; index++) {
-    if (Math.hypot(slots[index].x - point.x, slots[index].y - point.y) <= 0.55) return index;
+    const dist = Math.hypot(slots[index].x - point.x, slots[index].y - point.y);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIndex = index;
+    }
   }
-  return null;
+  return bestIndex;
 }
