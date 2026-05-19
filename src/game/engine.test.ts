@@ -63,14 +63,21 @@ describe('cosmic siege simulation', () => {
     expect(game.save.stars).toBe(earned);
   });
 
-  it('places unlocked loadout towers on build slots and targets enemies', () => {
+  it('places unlocked loadout towers in the build zone and targets enemies', () => {
     const game = createGame();
-    dispatchGameAction(game, { type: 'placeTower', slotIndex: 0, towerId: 'kinetic' });
+    dispatchGameAction(game, { type: 'placeTower', x: 1, y: 4, towerId: 'kinetic' });
     dispatchGameAction(game, { type: 'startWave' });
     runFor(2, (dt) => tickGame(game, dt));
 
     expect(game.towers).toHaveLength(1);
     expect(game.projectiles.length + game.towers[0].damageDone).toBeGreaterThan(0);
+  });
+
+  it('rejects tower placement that overlaps an existing tower', () => {
+    const game = createGame();
+    dispatchGameAction(game, { type: 'placeTower', x: 1, y: 4, towerId: 'kinetic' });
+    dispatchGameAction(game, { type: 'placeTower', x: 1.2, y: 4.1, towerId: 'kinetic' });
+    expect(game.towers).toHaveLength(1);
   });
 
   it('applies purchased missile and tower upgrades to combat stats', () => {
@@ -111,7 +118,7 @@ describe('cosmic siege simulation', () => {
     });
     dispatchGameAction(game, { type: 'startArea', areaId: 'a1', tierId: 'normal' });
     game.waveIndex = 2;
-    dispatchGameAction(game, { type: 'placeTower', slotIndex: 0, towerId: 'arcane' });
+    dispatchGameAction(game, { type: 'placeTower', x: 1, y: 4, towerId: 'arcane' });
     dispatchGameAction(game, { type: 'startWave' });
     runFor(4, (dt) => tickGame(game, dt));
 

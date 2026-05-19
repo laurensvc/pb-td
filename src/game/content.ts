@@ -8,12 +8,13 @@ import type {
   TowerStat,
   UpgradeDefinition,
 } from './types';
-import { borderBuildSlots } from './pathBuild';
+import { buildPathNav } from './pathNav';
 
 export const BOARD_WIDTH = 16;
 export const BOARD_HEIGHT = 10;
 export const LOADOUT_LIMIT = 3;
 export const STARTING_LIVES = 8;
+export const TOWER_MIN_SPACING = 0.9;
 /** Screen-clear style active — tuned to matter vs dense mid/late waves. */
 export const MISSILE_BASE = {
   damage: 78,
@@ -153,25 +154,25 @@ export const areaDefinitions: AreaDefinition[] = [
     name: 'Orion Breach',
     subtitle: 'Corridor horde route — choke them on the path, then bomb the clump.',
     path: areaOnePath,
-    buildSlots: borderBuildSlots(areaOnePath, BOARD_WIDTH, BOARD_HEIGHT),
+    pathNav: buildPathNav(areaOnePath),
     tiers: {
       normal: {
         waves: [
-          { id: 'a1n1', enemyId: 'scout', count: 18, spawnInterval: 0.3 },
-          { id: 'a1n2', enemyId: 'trooper', count: 72, spawnInterval: 0.18 },
-          { id: 'a1n3', enemyId: 'bulwark', count: 54, spawnInterval: 0.2 },
+          { id: 'a1n1', enemyId: 'scout', count: 100, spawnInterval: 0.1 },
+          { id: 'a1n2', enemyId: 'trooper', count: 100, spawnInterval: 0.1 },
+          { id: 'a1n3', enemyId: 'bulwark', count: 100, spawnInterval: 0.11 },
         ],
-        enemyHpMultiplier: 1.38,
+        enemyHpMultiplier: 1.28,
         enemySpeedMultiplier: 0.98,
         starMultiplier: 1.08,
       },
       hard: {
         waves: [
-          { id: 'a1h1', enemyId: 'trooper', count: 22, spawnInterval: 0.24 },
-          { id: 'a1h2', enemyId: 'bulwark', count: 58, spawnInterval: 0.18 },
-          { id: 'a1h3', enemyId: 'striker', count: 48, spawnInterval: 0.17 },
+          { id: 'a1h1', enemyId: 'trooper', count: 100, spawnInterval: 0.1 },
+          { id: 'a1h2', enemyId: 'bulwark', count: 100, spawnInterval: 0.1 },
+          { id: 'a1h3', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
         ],
-        enemyHpMultiplier: 1.72,
+        enemyHpMultiplier: 1.62,
         enemySpeedMultiplier: 1.04,
         starMultiplier: 1.22,
       },
@@ -182,25 +183,25 @@ export const areaDefinitions: AreaDefinition[] = [
     name: 'Lunar Causeway',
     subtitle: 'Double-bend meat grinder — expect floods; save your strike for the stack.',
     path: areaTwoPath,
-    buildSlots: borderBuildSlots(areaTwoPath, BOARD_WIDTH, BOARD_HEIGHT),
+    pathNav: buildPathNav(areaTwoPath),
     tiers: {
       normal: {
         waves: [
-          { id: 'a2n1', enemyId: 'scout', count: 18, spawnInterval: 0.3 },
-          { id: 'a2n2', enemyId: 'striker', count: 64, spawnInterval: 0.18 },
-          { id: 'a2n3', enemyId: 'warden', count: 42, spawnInterval: 0.22 },
+          { id: 'a2n1', enemyId: 'scout', count: 100, spawnInterval: 0.1 },
+          { id: 'a2n2', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
+          { id: 'a2n3', enemyId: 'warden', count: 100, spawnInterval: 0.12 },
         ],
-        enemyHpMultiplier: 1.48,
+        enemyHpMultiplier: 1.38,
         enemySpeedMultiplier: 1.02,
         starMultiplier: 1.25,
       },
       hard: {
         waves: [
-          { id: 'a2h1', enemyId: 'striker', count: 22, spawnInterval: 0.22 },
-          { id: 'a2h2', enemyId: 'warden', count: 46, spawnInterval: 0.2 },
-          { id: 'a2h3', enemyId: 'vanguard', count: 18, spawnInterval: 0.32 },
+          { id: 'a2h1', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
+          { id: 'a2h2', enemyId: 'warden', count: 100, spawnInterval: 0.11 },
+          { id: 'a2h3', enemyId: 'vanguard', count: 100, spawnInterval: 0.14 },
         ],
-        enemyHpMultiplier: 1.82,
+        enemyHpMultiplier: 1.72,
         enemySpeedMultiplier: 1.08,
         starMultiplier: 1.38,
       },
@@ -211,25 +212,25 @@ export const areaDefinitions: AreaDefinition[] = [
     name: 'Crownfall Gate',
     subtitle: 'Elite tide on a wide bend — splash, shields, and a well-timed bombardment.',
     path: areaThreePath,
-    buildSlots: borderBuildSlots(areaThreePath, BOARD_WIDTH, BOARD_HEIGHT),
+    pathNav: buildPathNav(areaThreePath),
     tiers: {
       normal: {
         waves: [
-          { id: 'a3n1', enemyId: 'trooper', count: 20, spawnInterval: 0.28 },
-          { id: 'a3n2', enemyId: 'warden', count: 52, spawnInterval: 0.2 },
-          { id: 'a3n3', enemyId: 'vanguard', count: 24, spawnInterval: 0.28 },
+          { id: 'a3n1', enemyId: 'trooper', count: 100, spawnInterval: 0.1 },
+          { id: 'a3n2', enemyId: 'warden', count: 100, spawnInterval: 0.11 },
+          { id: 'a3n3', enemyId: 'vanguard', count: 100, spawnInterval: 0.13 },
         ],
-        enemyHpMultiplier: 1.78,
+        enemyHpMultiplier: 1.65,
         enemySpeedMultiplier: 1.04,
         starMultiplier: 1.52,
       },
       hard: {
         waves: [
-          { id: 'a3h1', enemyId: 'striker', count: 24, spawnInterval: 0.22 },
-          { id: 'a3h2', enemyId: 'warden', count: 54, spawnInterval: 0.18 },
-          { id: 'a3h3', enemyId: 'vanguard', count: 28, spawnInterval: 0.26 },
+          { id: 'a3h1', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
+          { id: 'a3h2', enemyId: 'warden', count: 100, spawnInterval: 0.1 },
+          { id: 'a3h3', enemyId: 'vanguard', count: 100, spawnInterval: 0.12 },
         ],
-        enemyHpMultiplier: 2.12,
+        enemyHpMultiplier: 1.98,
         enemySpeedMultiplier: 1.1,
         starMultiplier: 1.75,
       },

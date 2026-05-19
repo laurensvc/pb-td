@@ -1,6 +1,8 @@
 import type { Vec2 } from './types';
 
-const cellKey = (x: number, y: number): string => `${x},${y}`;
+export const BUILD_ZONE_RADIUS = 2.0;
+
+export const cellKey = (x: number, y: number): string => `${x},${y}`;
 
 /** Integer grid cells whose centers lie on an axis-aligned polyline between waypoints. */
 export function cellsAlongPath(path: readonly Vec2[]): Set<string> {
@@ -23,33 +25,48 @@ export function cellsAlongPath(path: readonly Vec2[]): Set<string> {
   return cells;
 }
 
-const NEIGHBORS: readonly [number, number][] = [
-  [0, 1],
-  [0, -1],
-  [1, 0],
-  [-1, 0],
-];
+export function isOnPath(x: number, y: number, pathCells: ReadonlySet<string>): boolean {
+  return pathCells.has(cellKey(Math.floor(x), Math.floor(y)));
+}
 
-/** In-bounds cells not on the path that share an edge with a path cell, sorted by (y, x). */
-export function borderBuildSlots(path: readonly Vec2[], boardW: number, boardH: number): Vec2[] {
-  const pathCells = cellsAlongPath(path);
-  const slots: Vec2[] = [];
+export function isInBuildZone(
+  x: number,
+  y: number,
+  pathCells: ReadonlySet<string>,
+  boardW: number,
+  boardH: number,
+  radius = BUILD_ZONE_RADIUS,
+): boolean {
+  if (x < 0 || y < 0 || x >= boardW || y >= boardH) return false;
+  if (isOnPath(x, y, pathCells)) return false;
+  return minDistanceToPath(x, y, pathCells) <= radius;
+}
+
+/** Cells whose centers are in the build zone, sorted by (y, x). */
+export function buildZoneCells(
+  pathCells: ReadonlySet<string>,
+  boardW: number,
+  boardH: number,
+  radius = BUILD_ZONE_RADIUS,
+): Vec2[] {
+  const cells: Vec2[] = [];
   for (let y = 0; y < boardH; y++) {
     for (let x = 0; x < boardW; x++) {
-      if (pathCells.has(cellKey(x, y))) continue;
-      let touchesPath = false;
-      for (const [dx, dy] of NEIGHBORS) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || nx >= boardW || ny < 0 || ny >= boardH) continue;
-        if (pathCells.has(cellKey(nx, ny))) {
-          touchesPath = true;
-          break;
-        }
+      if (isInBuildZone(x + 0.5, y + 0.5, pathCells, boardW, boardH, radius)) {
+        cells.push({ x, y });
       }
-      if (touchesPath) slots.push({ x, y });
     }
   }
-  slots.sort((p, q) => p.y - q.y || p.x - q.x);
-  return slots;
+  cells.sort((a, b) => a.y - b.y || a.x - b.x);
+  return cells;
+}
+
+function minDistanceToPath(x: number, y: number, pathCells: ReadonlySet<string>): number {
+  let min = Infinity;
+  for (const key of pathCells) {
+    const [cx, cy] = key.split(',').map(Number);
+    const dist = Math.hypot(cx - x, cy - y);
+    if (dist < min) min = dist;
+  }
+  return min;
 }

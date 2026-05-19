@@ -1,7 +1,10 @@
 import {
+  BOARD_HEIGHT,
+  BOARD_WIDTH,
   LOADOUT_LIMIT,
   MISSILE_BASE,
   STARTING_LIVES,
+  TOWER_MIN_SPACING,
   areaDefinitions,
   areaTierKey,
   getArea,
@@ -10,6 +13,8 @@ import {
   getUpgrade,
   upgrades,
 } from './content';
+import { isInBuildZone } from './pathBuild';
+import { pathProgressAt, stepEnemyOnPath } from './pathNav';
 import { cloneSave, createDefaultSave, getRespecCost } from './save';
 import type {
   EnemyState,
@@ -52,13 +57,7 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       selectLoadout(state, action.towerIds);
       break;
     case 'placeTower':
-      placeTower(state, action.slotIndex, action.towerId ?? state.selectedTowerId);
-      break;
-    case 'removeTower':
-      removeTower(state, action.slotIndex);
-      break;
-    case 'selectSlot':
-      state.selectedSlotIndex = action.slotIndex;
+      placeTower(state, action.x, action.y, action.towerId ?? state.selectedTowerId);
       break;
     case 'fireMissile':
       fireMissile(state, action.x, action.y);
@@ -115,7 +114,6 @@ export function createSnapshot(state: GameState): Snapshot {
     missileCooldownLeft: state.missileCooldownLeft,
     missileCooldown: getMissileStats(state).cooldown,
     selectedTowerId: state.selectedTowerId,
-    selectedSlotIndex: state.selectedSlotIndex,
     loadout: [...state.loadout],
     unlockedTowerIds: [...state.save.unlockedTowerIds],
     canStartWave: state.status === 'idle' || state.status === 'betweenWaves',
@@ -180,12 +178,17 @@ export function canBuyUpgrade(save: SaveState, upgrade: UpgradeDefinition): bool
   if (save.purchasedUpgradeIds.includes(upgrade.id)) return false;
   if (save.stars < upgrade.costStars) return false;
   if (save.crowns < (upgrade.costCrowns ?? 0)) return false;
-  return (upgrade.requires ?? []).every((requiredId) => save.purchasedUpgradeIds.includes(requiredId));
+  return (upgrade.requires ?? []).every((requiredId) =>
+    save.purchasedUpgradeIds.includes(requiredId),
+  );
 }
 
 export function isTierUnlocked(save: SaveState, areaId: string, tierId: TierId): boolean {
-  if (tierId === 'normal') return areaDefinitions.findIndex((area) => area.id === areaId) === 0
-    || save.clearedAreaTiers.includes(areaTierKey(previousAreaId(areaId), 'normal'));
+  if (tierId === 'normal')
+    return (
+      areaDefinitions.findIndex((area) => area.id === areaId) === 0 ||
+      save.clearedAreaTiers.includes(areaTierKey(previousAreaId(areaId), 'normal'))
+    );
   return save.clearedAreaTiers.includes(areaTierKey(areaId, 'normal'));
 }
 
@@ -210,7 +213,6 @@ function createAttempt(save: SaveState, areaId: string, tierId: TierId): GameSta
     maxLives: STARTING_LIVES,
     missileCooldownLeft: 0,
     selectedTowerId: loadout[0] ?? 'kinetic',
-    selectedSlotIndex: null,
     loadout: loadout.length > 0 ? loadout : ['kinetic'],
     enemies: [],
     towers: [],
@@ -249,29 +251,32 @@ function selectLoadout(state: GameState, towerIds: TowerId[]): void {
   }
 }
 
-function placeTower(state: GameState, slotIndex: number, towerId: TowerId | null): void {
+function placeTower(state: GameState, x: number, y: number, towerId: TowerId | null): void {
   if (!towerId || state.status === 'running') return;
   if (!state.loadout.includes(towerId) || !state.save.unlockedTowerIds.includes(towerId)) return;
   const area = getArea(state.areaId);
-  const slot = area.buildSlots[slotIndex];
-  if (!slot) return;
-  removeTower(state, slotIndex);
+  if (
+    !isInBuildZone(x, y, area.pathNav.pathCells, BOARD_WIDTH, BOARD_HEIGHT) ||
+    overlapsTower(x, y, state.towers)
+  ) {
+    return;
+  }
   state.towers.push({
     id: state.nextTowerId++,
     towerId,
-    slotIndex,
-    x: slot.x,
-    y: slot.y,
+    x,
+    y,
     cooldownLeft: 0,
     kills: 0,
     damageDone: 0,
   });
-  state.selectedSlotIndex = slotIndex;
 }
 
-function removeTower(state: GameState, slotIndex: number): void {
-  if (state.status === 'running') return;
-  state.towers = state.towers.filter((tower) => tower.slotIndex !== slotIndex);
+function overlapsTower(x: number, y: number, towers: readonly TowerState[]): boolean {
+  for (const tower of towers) {
+    if (Math.hypot(tower.x - x, tower.y - y) < TOWER_MIN_SPACING) return true;
+  }
+  return false;
 }
 
 function fireMissile(state: GameState, x: number, y: number): void {
@@ -325,16 +330,16 @@ function spawnEnemies(state: GameState, dt: number): void {
   state.spawnTimer -= dt;
   while (state.enemiesToSpawn > 0 && state.spawnTimer <= 0) {
     const definition = getEnemy(wave.enemyId);
-    const start = area.path[0];
+    const spawn = area.pathNav.spawnCell;
     const hp = Math.round(definition.hp * tier.enemyHpMultiplier);
     const shield = Math.round((definition.shield ?? 0) * tier.enemyHpMultiplier);
     state.enemies.push({
       id: state.nextEnemyId++,
       definitionId: definition.id,
       name: definition.name,
-      x: start.x,
-      y: start.y,
-      distance: 0,
+      x: spawn.x,
+      y: spawn.y,
+      pathProgress: pathProgressAt(area.pathNav, spawn.x, spawn.y),
       hp,
       maxHp: hp,
       shield,
@@ -354,14 +359,13 @@ function spawnEnemies(state: GameState, dt: number): void {
 
 function tickEnemies(state: GameState, dt: number): void {
   const area = getArea(state.areaId);
-  const pathLength = getPathLength(area.path);
   for (const enemy of state.enemies) {
     if (!enemy.alive) continue;
     if (enemy.poisonUntil > state.time && enemy.poisonDps > 0) {
       applyDamage(state, enemy, enemy.poisonDps * dt, null, { bypassShield: false });
     }
-    enemy.distance += enemy.speed * dt;
-    if (enemy.distance >= pathLength) {
+    const result = stepEnemyOnPath(enemy, area.pathNav, dt);
+    if (result === 'leaked') {
       enemy.alive = false;
       enemy.leaked = true;
       state.leakedEnemies += 1;
@@ -369,11 +373,7 @@ function tickEnemies(state: GameState, dt: number): void {
       if (state.lives <= 0) {
         state.status = 'lost';
       }
-      continue;
     }
-    const position = pointAtDistance(area.path, enemy.distance);
-    enemy.x = position.x;
-    enemy.y = position.y;
   }
 }
 
@@ -559,7 +559,7 @@ function findTowerTarget(
   let best: EnemyState | undefined;
   for (const enemy of state.enemies) {
     if (!enemy.alive || distance(tower, enemy) > range) continue;
-    if (!best || enemy.distance > best.distance) best = enemy;
+    if (!best || enemy.pathProgress > best.pathProgress) best = enemy;
   }
   return best;
 }
@@ -568,32 +568,6 @@ function purchasedUpgrades(save: SaveState): UpgradeDefinition[] {
   return save.purchasedUpgradeIds
     .map((upgradeId) => upgrades.find((upgrade) => upgrade.id === upgradeId))
     .filter((upgrade): upgrade is UpgradeDefinition => Boolean(upgrade));
-}
-
-function getPathLength(path: readonly Vec2[]): number {
-  let length = 0;
-  for (let i = 1; i < path.length; i++) {
-    length += distance(path[i - 1], path[i]);
-  }
-  return length;
-}
-
-function pointAtDistance(path: readonly Vec2[], targetDistance: number): Vec2 {
-  let remaining = targetDistance;
-  for (let i = 1; i < path.length; i++) {
-    const from = path[i - 1];
-    const to = path[i];
-    const segment = distance(from, to);
-    if (remaining <= segment) {
-      const ratio = segment === 0 ? 0 : remaining / segment;
-      return {
-        x: from.x + (to.x - from.x) * ratio,
-        y: from.y + (to.y - from.y) * ratio,
-      };
-    }
-    remaining -= segment;
-  }
-  return path[path.length - 1];
 }
 
 function previousAreaId(areaId: string): string {

@@ -1,13 +1,7 @@
 export type TierId = 'normal' | 'hard';
 export type GameStatus = 'idle' | 'running' | 'betweenWaves' | 'lost' | 'cleared';
 export type TowerId = 'kinetic' | 'nature' | 'arcane' | 'nova';
-export type EnemyId =
-  | 'scout'
-  | 'trooper'
-  | 'bulwark'
-  | 'striker'
-  | 'warden'
-  | 'vanguard';
+export type EnemyId = 'scout' | 'trooper' | 'bulwark' | 'striker' | 'warden' | 'vanguard';
 export type UpgradeBranch = 'missile' | 'kinetic' | 'nature' | 'arcane' | 'nova' | 'unlock';
 export type TowerStat = 'damage' | 'range' | 'rate';
 export type MissileStat = 'damage' | 'radius' | 'cooldown';
@@ -57,12 +51,20 @@ export interface AreaTierDefinition {
   starMultiplier: number;
 }
 
+export interface PathNavData {
+  pathCells: ReadonlySet<string>;
+  distanceToGoal: ReadonlyMap<string, number>;
+  maxProgress: number;
+  goalCell: Vec2;
+  spawnCell: Vec2;
+}
+
 export interface AreaDefinition {
   id: string;
   name: string;
   subtitle: string;
   path: Vec2[];
-  buildSlots: Vec2[];
+  pathNav: PathNavData;
   tiers: Record<TierId, AreaTierDefinition>;
 }
 
@@ -98,7 +100,7 @@ export interface EnemyState {
   name: string;
   x: number;
   y: number;
-  distance: number;
+  pathProgress: number;
   hp: number;
   maxHp: number;
   shield: number;
@@ -115,7 +117,6 @@ export interface EnemyState {
 export interface TowerState {
   id: number;
   towerId: TowerId;
-  slotIndex: number;
   x: number;
   y: number;
   cooldownLeft: number;
@@ -167,7 +168,6 @@ export interface GameState {
   maxLives: number;
   missileCooldownLeft: number;
   selectedTowerId: TowerId | null;
-  selectedSlotIndex: number | null;
   loadout: TowerId[];
   enemies: EnemyState[];
   towers: TowerState[];
@@ -201,7 +201,6 @@ export interface Snapshot {
   missileCooldownLeft: number;
   missileCooldown: number;
   selectedTowerId: TowerId | null;
-  selectedSlotIndex: number | null;
   loadout: TowerId[];
   unlockedTowerIds: TowerId[];
   canStartWave: boolean;
@@ -215,9 +214,7 @@ export type GameAction =
   | { type: 'startWave' }
   | { type: 'selectTower'; towerId: TowerId | null }
   | { type: 'selectLoadout'; towerIds: TowerId[] }
-  | { type: 'placeTower'; slotIndex: number; towerId?: TowerId }
-  | { type: 'removeTower'; slotIndex: number }
-  | { type: 'selectSlot'; slotIndex: number | null }
+  | { type: 'placeTower'; x: number; y: number; towerId?: TowerId }
   | { type: 'fireMissile'; x: number; y: number }
   | { type: 'buyUpgrade'; upgradeId: string }
   | { type: 'respecUpgrades' }
