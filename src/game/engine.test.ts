@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { areaTierKey } from './content';
 import { createDefaultSave } from './save';
 import {
+  canPlaceRockAt,
   createGame,
   dispatchGameAction,
   getMissileStats,
@@ -139,6 +140,15 @@ describe('cosmic siege simulation', () => {
     game.status = 'cleared';
     dispatchGameAction(game, { type: 'startArea', areaId: 'a1', tierId: 'hard' });
     expect(game.tierId).toBe('hard');
+  });
+
+  it('places rocks on rock parity cells and blocks invalid mazes', () => {
+    const game = createGame();
+    dispatchGameAction(game, { type: 'placeRock', x: 0, y: 0 });
+    expect(game.rocks).toHaveLength(1);
+    dispatchGameAction(game, { type: 'placeRock', x: 1, y: 0 });
+    expect(game.rocks).toHaveLength(1);
+    expect(canPlaceRockAt(game, 15, 8)).toBe(false);
   });
 
   it('charges the paid respec cost and resets upgrade purchases', () => {

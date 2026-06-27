@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { BOARD_HEIGHT, BOARD_WIDTH, getArea, getTower } from '../game/content';
-import { buildZoneCells, isInBuildZone } from '../game/pathBuild';
+import { BOARD_HEIGHT, BOARD_WIDTH, getTower } from '../game/content';
+import { cellParity } from '../game/boardParity';
+import { canPlaceRockAt, canPlaceTowerAt } from '../game/engine';
 import type {
   EnemyState,
   GameState,
@@ -63,6 +64,7 @@ export class CosmicBoardScene extends Phaser.Scene {
   private fx!: Phaser.GameObjects.Graphics;
   private terrainSprites: Phaser.GameObjects.Image[] = [];
   private towerSprites = new Map<number, Phaser.GameObjects.Image>();
+  private rockSprites = new Map<string, Phaser.GameObjects.Image>();
   private enemySprites = new Map<number, Phaser.GameObjects.Image>();
   private hoverBoardPoint: Vec2 | null = null;
   private layout: BoardLayout = { left: 0, top: 0, cell: 40, width: 640, height: 400 };
@@ -73,6 +75,7 @@ export class CosmicBoardScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image(ART_KEY, '/assets/terrain-towers-enemies.png');
+    this.load.image('cosmic-rock', '/assets/objects/rock.png');
   }
 
   create(): void {
@@ -104,14 +107,10 @@ export class CosmicBoardScene extends Phaser.Scene {
     const canPlace =
       boardPoint !== null &&
       state.status !== 'running' &&
-      state.selectedTowerId !== null &&
-      isInBuildZone(
-        boardPoint.x,
-        boardPoint.y,
-        getArea(state.areaId).pathNav.pathCells,
-        BOARD_WIDTH,
-        BOARD_HEIGHT,
-      );
+      (state.placementMode === 'rock'
+        ? canPlaceRockAt(state, boardPoint.x, boardPoint.y)
+        : state.selectedTowerId !== null &&
+          canPlaceTowerAt(state, boardPoint.x, boardPoint.y));
     this.input.manager.canvas.style.cursor = canPlace ? 'pointer' : 'crosshair';
   }
 
@@ -120,16 +119,16 @@ export class CosmicBoardScene extends Phaser.Scene {
     const state = bridge.getState();
     const boardPoint = screenToBoard(this.layout, pointer.x, pointer.y);
     if (!boardPoint) return;
+    if (state.status !== 'running' && state.placementMode === 'rock') {
+      if (canPlaceRockAt(state, boardPoint.x, boardPoint.y)) {
+        bridge.dispatch({ type: 'placeRock', x: boardPoint.x, y: boardPoint.y });
+      }
+      return;
+    }
     if (
       state.status !== 'running' &&
       state.selectedTowerId &&
-      isInBuildZone(
-        boardPoint.x,
-        boardPoint.y,
-        getArea(state.areaId).pathNav.pathCells,
-        BOARD_WIDTH,
-        BOARD_HEIGHT,
-      )
+      canPlaceTowerAt(state, boardPoint.x, boardPoint.y)
     ) {
       bridge.dispatch({
         type: 'placeTower',
@@ -150,7 +149,6 @@ export class CosmicBoardScene extends Phaser.Scene {
   private drawBoard(state: GameState): void {
     const g = this.board;
     const overlay = this.boardOverlay;
-    const area = getArea(state.areaId);
     g.clear();
     overlay.clear();
     g.fillGradientStyle(0x07111e, 0x0a1020, 0x050812, 0x060a13, 1);
@@ -168,14 +166,15 @@ export class CosmicBoardScene extends Phaser.Scene {
       g.lineBetween(this.layout.left, py, this.layout.left + this.layout.width, py);
     }
 
-    this.updateTerrainSprites(area.pathNav.pathCells);
-    drawBuildZone(overlay, this.layout, area.pathNav.pathCells);
-    drawPath(overlay, this.layout, area.path);
+    this.updateTerrainSprites(state.pathNav.pathCells);
+    drawCheckerboard(overlay, this.layout);
+    drawPathCells(overlay, this.layout, state.pathNav);
   }
 
   private drawActors(state: GameState): void {
     const g = this.actors;
     g.clear();
+    this.updateRockSprites(state.rocks);
     this.updateTowerSprites(state.towers);
     this.updateEnemySprites(state.enemies);
     for (const enemy of state.enemies) if (enemy.alive) drawEnemyBars(g, this.layout, enemy);
@@ -190,13 +189,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       selectedTower &&
       this.hoverBoardPoint &&
       state.status !== 'running' &&
-      isInBuildZone(
-        this.hoverBoardPoint.x,
-        this.hoverBoardPoint.y,
-        getArea(state.areaId).pathNav.pathCells,
-        BOARD_WIDTH,
-        BOARD_HEIGHT,
-      )
+      canPlaceTowerAt(state, this.hoverBoardPoint.x, this.hoverBoardPoint.y)
     ) {
       const point = boardToScreen(this.layout, this.hoverBoardPoint);
       g.lineStyle(2, Phaser.Display.Color.HexStringToColor(selectedTower.color).color, 0.34);
@@ -230,6 +223,22 @@ export class CosmicBoardScene extends Phaser.Scene {
           .setVisible(true);
       }
     }
+  }
+
+  private updateRockSprites(rocks: GameState['rocks']): void {
+    const liveKeys = new Set<string>();
+    for (const rock of rocks) {
+      const key = `${rock.x},${rock.y}`;
+      liveKeys.add(key);
+      const point = boardToScreen(this.layout, rock);
+      const sprite =
+        this.rockSprites.get(key) ??
+        this.add.image(0, 0, 'cosmic-rock').setOrigin(0.5, 0.72).setDepth(2.08);
+      this.rockSprites.set(key, sprite);
+      scaleToHeight(sprite, this.layout.cell * 1.1);
+      sprite.setPosition(point.x, point.y + this.layout.cell * 0.12).setVisible(true);
+    }
+    hideMissingSprites(this.rockSprites, liveKeys);
   }
 
   private updateTowerSprites(towers: readonly TowerState[]): void {
@@ -296,9 +305,9 @@ function scaleToHeight(sprite: Phaser.GameObjects.Image, height: number): void {
   sprite.setDisplaySize((height * frame.width) / frame.height, height);
 }
 
-function hideMissingSprites(
-  sprites: Map<number, Phaser.GameObjects.Image>,
-  liveIds: ReadonlySet<number>,
+function hideMissingSprites<T extends string | number>(
+  sprites: Map<T, Phaser.GameObjects.Image>,
+  liveIds: ReadonlySet<T>,
 ): void {
   for (const [id, sprite] of sprites) {
     if (!liveIds.has(id)) sprite.setVisible(false);
@@ -321,50 +330,42 @@ function computeLayout(width: number, height: number): BoardLayout {
   };
 }
 
-function drawBuildZone(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  pathCells: ReadonlySet<string>,
-): void {
-  const cells = buildZoneCells(pathCells, BOARD_WIDTH, BOARD_HEIGHT);
-  g.fillStyle(COLORS.buildZone, 0.32);
-  for (const cell of cells) {
-    const left = layout.left + cell.x * layout.cell;
-    const top = layout.top + cell.y * layout.cell;
-    g.fillRect(left, top, layout.cell, layout.cell);
+function drawCheckerboard(g: Phaser.GameObjects.Graphics, layout: BoardLayout): void {
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      const isRockCell = cellParity(x, y) === 'rock';
+      g.fillStyle(isRockCell ? 0x0a1828 : 0x12283a, 0.28);
+      g.fillRect(
+        layout.left + x * layout.cell,
+        layout.top + y * layout.cell,
+        layout.cell,
+        layout.cell,
+      );
+    }
   }
 }
 
-function drawPath(
+function drawPathCells(
   g: Phaser.GameObjects.Graphics,
   layout: BoardLayout,
-  path: readonly Vec2[],
+  pathNav: GameState['pathNav'],
 ): void {
-  g.lineStyle(Math.max(10, layout.cell * 0.28), COLORS.path, 0.18);
-  strokePath(g, layout, path);
-  g.lineStyle(Math.max(4, layout.cell * 0.1), COLORS.path, 0.74);
-  strokePath(g, layout, path);
-  const start = boardToScreen(layout, path[0]);
-  const end = boardToScreen(layout, path[path.length - 1]);
+  g.fillStyle(COLORS.path, 0.14);
+  for (const key of pathNav.pathCells) {
+    const [x, y] = key.split(',').map(Number);
+    g.fillRect(
+      layout.left + x * layout.cell,
+      layout.top + y * layout.cell,
+      layout.cell,
+      layout.cell,
+    );
+  }
+  const start = boardToScreen(layout, pathNav.spawnCell);
+  const end = boardToScreen(layout, pathNav.goalCell);
   g.fillStyle(COLORS.green, 0.9);
   g.fillCircle(start.x, start.y, layout.cell * 0.18);
   g.fillStyle(COLORS.red, 0.9);
   g.fillCircle(end.x, end.y, layout.cell * 0.18);
-}
-
-function strokePath(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  path: readonly Vec2[],
-): void {
-  g.beginPath();
-  const start = boardToScreen(layout, path[0]);
-  g.moveTo(start.x, start.y);
-  for (let index = 1; index < path.length; index++) {
-    const point = boardToScreen(layout, path[index]);
-    g.lineTo(point.x, point.y);
-  }
-  g.strokePath();
 }
 
 function drawEnemyBars(g: Phaser.GameObjects.Graphics, layout: BoardLayout, enemy: EnemyState): void {

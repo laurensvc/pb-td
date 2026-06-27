@@ -13,7 +13,8 @@ import {
   getUpgrade,
   upgrades,
 } from './content';
-import { isInBuildZone } from './pathBuild';
+import { acceptsRock, parityMatchesPlacement } from './boardParity';
+import { buildMazePathNav, canPlaceRock, createMazeLayout } from './maze';
 import { pathProgressAt, stepEnemyOnPath } from './pathNav';
 import { cloneSave, createDefaultSave, getRespecCost } from './save';
 import type {
@@ -52,12 +53,22 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       break;
     case 'selectTower':
       state.selectedTowerId = action.towerId;
+      if (action.towerId) state.placementMode = 'tower';
+      break;
+    case 'selectPlacementMode':
+      state.placementMode = action.mode;
       break;
     case 'selectLoadout':
       selectLoadout(state, action.towerIds);
       break;
     case 'placeTower':
       placeTower(state, action.x, action.y, action.towerId ?? state.selectedTowerId);
+      break;
+    case 'placeRock':
+      placeRock(state, action.x, action.y);
+      break;
+    case 'sellRock':
+      sellRock(state, action.x, action.y);
       break;
     case 'fireMissile':
       fireMissile(state, action.x, action.y);
@@ -114,6 +125,8 @@ export function createSnapshot(state: GameState): Snapshot {
     missileCooldownLeft: state.missileCooldownLeft,
     missileCooldown: getMissileStats(state).cooldown,
     selectedTowerId: state.selectedTowerId,
+    placementMode: state.placementMode,
+    rockCount: state.rocks.length,
     loadout: [...state.loadout],
     unlockedTowerIds: [...state.save.unlockedTowerIds],
     canStartWave: state.status === 'idle' || state.status === 'betweenWaves',
@@ -201,7 +214,7 @@ function createAttempt(save: SaveState, areaId: string, tierId: TierId): GameSta
   const loadout = save.selectedLoadout
     .filter((towerId) => save.unlockedTowerIds.includes(towerId))
     .slice(0, LOADOUT_LIMIT);
-  return {
+  const attempt: GameState = {
     status: 'idle',
     areaId,
     tierId: safeTier,
@@ -213,7 +226,10 @@ function createAttempt(save: SaveState, areaId: string, tierId: TierId): GameSta
     maxLives: STARTING_LIVES,
     missileCooldownLeft: 0,
     selectedTowerId: loadout[0] ?? 'kinetic',
+    placementMode: 'tower',
     loadout: loadout.length > 0 ? loadout : ['kinetic'],
+    pathNav: getArea(areaId).pathNav,
+    rocks: [],
     enemies: [],
     towers: [],
     projectiles: [],
@@ -227,6 +243,8 @@ function createAttempt(save: SaveState, areaId: string, tierId: TierId): GameSta
     nextMissileId: 1,
     save: cloneSave(save),
   };
+  rebuildPathNav(attempt);
+  return attempt;
 }
 
 function startWave(state: GameState): void {
@@ -254,9 +272,10 @@ function selectLoadout(state: GameState, towerIds: TowerId[]): void {
 function placeTower(state: GameState, x: number, y: number, towerId: TowerId | null): void {
   if (!towerId || state.status === 'running') return;
   if (!state.loadout.includes(towerId) || !state.save.unlockedTowerIds.includes(towerId)) return;
-  const area = getArea(state.areaId);
+  const cell = toCell(x, y);
   if (
-    !isInBuildZone(x, y, area.pathNav.pathCells, BOARD_WIDTH, BOARD_HEIGHT) ||
+    !parityMatchesPlacement(cell.x, cell.y, 'gem') ||
+    rockAtCell(state, cell.x, cell.y) ||
     overlapsTower(x, y, state.towers)
   ) {
     return;
@@ -270,6 +289,41 @@ function placeTower(state: GameState, x: number, y: number, towerId: TowerId | n
     kills: 0,
     damageDone: 0,
   });
+  rebuildPathNav(state);
+}
+
+function placeRock(state: GameState, x: number, y: number): void {
+  if (state.status === 'running') return;
+  const cell = toCell(x, y);
+  if (!acceptsRock(cell.x, cell.y) || rockAtCell(state, cell.x, cell.y)) return;
+  const layout = mazeLayoutFromState(state);
+  if (!canPlaceRock(layout, cell.x, cell.y)) return;
+  state.rocks.push({ x: cell.x, y: cell.y });
+  rebuildPathNav(state);
+}
+
+function sellRock(state: GameState, x: number, y: number): void {
+  if (state.status === 'running') return;
+  const cell = toCell(x, y);
+    const index = state.rocks.findIndex((rock) => rock.x === cell.x && rock.y === cell.y);
+  if (index < 0) return;
+  state.rocks.splice(index, 1);
+  rebuildPathNav(state);
+}
+
+export function canPlaceRockAt(state: GameState, x: number, y: number): boolean {
+  const cell = toCell(x, y);
+  if (!acceptsRock(cell.x, cell.y) || rockAtCell(state, cell.x, cell.y)) return false;
+  return canPlaceRock(mazeLayoutFromState(state), cell.x, cell.y);
+}
+
+export function canPlaceTowerAt(state: GameState, x: number, y: number): boolean {
+  const cell = toCell(x, y);
+  return (
+    parityMatchesPlacement(cell.x, cell.y, 'gem') &&
+    !rockAtCell(state, cell.x, cell.y) &&
+    !overlapsTower(x, y, state.towers)
+  );
 }
 
 function overlapsTower(x: number, y: number, towers: readonly TowerState[]): boolean {
@@ -330,7 +384,7 @@ function spawnEnemies(state: GameState, dt: number): void {
   state.spawnTimer -= dt;
   while (state.enemiesToSpawn > 0 && state.spawnTimer <= 0) {
     const definition = getEnemy(wave.enemyId);
-    const spawn = area.pathNav.spawnCell;
+    const spawn = state.pathNav.spawnCell;
     const hp = Math.round(definition.hp * tier.enemyHpMultiplier);
     const shield = Math.round((definition.shield ?? 0) * tier.enemyHpMultiplier);
     state.enemies.push({
@@ -339,7 +393,7 @@ function spawnEnemies(state: GameState, dt: number): void {
       name: definition.name,
       x: spawn.x,
       y: spawn.y,
-      pathProgress: pathProgressAt(area.pathNav, spawn.x, spawn.y),
+      pathProgress: pathProgressAt(state.pathNav, spawn.x, spawn.y),
       hp,
       maxHp: hp,
       shield,
@@ -358,13 +412,12 @@ function spawnEnemies(state: GameState, dt: number): void {
 }
 
 function tickEnemies(state: GameState, dt: number): void {
-  const area = getArea(state.areaId);
   for (const enemy of state.enemies) {
     if (!enemy.alive) continue;
     if (enemy.poisonUntil > state.time && enemy.poisonDps > 0) {
       applyDamage(state, enemy, enemy.poisonDps * dt, null, { bypassShield: false });
     }
-    const result = stepEnemyOnPath(enemy, area.pathNav, dt);
+    const result = stepEnemyOnPath(enemy, state.pathNav, dt);
     if (result === 'leaked') {
       enemy.alive = false;
       enemy.leaked = true;
@@ -582,4 +635,28 @@ function distance(a: Vec2, b: Vec2): number {
 
 function replaceState(target: GameState, source: GameState): void {
   Object.assign(target, source);
+}
+
+function toCell(x: number, y: number): Vec2 {
+  return { x: Math.floor(x), y: Math.floor(y) };
+}
+
+function rockAtCell(state: GameState, x: number, y: number): boolean {
+  return state.rocks.some((rock) => rock.x === x && rock.y === y);
+}
+
+function mazeLayoutFromState(state: GameState): ReturnType<typeof createMazeLayout> {
+  const area = getArea(state.areaId);
+  return createMazeLayout(
+    BOARD_WIDTH,
+    BOARD_HEIGHT,
+    area.pathNav.spawnCell,
+    area.pathNav.goalCell,
+    state.rocks,
+    state.towers.map((tower) => toCell(tower.x, tower.y)),
+  );
+}
+
+function rebuildPathNav(state: GameState): void {
+  state.pathNav = buildMazePathNav(mazeLayoutFromState(state));
 }

@@ -2,6 +2,7 @@ import {
   Crown,
   Gauge,
   MousePointer2,
+  Mountain,
   Play,
   RotateCcw,
   Sparkles,
@@ -84,6 +85,7 @@ export default function App() {
       <aside className="control-panel" aria-label="Progression and controls">
         <ResultPanel snapshot={snapshot} dispatch={dispatch} />
         <AreaPanel save={save} dispatch={dispatch} />
+        <MazePanel snapshot={snapshot} dispatch={dispatch} />
         <TowerPanel
           selectedTowerId={snapshot.selectedTowerId}
           loadout={snapshot.loadout}
@@ -207,6 +209,45 @@ function AreaPanel({
   );
 }
 
+function MazePanel({
+  snapshot,
+  dispatch,
+}: {
+  snapshot: Snapshot;
+  dispatch: (action: GameAction) => void;
+}) {
+  const planning = snapshot.status === 'idle' || snapshot.status === 'betweenWaves';
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h2>Maze</h2>
+        <Mountain size={16} />
+      </div>
+      <div className="tier-row">
+        <button
+          type="button"
+          disabled={!planning}
+          className={snapshot.placementMode === 'rock' ? 'tier-button cleared' : 'tier-button'}
+          onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'rock' })}
+        >
+          Place rock
+        </button>
+        <button
+          type="button"
+          disabled={!planning}
+          className={snapshot.placementMode === 'tower' ? 'tier-button cleared' : 'tier-button'}
+          onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'tower' })}
+        >
+          Place gem
+        </button>
+      </div>
+      <p className="microcopy">
+        Rocks placed: {snapshot.rockCount}. Dark cells only; must leave a path to the goal.
+      </p>
+    </section>
+  );
+}
+
 function TowerPanel({
   selectedTowerId,
   loadout,
@@ -246,6 +287,7 @@ function TowerPanel({
                 if (!loaded) {
                   dispatch({ type: 'selectLoadout', towerIds: [...loadout, towerId] });
                 }
+                dispatch({ type: 'selectPlacementMode', mode: 'tower' });
                 dispatch({ type: 'selectTower', towerId });
               }}
               style={{ '--tower-color': tower.color } as CSSProperties}

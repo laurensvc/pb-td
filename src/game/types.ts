@@ -1,3 +1,4 @@
+export type PlacementMode = 'tower' | 'rock';
 export type TierId = 'normal' | 'hard';
 export type GameStatus = 'idle' | 'running' | 'betweenWaves' | 'lost' | 'cleared';
 export type TowerId = 'kinetic' | 'nature' | 'arcane' | 'nova';
@@ -156,6 +157,11 @@ export interface AttemptRewards {
   crowns: number;
 }
 
+export interface RockState {
+  x: number;
+  y: number;
+}
+
 export interface GameState {
   status: GameStatus;
   areaId: string;
@@ -168,7 +174,11 @@ export interface GameState {
   maxLives: number;
   missileCooldownLeft: number;
   selectedTowerId: TowerId | null;
+  placementMode: PlacementMode;
   loadout: TowerId[];
+  /** Dynamic maze path from spawn to goal; recomputed when rocks or towers change. */
+  pathNav: PathNavData;
+  rocks: RockState[];
   enemies: EnemyState[];
   towers: TowerState[];
   projectiles: ProjectileState[];
@@ -201,6 +211,8 @@ export interface Snapshot {
   missileCooldownLeft: number;
   missileCooldown: number;
   selectedTowerId: TowerId | null;
+  placementMode: PlacementMode;
+  rockCount: number;
   loadout: TowerId[];
   unlockedTowerIds: TowerId[];
   canStartWave: boolean;
@@ -213,8 +225,11 @@ export type GameAction =
   | { type: 'startArea'; areaId: string; tierId: TierId }
   | { type: 'startWave' }
   | { type: 'selectTower'; towerId: TowerId | null }
+  | { type: 'selectPlacementMode'; mode: PlacementMode }
   | { type: 'selectLoadout'; towerIds: TowerId[] }
   | { type: 'placeTower'; x: number; y: number; towerId?: TowerId }
+  | { type: 'placeRock'; x: number; y: number }
+  | { type: 'sellRock'; x: number; y: number }
   | { type: 'fireMissile'; x: number; y: number }
   | { type: 'buyUpgrade'; upgradeId: string }
   | { type: 'respecUpgrades' }
