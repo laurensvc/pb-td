@@ -1,46 +1,61 @@
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
-  LOADOUT_LIMIT,
+  LUCKY_BOX_COST,
   MISSILE_BASE,
+  RANDOM_GEM_COST,
   STARTING_LIVES,
   TOWER_MIN_SPACING,
+  TOTAL_WAVES,
   areaDefinitions,
   areaTierKey,
+  gemDefinitions,
   getArea,
   getEnemy,
-  getTower,
   getUpgrade,
+  rockPlacementCost,
   upgrades,
+  waveClearGoldBonus,
 } from './content';
 import { acceptsRock, parityMatchesPlacement } from './boardParity';
-import { buildMazePathNav, canPlaceRock, createMazeLayout } from './maze';
+import {
+  canMergeGems,
+  gemSellValue,
+  getGemCombatStats,
+  mergedLevel,
+} from './gems';
+import { buildMazePathNav, canPlaceRock, createMazeLayout, rockRefundPercent } from './maze';
 import { pathProgressAt, stepEnemyOnPath } from './pathNav';
 import { cloneSave, createDefaultSave, getRespecCost } from './save';
 import type {
   EnemyState,
   GameAction,
   GameState,
+  GemFamilyId,
+  GemLevel,
+  GemState,
+  InventoryGem,
   MissileState,
   ProjectileState,
   SaveState,
   Snapshot,
   TierId,
-  TowerDefinition,
-  TowerId,
-  TowerState,
   UpgradeDefinition,
   Vec2,
+  WaveSegment,
 } from './types';
 
 const MAX_DT = 0.05;
 const MISSILE_IMPACT_DELAY = 0.24;
 const MISSILE_FX_LIFE = 0.42;
 const PROJECTILE_HIT_DISTANCE = 0.12;
+const STARTING_INVENTORY: { family: GemFamilyId; level: GemLevel }[] = [
+  { family: 'kinetic', level: 1 },
+  { family: 'verdant', level: 1 },
+];
 
 export function createGame(save: SaveState = createDefaultSave()): GameState {
-  const normalizedSave = cloneSave(save);
-  return createAttempt(normalizedSave, 'a1', 'normal');
+  return createAttempt(cloneSave(save), 'a1', 'normal');
 }
 
 export function dispatchGameAction(state: GameState, action: GameAction): void {
@@ -51,24 +66,41 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
     case 'startWave':
       startWave(state);
       break;
-    case 'selectTower':
-      state.selectedTowerId = action.towerId;
-      if (action.towerId) state.placementMode = 'tower';
-      break;
     case 'selectPlacementMode':
       state.placementMode = action.mode;
+      if (action.mode !== 'merge') state.mergeSourceGemId = null;
       break;
-    case 'selectLoadout':
-      selectLoadout(state, action.towerIds);
+    case 'selectInventoryGem':
+      state.selectedInventoryGemId = action.gemId;
+      if (action.gemId !== null) state.placementMode = 'gem';
       break;
-    case 'placeTower':
-      placeTower(state, action.x, action.y, action.towerId ?? state.selectedTowerId);
+    case 'placeGem':
+      placeGem(state, action.x, action.y);
       break;
     case 'placeRock':
       placeRock(state, action.x, action.y);
       break;
     case 'sellRock':
       sellRock(state, action.x, action.y);
+      break;
+    case 'sellGem':
+      sellGem(state, action.gemId);
+      break;
+    case 'selectMergeSource':
+      state.mergeSourceGemId = action.gemId;
+      state.placementMode = 'merge';
+      break;
+    case 'mergeGems':
+      mergeGems(state, action.targetGemId);
+      break;
+    case 'buyGem':
+      buyGem(state, action.family);
+      break;
+    case 'buyRandomGem':
+      buyRandomGem(state);
+      break;
+    case 'buyLuckyBox':
+      buyLuckyBox(state);
       break;
     case 'fireMissile':
       fireMissile(state, action.x, action.y);
@@ -97,7 +129,7 @@ export function tickGame(state: GameState, dt: number): void {
   state.missileCooldownLeft = Math.max(0, state.missileCooldownLeft - step);
   spawnEnemies(state, step);
   tickEnemies(state, step);
-  tickTowers(state, step);
+  tickGems(state, step);
   tickProjectiles(state, step);
   tickMissiles(state, step);
   clearInactive(state);
@@ -107,6 +139,7 @@ export function tickGame(state: GameState, dt: number): void {
 export function createSnapshot(state: GameState): Snapshot {
   const area = getArea(state.areaId);
   const tier = area.tiers[state.tierId];
+  const wave = tier.waves[state.waveIndex];
   return {
     status: state.status,
     areaId: state.areaId,
@@ -117,6 +150,8 @@ export function createSnapshot(state: GameState): Snapshot {
     totalWaves: tier.waves.length,
     lives: state.lives,
     maxLives: state.maxLives,
+    gold: state.gold,
+    rockCost: rockPlacementCost(state.rocksPlaced),
     activeEnemies: state.enemies.filter((enemy) => enemy.alive).length,
     stars: state.save.stars,
     crowns: state.save.crowns,
@@ -124,26 +159,35 @@ export function createSnapshot(state: GameState): Snapshot {
     attemptCrowns: state.rewards.crowns,
     missileCooldownLeft: state.missileCooldownLeft,
     missileCooldown: getMissileStats(state).cooldown,
-    selectedTowerId: state.selectedTowerId,
     placementMode: state.placementMode,
     rockCount: state.rocks.length,
-    loadout: [...state.loadout],
-    unlockedTowerIds: [...state.save.unlockedTowerIds],
+    inventory: state.inventory.map((g) => ({ ...g })),
+    selectedInventoryGemId: state.selectedInventoryGemId,
+    mergeSourceGemId: state.mergeSourceGemId,
+    placedGems: state.gems.map((g) => ({
+      id: g.id,
+      family: g.family,
+      level: g.level,
+      x: g.x,
+      y: g.y,
+    })),
+    unlockedGemFamilies: [...state.save.unlockedGemFamilies],
     canStartWave: state.status === 'idle' || state.status === 'betweenWaves',
     canRetry: state.status === 'lost' || state.status === 'cleared',
+    isBossWave: wave?.isBoss ?? false,
     resultTitle:
       state.status === 'lost'
-        ? 'The breach held just long enough to learn.'
+        ? `Wave ${state.waveIndex + 1} breached the nexus.`
         : state.status === 'cleared'
-          ? 'Area cleared.'
+          ? 'Season cleared!'
           : null,
     resultMessage:
       state.status === 'lost'
-        ? `${state.killedEnemies} invaders destroyed. Stars earned stay with you.`
+        ? `${state.killedEnemies} invaders destroyed. Stars and meta progress kept.`
         : state.status === 'cleared'
           ? state.rewards.crowns > 0
-            ? 'Full clear achieved. Crown secured for this tier.'
-            : 'Full clear repeated. Mastery held; previous crown already claimed.'
+            ? 'All 50 waves cleared. Crown secured for this tier.'
+            : 'All 50 waves cleared. Mastery held.'
           : null,
   };
 }
@@ -168,25 +212,6 @@ export function getMissileStats(state: GameState): {
   };
 }
 
-export function getTowerStats(save: SaveState, towerId: TowerId): TowerDefinition {
-  const base = getTower(towerId);
-  let damage = base.damage;
-  let range = base.range;
-  let cooldown = base.cooldown;
-  for (const upgrade of purchasedUpgrades(save)) {
-    if (upgrade.towerId !== towerId) continue;
-    if (upgrade.towerStat === 'damage') damage *= 1 + upgrade.value;
-    if (upgrade.towerStat === 'range') range += upgrade.value;
-    if (upgrade.towerStat === 'rate') cooldown *= 1 + upgrade.value;
-  }
-  return {
-    ...base,
-    damage: Math.round(damage),
-    range: Number(range.toFixed(2)),
-    cooldown: Number(Math.max(0.22, cooldown).toFixed(2)),
-  };
-}
-
 export function canBuyUpgrade(save: SaveState, upgrade: UpgradeDefinition): boolean {
   if (save.purchasedUpgradeIds.includes(upgrade.id)) return false;
   if (save.stars < upgrade.costStars) return false;
@@ -205,40 +230,64 @@ export function isTierUnlocked(save: SaveState, areaId: string, tierId: TierId):
   return save.clearedAreaTiers.includes(areaTierKey(areaId, 'normal'));
 }
 
-export function isAreaResolved(state: GameState): boolean {
-  return state.status === 'lost' || state.status === 'cleared';
+export function canPlaceRockAt(state: GameState, x: number, y: number): boolean {
+  const cell = toCell(x, y);
+  if (!acceptsRock(cell.x, cell.y) || rockAtCell(state, cell.x, cell.y)) return false;
+  if (state.gold < rockPlacementCost(state.rocksPlaced)) return false;
+  return canPlaceRock(mazeLayoutFromState(state), cell.x, cell.y);
+}
+
+export function canPlaceGemAt(state: GameState, x: number, y: number): boolean {
+  const cell = toCell(x, y);
+  return (
+    parityMatchesPlacement(cell.x, cell.y, 'gem') &&
+    !rockAtCell(state, cell.x, cell.y) &&
+    !gemAtCell(state, cell.x, cell.y) &&
+    state.selectedInventoryGemId !== null
+  );
 }
 
 function createAttempt(save: SaveState, areaId: string, tierId: TierId): GameState {
   const safeTier = isTierUnlocked(save, areaId, tierId) ? tierId : 'normal';
-  const loadout = save.selectedLoadout
-    .filter((towerId) => save.unlockedTowerIds.includes(towerId))
-    .slice(0, LOADOUT_LIMIT);
+  const tier = getArea(areaId).tiers[safeTier];
+  const inventory = STARTING_INVENTORY.map((gem) => ({
+    id: 0,
+    family: gem.family,
+    level: gem.level,
+  }));
+  let nextInvId = 1;
+  for (const gem of inventory) gem.id = nextInvId++;
+
   const attempt: GameState = {
     status: 'idle',
     areaId,
     tierId: safeTier,
     time: 0,
     waveIndex: 0,
+    segmentIndex: 0,
     enemiesToSpawn: 0,
     spawnTimer: 0,
     lives: STARTING_LIVES,
     maxLives: STARTING_LIVES,
+    gold: tier.startingGold,
+    rocksPlaced: 0,
     missileCooldownLeft: 0,
-    selectedTowerId: loadout[0] ?? 'kinetic',
-    placementMode: 'tower',
-    loadout: loadout.length > 0 ? loadout : ['kinetic'],
+    selectedInventoryGemId: inventory[0]?.id ?? null,
+    mergeSourceGemId: null,
+    placementMode: 'gem',
     pathNav: getArea(areaId).pathNav,
     rocks: [],
+    inventory,
     enemies: [],
-    towers: [],
+    gems: [],
     projectiles: [],
     missiles: [],
     rewards: { stars: 0, crowns: 0 },
     leakedEnemies: 0,
     killedEnemies: 0,
     nextEnemyId: 1,
-    nextTowerId: 1,
+    nextGemId: 1,
+    nextInventoryGemId: nextInvId,
     nextProjectileId: 1,
     nextMissileId: 1,
     save: cloneSave(save),
@@ -253,84 +302,122 @@ function startWave(state: GameState): void {
   const wave = area.tiers[state.tierId].waves[state.waveIndex];
   if (!wave) return;
   state.status = 'running';
-  state.enemiesToSpawn = wave.count;
+  state.segmentIndex = 0;
+  state.enemiesToSpawn = wave.segments[0]?.count ?? 0;
   state.spawnTimer = 0;
 }
 
-function selectLoadout(state: GameState, towerIds: TowerId[]): void {
-  const next = Array.from(new Set(towerIds))
-    .filter((towerId) => state.save.unlockedTowerIds.includes(towerId))
-    .slice(0, LOADOUT_LIMIT);
-  if (next.length === 0) return;
-  state.loadout = next;
-  state.save.selectedLoadout = [...next];
-  if (state.selectedTowerId && !next.includes(state.selectedTowerId)) {
-    state.selectedTowerId = next[0];
-  }
-}
-
-function placeTower(state: GameState, x: number, y: number, towerId: TowerId | null): void {
-  if (!towerId || state.status === 'running') return;
-  if (!state.loadout.includes(towerId) || !state.save.unlockedTowerIds.includes(towerId)) return;
+function placeGem(state: GameState, x: number, y: number): void {
+  if (state.status === 'running' || state.selectedInventoryGemId === null) return;
   const cell = toCell(x, y);
-  if (
-    !parityMatchesPlacement(cell.x, cell.y, 'gem') ||
-    rockAtCell(state, cell.x, cell.y) ||
-    overlapsTower(x, y, state.towers)
-  ) {
-    return;
-  }
-  state.towers.push({
-    id: state.nextTowerId++,
-    towerId,
-    x,
-    y,
+  if (!canPlaceGemAt(state, x, y)) return;
+
+  const invIndex = state.inventory.findIndex((g) => g.id === state.selectedInventoryGemId);
+  if (invIndex < 0) return;
+  const invGem = state.inventory[invIndex];
+
+  state.gems.push({
+    id: state.nextGemId++,
+    family: invGem.family,
+    level: invGem.level,
+    x: cell.x + 0.5,
+    y: cell.y + 0.5,
     cooldownLeft: 0,
     kills: 0,
     damageDone: 0,
   });
+  state.inventory.splice(invIndex, 1);
+  state.selectedInventoryGemId = state.inventory[0]?.id ?? null;
   rebuildPathNav(state);
 }
 
 function placeRock(state: GameState, x: number, y: number): void {
   if (state.status === 'running') return;
   const cell = toCell(x, y);
-  if (!acceptsRock(cell.x, cell.y) || rockAtCell(state, cell.x, cell.y)) return;
-  const layout = mazeLayoutFromState(state);
-  if (!canPlaceRock(layout, cell.x, cell.y)) return;
-  state.rocks.push({ x: cell.x, y: cell.y });
+  if (!canPlaceRockAt(state, x, y)) return;
+  const cost = rockPlacementCost(state.rocksPlaced);
+  state.gold -= cost;
+  state.rocks.push({ x: cell.x, y: cell.y, costPaid: cost });
+  state.rocksPlaced += 1;
   rebuildPathNav(state);
 }
 
 function sellRock(state: GameState, x: number, y: number): void {
   if (state.status === 'running') return;
   const cell = toCell(x, y);
-    const index = state.rocks.findIndex((rock) => rock.x === cell.x && rock.y === cell.y);
+  const index = state.rocks.findIndex((rock) => rock.x === cell.x && rock.y === cell.y);
   if (index < 0) return;
+  const rock = state.rocks[index];
+  const refund = Math.floor(rock.costPaid * rockRefundPercent(state.rocksPlaced));
+  state.gold += refund;
   state.rocks.splice(index, 1);
+  state.rocksPlaced = Math.max(0, state.rocksPlaced - 1);
   rebuildPathNav(state);
 }
 
-export function canPlaceRockAt(state: GameState, x: number, y: number): boolean {
-  const cell = toCell(x, y);
-  if (!acceptsRock(cell.x, cell.y) || rockAtCell(state, cell.x, cell.y)) return false;
-  return canPlaceRock(mazeLayoutFromState(state), cell.x, cell.y);
+function sellGem(state: GameState, gemId: number): void {
+  if (state.status === 'running') return;
+  const index = state.gems.findIndex((g) => g.id === gemId);
+  if (index < 0) return;
+  const gem = state.gems[index];
+  state.gold += gemSellValue(gem.family, gem.level);
+  state.gems.splice(index, 1);
+  if (state.mergeSourceGemId === gemId) state.mergeSourceGemId = null;
+  rebuildPathNav(state);
 }
 
-export function canPlaceTowerAt(state: GameState, x: number, y: number): boolean {
-  const cell = toCell(x, y);
-  return (
-    parityMatchesPlacement(cell.x, cell.y, 'gem') &&
-    !rockAtCell(state, cell.x, cell.y) &&
-    !overlapsTower(x, y, state.towers)
-  );
+function mergeGems(state: GameState, targetGemId: number): void {
+  if (state.status === 'running' || state.mergeSourceGemId === null) return;
+  const source = state.gems.find((g) => g.id === state.mergeSourceGemId);
+  const target = state.gems.find((g) => g.id === targetGemId);
+  if (!source || !target || source.id === target.id) return;
+  if (!canMergeGems(source, target)) return;
+
+  target.level = mergedLevel(target.level);
+  state.gems = state.gems.filter((g) => g.id !== source.id);
+  state.mergeSourceGemId = null;
+  state.placementMode = 'gem';
 }
 
-function overlapsTower(x: number, y: number, towers: readonly TowerState[]): boolean {
-  for (const tower of towers) {
-    if (Math.hypot(tower.x - x, tower.y - y) < TOWER_MIN_SPACING) return true;
+function buyGem(state: GameState, family: GemFamilyId): void {
+  if (state.status === 'running') return;
+  if (!state.save.unlockedGemFamilies.includes(family)) return;
+  const cost = gemDefinitions[family].shopCost;
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  addInventoryGem(state, family, 1);
+}
+
+function buyRandomGem(state: GameState): void {
+  if (state.status === 'running') return;
+  if (state.gold < RANDOM_GEM_COST) return;
+  const families = state.save.unlockedGemFamilies;
+  if (families.length === 0) return;
+  state.gold -= RANDOM_GEM_COST;
+  const family = families[Math.floor(Math.random() * families.length)]!;
+  addInventoryGem(state, family, 1);
+}
+
+function buyLuckyBox(state: GameState): void {
+  if (state.status === 'running') return;
+  if (state.gold < LUCKY_BOX_COST) return;
+  const families = state.save.unlockedGemFamilies;
+  if (families.length === 0) return;
+  state.gold -= LUCKY_BOX_COST;
+  const family = families[Math.floor(Math.random() * families.length)]!;
+  const level = (1 + Math.floor(Math.random() * 3)) as GemLevel;
+  addInventoryGem(state, family, level);
+}
+
+function addInventoryGem(state: GameState, family: GemFamilyId, level: GemLevel): void {
+  state.inventory.push({
+    id: state.nextInventoryGemId++,
+    family,
+    level,
+  });
+  if (state.selectedInventoryGemId === null) {
+    state.selectedInventoryGemId = state.inventory[state.inventory.length - 1].id;
   }
-  return false;
 }
 
 function fireMissile(state: GameState, x: number, y: number): void {
@@ -356,8 +443,11 @@ function buyUpgrade(state: GameState, upgradeId: string): void {
   state.save.crowns -= upgrade.costCrowns ?? 0;
   state.save.spentStars += upgrade.costStars;
   state.save.purchasedUpgradeIds.push(upgrade.id);
-  if (upgrade.unlockTowerId && !state.save.unlockedTowerIds.includes(upgrade.unlockTowerId)) {
-    state.save.unlockedTowerIds.push(upgrade.unlockTowerId);
+  if (
+    upgrade.unlockGemFamily &&
+    !state.save.unlockedGemFamilies.includes(upgrade.unlockGemFamily)
+  ) {
+    state.save.unlockedGemFamilies.push(upgrade.unlockGemFamily);
   }
 }
 
@@ -369,11 +459,7 @@ function respecUpgrades(state: GameState): void {
   state.save.stars += Math.max(0, refund);
   state.save.spentStars = 0;
   state.save.purchasedUpgradeIds = [];
-  state.save.unlockedTowerIds = ['kinetic'];
-  state.save.selectedLoadout = ['kinetic'];
-  state.loadout = ['kinetic'];
-  state.selectedTowerId = 'kinetic';
-  state.towers = state.towers.filter((tower) => tower.towerId === 'kinetic');
+  state.save.unlockedGemFamilies = ['kinetic', 'verdant'];
 }
 
 function spawnEnemies(state: GameState, dt: number): void {
@@ -381,34 +467,62 @@ function spawnEnemies(state: GameState, dt: number): void {
   const area = getArea(state.areaId);
   const tier = area.tiers[state.tierId];
   const wave = tier.waves[state.waveIndex];
+  if (!wave) return;
+
   state.spawnTimer -= dt;
   while (state.enemiesToSpawn > 0 && state.spawnTimer <= 0) {
-    const definition = getEnemy(wave.enemyId);
-    const spawn = state.pathNav.spawnCell;
-    const hp = Math.round(definition.hp * tier.enemyHpMultiplier);
-    const shield = Math.round((definition.shield ?? 0) * tier.enemyHpMultiplier);
-    state.enemies.push({
-      id: state.nextEnemyId++,
-      definitionId: definition.id,
-      name: definition.name,
-      x: spawn.x,
-      y: spawn.y,
-      pathProgress: pathProgressAt(state.pathNav, spawn.x, spawn.y),
-      hp,
-      maxHp: hp,
-      shield,
-      maxShield: shield,
-      speed: definition.speed * tier.enemySpeedMultiplier,
-      rewardStars: Math.ceil(definition.rewardStars * tier.starMultiplier),
-      color: definition.color,
-      alive: true,
-      leaked: false,
-      poisonDps: 0,
-      poisonUntil: 0,
-    });
+    const segment = wave.segments[state.segmentIndex];
+    if (!segment) break;
+    spawnEnemy(state, segment.enemyId, tier);
     state.enemiesToSpawn -= 1;
     state.spawnTimer += wave.spawnInterval;
+
+    if (state.enemiesToSpawn <= 0) {
+      advanceSegment(state, wave.segments);
+    }
   }
+}
+
+function advanceSegment(state: GameState, segments: WaveSegment[]): void {
+  if (state.segmentIndex < segments.length - 1) {
+    state.segmentIndex += 1;
+    state.enemiesToSpawn = segments[state.segmentIndex].count;
+  }
+}
+
+function spawnEnemy(
+  state: GameState,
+  enemyId: string,
+  tier: ReturnType<typeof getArea>['tiers'][TierId],
+): void {
+  const definition = getEnemy(enemyId);
+  const spawn = state.pathNav.spawnCell;
+  const waveScale = 1 + state.waveIndex * 0.04;
+  const hp = Math.round(definition.hp * tier.enemyHpMultiplier * waveScale);
+  const shield = Math.round((definition.shield ?? 0) * tier.enemyHpMultiplier * waveScale);
+  state.enemies.push({
+    id: state.nextEnemyId++,
+    definitionId: definition.id,
+    name: definition.name,
+    x: spawn.x,
+    y: spawn.y,
+    pathProgress: pathProgressAt(state.pathNav, spawn.x, spawn.y),
+    hp,
+    maxHp: hp,
+    shield,
+    maxShield: shield,
+    speed: definition.speed * tier.enemySpeedMultiplier,
+    rewardStars: Math.ceil(definition.rewardStars * tier.starMultiplier),
+    rewardGold: Math.ceil(definition.rewardGold * tier.goldMultiplier),
+    color: definition.color,
+    alive: true,
+    leaked: false,
+    poisonDps: 0,
+    poisonUntil: 0,
+    slowUntil: 0,
+    slowFactor: 1,
+    armorReduction: 0,
+  });
 }
 
 function tickEnemies(state: GameState, dt: number): void {
@@ -417,28 +531,28 @@ function tickEnemies(state: GameState, dt: number): void {
     if (enemy.poisonUntil > state.time && enemy.poisonDps > 0) {
       applyDamage(state, enemy, enemy.poisonDps * dt, null, { bypassShield: false });
     }
-    const result = stepEnemyOnPath(enemy, state.pathNav, dt);
+    const speedMult = enemy.slowUntil > state.time ? 1 - enemy.slowFactor : 1;
+    const result = stepEnemyOnPath(enemy, state.pathNav, dt * speedMult);
     if (result === 'leaked') {
       enemy.alive = false;
       enemy.leaked = true;
       state.leakedEnemies += 1;
-      state.lives = Math.max(0, state.lives - 1);
-      if (state.lives <= 0) {
-        state.status = 'lost';
-      }
+      const leakDamage = getEnemy(enemy.definitionId).leakDamage ?? 1;
+      state.lives = Math.max(0, state.lives - leakDamage);
+      if (state.lives <= 0) state.status = 'lost';
     }
   }
 }
 
-function tickTowers(state: GameState, dt: number): void {
-  for (const tower of state.towers) {
-    tower.cooldownLeft = Math.max(0, tower.cooldownLeft - dt);
-    if (tower.cooldownLeft > 0) continue;
-    const stats = getTowerStats(state.save, tower.towerId);
-    const target = findTowerTarget(state, tower, stats.range);
+function tickGems(state: GameState, dt: number): void {
+  for (const gem of state.gems) {
+    gem.cooldownLeft = Math.max(0, gem.cooldownLeft - dt);
+    if (gem.cooldownLeft > 0) continue;
+    const stats = getGemCombatStats(state.save, gem.family, gem.level);
+    const target = findGemTarget(state, gem, stats.range);
     if (!target) continue;
-    state.projectiles.push(makeProjectile(state, tower, stats, target));
-    tower.cooldownLeft = stats.cooldown;
+    state.projectiles.push(makeProjectile(state, gem, stats, target));
+    gem.cooldownLeft = stats.cooldown;
   }
 }
 
@@ -491,6 +605,9 @@ function completeWaveOrAttempt(state: GameState): void {
 
   const area = getArea(state.areaId);
   const tier = area.tiers[state.tierId];
+  const wave = tier.waves[state.waveIndex];
+  if (wave?.goldBonus) state.gold += wave.goldBonus;
+
   if (state.waveIndex < tier.waves.length - 1) {
     state.waveIndex += 1;
     state.status = 'betweenWaves';
@@ -513,25 +630,86 @@ function hitWithProjectile(
   projectile: ProjectileState,
   target: EnemyState,
 ): void {
-  const tower = state.towers.find((candidate) => candidate.id === projectile.towerId) ?? null;
-  const damageDone = applyDamage(state, target, projectile.damage, tower, {
+  const gem = state.gems.find((candidate) => candidate.id === projectile.gemId) ?? null;
+  let damage = projectile.damage;
+
+  if (projectile.bonusVsHighHp && target.maxHp > 150) {
+    damage *= 1 + projectile.bonusVsHighHp;
+  }
+  if (projectile.armorReduction) {
+    target.armorReduction = Math.max(target.armorReduction, projectile.armorReduction);
+    damage *= 1 + target.armorReduction;
+  }
+  if (projectile.critChance && Math.random() < projectile.critChance) {
+    damage *= 2;
+  }
+
+  const damageDone = applyDamage(state, target, damage, gem, {
     shieldPierce: projectile.shieldPierce ?? 1,
   });
-  if (tower) tower.damageDone += damageDone;
+  if (gem) gem.damageDone += damageDone;
+
   if (projectile.poisonDps && projectile.poisonDuration) {
     target.poisonDps = Math.max(target.poisonDps, projectile.poisonDps);
     target.poisonUntil = Math.max(target.poisonUntil, state.time + projectile.poisonDuration);
+  }
+  if (projectile.slowFactor && projectile.slowDuration) {
+    target.slowFactor = Math.max(target.slowFactor, projectile.slowFactor);
+    target.slowUntil = Math.max(target.slowUntil, state.time + projectile.slowDuration);
   }
   if (projectile.splashRadius && projectile.splashRadius > 0) {
     for (const enemy of state.enemies) {
       if (!enemy.alive || enemy.id === target.id) continue;
       if (distance(enemy, target) <= projectile.splashRadius) {
-        applyDamage(state, enemy, projectile.damage * 0.45, tower, {
+        applyDamage(state, enemy, damage * 0.45, gem, {
           shieldPierce: projectile.shieldPierce ?? 1,
         });
       }
     }
   }
+
+  if (!target.alive) {
+    handleEnemyDeath(state, target);
+  }
+}
+
+function handleEnemyDeath(state: GameState, enemy: EnemyState): void {
+  const definition = getEnemy(enemy.definitionId);
+  if (definition.splitInto && definition.splitCount) {
+    for (let i = 0; i < definition.splitCount; i++) {
+      spawnSplitEnemy(state, definition.splitInto, enemy.x, enemy.y);
+    }
+  }
+}
+
+function spawnSplitEnemy(state: GameState, enemyId: string, x: number, y: number): void {
+  const area = getArea(state.areaId);
+  const tier = area.tiers[state.tierId];
+  const definition = getEnemy(enemyId);
+  const hp = Math.round(definition.hp * tier.enemyHpMultiplier * 0.5);
+  state.enemies.push({
+    id: state.nextEnemyId++,
+    definitionId: definition.id,
+    name: definition.name,
+    x,
+    y,
+    pathProgress: pathProgressAt(state.pathNav, x, y),
+    hp,
+    maxHp: hp,
+    shield: 0,
+    maxShield: 0,
+    speed: definition.speed * tier.enemySpeedMultiplier,
+    rewardStars: Math.ceil(definition.rewardStars * tier.starMultiplier * 0.5),
+    rewardGold: Math.ceil(definition.rewardGold * tier.goldMultiplier * 0.5),
+    color: definition.color,
+    alive: true,
+    leaked: false,
+    poisonDps: 0,
+    poisonUntil: 0,
+    slowUntil: 0,
+    slowFactor: 1,
+    armorReduction: 0,
+  });
 }
 
 function damageInRadius(state: GameState, missile: MissileState): void {
@@ -539,6 +717,7 @@ function damageInRadius(state: GameState, missile: MissileState): void {
     if (!enemy.alive) continue;
     if (distance(enemy, missile) <= missile.radius) {
       applyDamage(state, enemy, missile.damage, null, { shieldPierce: 0.75 });
+      if (!enemy.alive) handleEnemyDeath(state, enemy);
     }
   }
 }
@@ -547,7 +726,7 @@ function applyDamage(
   state: GameState,
   enemy: EnemyState,
   amount: number,
-  tower: TowerState | null,
+  gem: GemState | null,
   options: { shieldPierce?: number; bypassShield?: boolean },
 ): number {
   if (!enemy.alive) return 0;
@@ -570,7 +749,9 @@ function applyDamage(
     state.rewards.stars += enemy.rewardStars;
     state.save.stars += enemy.rewardStars;
     state.save.totalStarsEarned += enemy.rewardStars;
-    if (tower) tower.kills += 1;
+    state.gold += enemy.rewardGold;
+    if (gem) gem.kills += 1;
+    handleEnemyDeath(state, enemy);
   }
   return damageDone;
 }
@@ -583,16 +764,16 @@ function clearInactive(state: GameState): void {
 
 function makeProjectile(
   state: GameState,
-  tower: TowerState,
-  stats: TowerDefinition,
+  gem: GemState,
+  stats: ReturnType<typeof getGemCombatStats>,
   target: EnemyState,
 ): ProjectileState {
   return {
     id: state.nextProjectileId++,
-    towerId: tower.id,
+    gemId: gem.id,
     targetId: target.id,
-    x: tower.x,
-    y: tower.y,
+    x: gem.x,
+    y: gem.y,
     damage: stats.damage,
     speed: stats.projectileSpeed,
     color: stats.color,
@@ -600,18 +781,23 @@ function makeProjectile(
     poisonDuration: stats.poisonDuration,
     shieldPierce: stats.shieldPierce,
     splashRadius: stats.splashRadius,
+    slowFactor: stats.slowFactor,
+    slowDuration: stats.slowDuration,
+    critChance: stats.critChance,
+    bonusVsHighHp: stats.bonusVsHighHp,
+    armorReduction: stats.armorReduction,
     active: true,
   };
 }
 
-function findTowerTarget(
+function findGemTarget(
   state: GameState,
-  tower: TowerState,
+  gem: GemState,
   range: number,
 ): EnemyState | undefined {
   let best: EnemyState | undefined;
   for (const enemy of state.enemies) {
-    if (!enemy.alive || distance(tower, enemy) > range) continue;
+    if (!enemy.alive || distance(gem, enemy) > range) continue;
     if (!best || enemy.pathProgress > best.pathProgress) best = enemy;
   }
   return best;
@@ -645,6 +831,10 @@ function rockAtCell(state: GameState, x: number, y: number): boolean {
   return state.rocks.some((rock) => rock.x === x && rock.y === y);
 }
 
+function gemAtCell(state: GameState, x: number, y: number): boolean {
+  return state.gems.some((gem) => Math.floor(gem.x) === x && Math.floor(gem.y) === y);
+}
+
 function mazeLayoutFromState(state: GameState): ReturnType<typeof createMazeLayout> {
   const area = getArea(state.areaId);
   return createMazeLayout(
@@ -653,10 +843,12 @@ function mazeLayoutFromState(state: GameState): ReturnType<typeof createMazeLayo
     area.pathNav.spawnCell,
     area.pathNav.goalCell,
     state.rocks,
-    state.towers.map((tower) => toCell(tower.x, tower.y)),
+    state.gems.map((gem) => toCell(gem.x, gem.y)),
   );
 }
 
 function rebuildPathNav(state: GameState): void {
   state.pathNav = buildMazePathNav(mazeLayoutFromState(state));
 }
+
+export { TOTAL_WAVES };

@@ -40,11 +40,15 @@ describe('stepEnemyOnPath', () => {
       maxShield: 0,
       speed: 4,
       rewardStars: 1,
+      rewardGold: 1,
       color: '#fff',
       alive: true,
       leaked: false,
       poisonDps: 0,
       poisonUntil: 0,
+      slowUntil: 0,
+      slowFactor: 1,
+      armorReduction: 0,
     };
     const startProgress = enemy.pathProgress;
     for (let i = 0; i < 20; i++) {
@@ -68,11 +72,15 @@ describe('stepEnemyOnPath', () => {
       maxShield: 0,
       speed: 1,
       rewardStars: 1,
+      rewardGold: 1,
       color: '#fff',
       alive: true,
       leaked: false,
       poisonDps: 0,
       poisonUntil: 0,
+      slowUntil: 0,
+      slowFactor: 1,
+      armorReduction: 0,
     };
     expect(stepEnemyOnPath(enemy, nav, 0.05)).toBe('leaked');
   });

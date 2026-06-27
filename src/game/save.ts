@@ -1,18 +1,17 @@
-import { LOADOUT_LIMIT, areaDefinitions, areaTierKey, upgrades } from './content';
-import type { SaveState, TowerId } from './types';
+import { areaDefinitions, areaTierKey, upgrades } from './content';
+import type { GemFamilyId, SaveState } from './types';
 
-const SAVE_KEY = 'cosmic-siege-save-v1';
+const SAVE_KEY = 'cosmic-siege-save-v2';
 
 export const defaultSaveState: SaveState = {
-  version: 1,
+  version: 2,
   stars: 0,
   crowns: 0,
   spentStars: 0,
   totalStarsEarned: 0,
-  unlockedTowerIds: ['kinetic'],
+  unlockedGemFamilies: ['kinetic', 'verdant'],
   purchasedUpgradeIds: [],
   clearedAreaTiers: [],
-  selectedLoadout: ['kinetic'],
 };
 
 export function createDefaultSave(): SaveState {
@@ -21,10 +20,10 @@ export function createDefaultSave(): SaveState {
 
 export function loadSave(storage: Storage | undefined = getStorage()): SaveState {
   if (!storage) return createDefaultSave();
-  const raw = storage.getItem(SAVE_KEY);
+  const raw = storage.getItem(SAVE_KEY) ?? storage.getItem('cosmic-siege-save-v1');
   if (!raw) return createDefaultSave();
   try {
-    return normalizeSave(JSON.parse(raw) as Partial<SaveState>);
+    return normalizeSave(JSON.parse(raw) as Partial<SaveState> & Record<string, unknown>);
   } catch {
     return createDefaultSave();
   }
@@ -32,40 +31,45 @@ export function loadSave(storage: Storage | undefined = getStorage()): SaveState
 
 export function persistSave(save: SaveState, storage: Storage | undefined = getStorage()): void {
   if (!storage) return;
-  storage.setItem(SAVE_KEY, JSON.stringify(normalizeSave(save)));
+  storage.setItem(SAVE_KEY, JSON.stringify(cloneSave(save)));
 }
 
 export function cloneSave(save: SaveState): SaveState {
   return {
     ...save,
-    unlockedTowerIds: [...save.unlockedTowerIds],
+    unlockedGemFamilies: [...save.unlockedGemFamilies],
     purchasedUpgradeIds: [...save.purchasedUpgradeIds],
     clearedAreaTiers: [...save.clearedAreaTiers],
-    selectedLoadout: [...save.selectedLoadout],
   };
 }
 
-export function normalizeSave(partial: Partial<SaveState>): SaveState {
-  const unlocked = uniqueTowers(partial.unlockedTowerIds ?? defaultSaveState.unlockedTowerIds);
-  const loadout = uniqueTowers(partial.selectedLoadout ?? defaultSaveState.selectedLoadout)
-    .filter((towerId) => unlocked.includes(towerId))
-    .slice(0, LOADOUT_LIMIT);
+export function normalizeSave(partial: Partial<SaveState> & Record<string, unknown>): SaveState {
+  const legacyTowers = partial.unlockedTowerIds as GemFamilyId[] | undefined;
+  const legacyLoadout = partial.selectedLoadout as GemFamilyId[] | undefined;
+  const unlocked = uniqueFamilies(
+    partial.unlockedGemFamilies ??
+      legacyTowers ??
+      legacyLoadout ??
+      defaultSaveState.unlockedGemFamilies,
+  );
+
   return {
-    version: 1,
+    version: 2,
     stars: Math.max(0, Math.floor(partial.stars ?? 0)),
     crowns: Math.max(0, Math.floor(partial.crowns ?? 0)),
     spentStars: Math.max(0, Math.floor(partial.spentStars ?? 0)),
     totalStarsEarned: Math.max(0, Math.floor(partial.totalStarsEarned ?? 0)),
-    unlockedTowerIds: unlocked.length > 0 ? unlocked : ['kinetic'],
+    unlockedGemFamilies: unlocked.length > 0 ? unlocked : ['kinetic', 'verdant'],
     purchasedUpgradeIds: uniqueStrings(partial.purchasedUpgradeIds ?? []).filter((upgradeId) =>
       upgrades.some((upgrade) => upgrade.id === upgradeId),
     ),
     clearedAreaTiers: uniqueStrings(partial.clearedAreaTiers ?? []).filter((key) =>
       areaDefinitions.some((area) =>
-        (Object.keys(area.tiers) as string[]).some((tierId) => areaTierKey(area.id, tierId as never) === key),
+        (Object.keys(area.tiers) as string[]).some(
+          (tierId) => areaTierKey(area.id, tierId as never) === key,
+        ),
       ),
     ),
-    selectedLoadout: loadout.length > 0 ? loadout : ['kinetic'],
   };
 }
 
@@ -78,8 +82,9 @@ function uniqueStrings(values: readonly string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function uniqueTowers(values: readonly TowerId[]): TowerId[] {
-  return Array.from(new Set(values));
+function uniqueFamilies(values: readonly string[]): GemFamilyId[] {
+  const mapped = values.map((v) => (v === 'nature' ? 'verdant' : v)) as GemFamilyId[];
+  return Array.from(new Set(mapped));
 }
 
 function getStorage(): Storage | undefined {

@@ -371,6 +371,93 @@ button {
   background: rgba(12, 60, 47, 0.42);
 }
 
+.shop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.shop-button,
+.gem-shop-button,
+.gem-chip {
+  border-radius: 8px;
+  border: 1px solid rgba(132, 210, 255, 0.15);
+  background: rgba(3, 11, 22, 0.48);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.shop-button {
+  min-height: 56px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  text-align: left;
+}
+
+.shop-button svg {
+  color: var(--gold);
+  grid-row: span 2;
+}
+
+.shop-button strong {
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.gem-shop-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.gem-shop-button {
+  min-height: 44px;
+  padding: 6px 8px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 6px;
+  align-items: center;
+  text-align: left;
+  font-size: 11px;
+}
+
+.gem-shop-button strong {
+  color: var(--gold);
+  font-size: 11px;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.gem-chip {
+  min-height: 52px;
+  padding: 8px;
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  opacity: calc(0.7 + var(--gem-level-opacity, 0.5) * 0.3);
+}
+
+.gem-chip.selected {
+  border-color: var(--tower-color);
+  background: color-mix(in srgb, var(--tower-color) 18%, rgba(3, 11, 22, 0.86));
+}
+
+.gem-chip strong {
+  font-size: 11px;
+}
+
 .primary-action:hover:not(:disabled),
 .ghost-button:hover:not(:disabled),
 .icon-button:hover,
@@ -405,7 +492,10 @@ button {
   }
 
   .tower-grid,
-  .node-list {
+  .node-list,
+  .shop-grid,
+  .gem-shop-row,
+  .inventory-grid {
     grid-template-columns: 1fr;
   }
 }
