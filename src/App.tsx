@@ -1,25 +1,40 @@
 import {
+  Coins,
   Crown,
+  Gem,
   Gauge,
-  MousePointer2,
+  Gift,
+  Merge,
   Mountain,
+  MousePointer2,
   Play,
   RotateCcw,
+  ShoppingBag,
   Sparkles,
   Target,
   Undo2,
   Zap,
 } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
-import { areaDefinitions, areaTierKey, getTower, upgrades } from './game/content';
+import {
+  LUCKY_BOX_COST,
+  RANDOM_GEM_COST,
+  areaDefinitions,
+  areaTierKey,
+  gemDefinitions,
+  upgrades,
+} from './game/content';
 import { canBuyUpgrade, isTierUnlocked } from './game/engine';
+import { gemDisplayName } from './game/gems';
 import { getRespecCost } from './game/save';
 import type {
   GameAction,
+  GemFamilyId,
+  GemLevel,
+  InventoryGem,
   SaveState,
   Snapshot,
   TierId,
-  TowerId,
   UpgradeBranch,
   UpgradeDefinition,
 } from './game/types';
@@ -29,19 +44,41 @@ import { useCosmicGame } from './hooks/useCosmicGame';
 const branchLabels: Record<UpgradeBranch, string> = {
   missile: 'Orbital Barrage',
   kinetic: 'Kinetic',
-  nature: 'Nature',
+  verdant: 'Verdant',
   arcane: 'Arcane',
   nova: 'Nova',
+  prism: 'Prism',
   unlock: 'Unlocks',
 };
 
-const branchOrder: UpgradeBranch[] = ['missile', 'kinetic', 'unlock', 'nature', 'arcane', 'nova'];
+const branchOrder: UpgradeBranch[] = [
+  'missile',
+  'kinetic',
+  'unlock',
+  'verdant',
+  'arcane',
+  'nova',
+  'prism',
+];
+
+const GEM_FAMILIES: GemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism'];
+
+const GEM_LEVEL_COLORS: Record<GemLevel, string> = {
+  1: '0.55',
+  2: '0.65',
+  3: '0.75',
+  4: '0.85',
+  5: '0.92',
+  6: '0.98',
+  7: '1',
+};
 
 export default function App() {
   const controller = useCosmicGame();
   const { snapshot, dispatch, game } = controller;
   const save = game.current.save;
   const respecCost = getRespecCost(save);
+  const planning = snapshot.status === 'idle' || snapshot.status === 'betweenWaves';
 
   return (
     <main className="app-shell">
@@ -49,12 +86,14 @@ export default function App() {
 
       <section className="hud top-hud" aria-label="Run status">
         <div className="brand-block">
-          <span className="eyebrow">Cosmic Siege</span>
+          <span className="eyebrow">Cosmic Gem Siege</span>
           <strong>{snapshot.areaName}</strong>
           <span>
-            Horde TD · {snapshot.tierId.toUpperCase()} · Wave {snapshot.wave}/{snapshot.totalWaves}
+            GemTD · {snapshot.tierId.toUpperCase()} · Wave {snapshot.wave}/{snapshot.totalWaves}
+            {snapshot.isBossWave ? ' · BOSS' : ''}
           </span>
         </div>
+        <StatChip icon={<Coins size={16} />} label="Gold" value={snapshot.gold} />
         <StatChip
           icon={<Target size={16} />}
           label="Lives"
@@ -85,13 +124,10 @@ export default function App() {
       <aside className="control-panel" aria-label="Progression and controls">
         <ResultPanel snapshot={snapshot} dispatch={dispatch} />
         <AreaPanel save={save} dispatch={dispatch} />
-        <MazePanel snapshot={snapshot} dispatch={dispatch} />
-        <TowerPanel
-          selectedTowerId={snapshot.selectedTowerId}
-          loadout={snapshot.loadout}
-          unlockedTowerIds={snapshot.unlockedTowerIds}
-          dispatch={dispatch}
-        />
+        <ShopPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+        <MazePanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+        <InventoryPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+        <PlacedGemsPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
         <UpgradePanel save={save} dispatch={dispatch} />
         <section className="panel compact">
           <div className="panel-heading">
@@ -209,14 +245,76 @@ function AreaPanel({
   );
 }
 
-function MazePanel({
+function ShopPanel({
   snapshot,
+  planning,
   dispatch,
 }: {
   snapshot: Snapshot;
+  planning: boolean;
   dispatch: (action: GameAction) => void;
 }) {
-  const planning = snapshot.status === 'idle' || snapshot.status === 'betweenWaves';
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h2>Shop</h2>
+        <ShoppingBag size={16} />
+      </div>
+      <div className="shop-grid">
+        <button
+          type="button"
+          disabled={!planning || snapshot.gold < RANDOM_GEM_COST}
+          className="shop-button"
+          onClick={() => dispatch({ type: 'buyRandomGem' })}
+        >
+          <Gift size={15} />
+          <span>Random gem</span>
+          <strong>{RANDOM_GEM_COST}g</strong>
+        </button>
+        <button
+          type="button"
+          disabled={!planning || snapshot.gold < LUCKY_BOX_COST}
+          className="shop-button"
+          onClick={() => dispatch({ type: 'buyLuckyBox' })}
+        >
+          <Sparkles size={15} />
+          <span>Lucky box</span>
+          <strong>{LUCKY_BOX_COST}g</strong>
+        </button>
+      </div>
+      <div className="gem-shop-row">
+        {GEM_FAMILIES.map((family) => {
+          const def = gemDefinitions[family];
+          const unlocked = snapshot.unlockedGemFamilies.includes(family);
+          return (
+            <button
+              key={family}
+              type="button"
+              disabled={!planning || !unlocked || snapshot.gold < def.shopCost}
+              className="gem-shop-button"
+              style={{ '--tower-color': def.color } as CSSProperties}
+              onClick={() => dispatch({ type: 'buyGem', family })}
+            >
+              <span className="tower-swatch" />
+              <span>{def.name}</span>
+              <strong>{unlocked ? `${def.shopCost}g` : 'Locked'}</strong>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MazePanel({
+  snapshot,
+  planning,
+  dispatch,
+}: {
+  snapshot: Snapshot;
+  planning: boolean;
+  dispatch: (action: GameAction) => void;
+}) {
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -230,71 +328,149 @@ function MazePanel({
           className={snapshot.placementMode === 'rock' ? 'tier-button cleared' : 'tier-button'}
           onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'rock' })}
         >
-          Place rock
+          Place rock ({snapshot.rockCost}g)
         </button>
         <button
           type="button"
           disabled={!planning}
-          className={snapshot.placementMode === 'tower' ? 'tier-button cleared' : 'tier-button'}
-          onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'tower' })}
+          className={snapshot.placementMode === 'gem' ? 'tier-button cleared' : 'tier-button'}
+          onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'gem' })}
         >
           Place gem
         </button>
+        <button
+          type="button"
+          disabled={!planning}
+          className={snapshot.placementMode === 'merge' ? 'tier-button cleared' : 'tier-button'}
+          onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'merge' })}
+        >
+          <Merge size={14} />
+          Merge
+        </button>
       </div>
       <p className="microcopy">
-        Rocks placed: {snapshot.rockCount}. Dark cells only; must leave a path to the goal.
+        Rocks: {snapshot.rockCount}. Right-click rocks/gems on board to sell. Merge same family +
+        level gems.
       </p>
     </section>
   );
 }
 
-function TowerPanel({
-  selectedTowerId,
-  loadout,
-  unlockedTowerIds,
+function InventoryPanel({
+  snapshot,
+  planning,
   dispatch,
 }: {
-  selectedTowerId: TowerId | null;
-  loadout: TowerId[];
-  unlockedTowerIds: TowerId[];
+  snapshot: Snapshot;
+  planning: boolean;
   dispatch: (action: GameAction) => void;
 }) {
-  const towerIds = Object.keys({
-    kinetic: true,
-    nature: true,
-    arcane: true,
-    nova: true,
-  }) as TowerId[];
   return (
     <section className="panel">
       <div className="panel-heading">
-        <h2>Towers</h2>
-        <span className="microcopy">Loadout {loadout.length}/3</span>
+        <h2>Inventory</h2>
+        <Gem size={16} />
       </div>
-      <div className="tower-grid">
-        {towerIds.map((towerId) => {
-          const tower = getTower(towerId);
-          const unlocked = unlockedTowerIds.includes(towerId);
-          const loaded = loadout.includes(towerId);
-          const selected = selectedTowerId === towerId;
+      {snapshot.inventory.length === 0 ? (
+        <p className="microcopy">No gems in inventory. Buy from shop between waves.</p>
+      ) : (
+        <div className="inventory-grid">
+          {snapshot.inventory.map((gem) => (
+            <InventoryGemButton
+              key={gem.id}
+              gem={gem}
+              selected={snapshot.selectedInventoryGemId === gem.id}
+              disabled={!planning}
+              onSelect={() => dispatch({ type: 'selectInventoryGem', gemId: gem.id })}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InventoryGemButton({
+  gem,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  gem: InventoryGem;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  const def = gemDefinitions[gem.family];
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className={selected ? 'gem-chip selected' : 'gem-chip'}
+      style={
+        {
+          '--tower-color': def.color,
+          '--gem-level-opacity': GEM_LEVEL_COLORS[gem.level],
+        } as CSSProperties
+      }
+      onClick={onSelect}
+    >
+      <span className="tower-swatch" />
+      <strong>{gemDisplayName(gem.family, gem.level)}</strong>
+    </button>
+  );
+}
+
+function PlacedGemsPanel({
+  snapshot,
+  planning,
+  dispatch,
+}: {
+  snapshot: Snapshot;
+  planning: boolean;
+  dispatch: (action: GameAction) => void;
+}) {
+  if (snapshot.placedGems.length === 0) return null;
+
+  return (
+    <section className="panel compact">
+      <div className="panel-heading">
+        <h2>Placed Gems</h2>
+        <span className="microcopy">{snapshot.placedGems.length} on board</span>
+      </div>
+      <div className="inventory-grid">
+        {snapshot.placedGems.map((gem) => {
+          const def = gemDefinitions[gem.family];
+          const isMergeSource = snapshot.mergeSourceGemId === gem.id;
           return (
             <button
-              key={towerId}
+              key={gem.id}
               type="button"
-              disabled={!unlocked}
-              className={selected ? 'tower-button selected' : 'tower-button'}
+              disabled={!planning}
+              className={isMergeSource ? 'gem-chip selected' : 'gem-chip'}
+              style={
+                {
+                  '--tower-color': def.color,
+                  '--gem-level-opacity': GEM_LEVEL_COLORS[gem.level],
+                } as CSSProperties
+              }
               onClick={() => {
-                if (!loaded) {
-                  dispatch({ type: 'selectLoadout', towerIds: [...loadout, towerId] });
+                if (snapshot.placementMode === 'merge') {
+                  if (snapshot.mergeSourceGemId === null) {
+                    dispatch({ type: 'selectMergeSource', gemId: gem.id });
+                  } else if (snapshot.mergeSourceGemId !== gem.id) {
+                    dispatch({ type: 'mergeGems', targetGemId: gem.id });
+                  }
+                } else {
+                  dispatch({ type: 'sellGem', gemId: gem.id });
                 }
-                dispatch({ type: 'selectPlacementMode', mode: 'tower' });
-                dispatch({ type: 'selectTower', towerId });
               }}
-              style={{ '--tower-color': tower.color } as CSSProperties}
             >
               <span className="tower-swatch" />
-              <strong>{tower.name}</strong>
-              <span>{unlocked ? tower.role : 'Locked in upgrade tree'}</span>
+              <strong>{gemDisplayName(gem.family, gem.level)}</strong>
+              <span className="microcopy">
+                {snapshot.placementMode === 'merge' ? 'Merge target' : 'Sell'}
+              </span>
             </button>
           );
         })}

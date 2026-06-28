@@ -1,129 +1,223 @@
 import type {
   AreaDefinition,
   EnemyDefinition,
+  GemDefinition,
+  GemFamilyId,
   MissileStat,
   TierId,
-  TowerDefinition,
-  TowerId,
   TowerStat,
   UpgradeDefinition,
+  WaveDefinition,
+  WaveSegment,
 } from './types';
 import { buildPathNav } from './pathNav';
 
 export const BOARD_WIDTH = 16;
 export const BOARD_HEIGHT = 10;
-export const LOADOUT_LIMIT = 3;
-export const STARTING_LIVES = 8;
-export const TOWER_MIN_SPACING = 0.9;
-/** Screen-clear style active — tuned to matter vs dense mid/late waves. */
+export const STARTING_LIVES = 20;
+export const TOTAL_WAVES = 50;
+export const TOWER_MIN_SPACING = 0.85;
+export const LUCKY_BOX_COST = 55;
+export const RANDOM_GEM_COST = 18;
+
 export const MISSILE_BASE = {
-  damage: 78,
-  radius: 1.28,
-  cooldown: 2.35,
+  damage: 85,
+  radius: 1.35,
+  cooldown: 2.2,
 };
 
 export const enemyDefinitions: Record<string, EnemyDefinition> = {
   scout: {
     id: 'scout',
     name: 'Void Scout',
-    hp: 55,
-    speed: 1.7,
-    rewardStars: 4,
+    hp: 48,
+    speed: 1.75,
+    rewardStars: 3,
+    rewardGold: 4,
     color: '#77e7ff',
   },
   trooper: {
     id: 'trooper',
     name: 'Astral Trooper',
-    hp: 82,
-    speed: 1.35,
-    rewardStars: 5,
+    hp: 72,
+    speed: 1.38,
+    rewardStars: 4,
+    rewardGold: 5,
     color: '#e4e9ff',
+  },
+  runner: {
+    id: 'runner',
+    name: 'Comet Runner',
+    hp: 42,
+    speed: 2.35,
+    rewardStars: 4,
+    rewardGold: 5,
+    color: '#5eead4',
   },
   bulwark: {
     id: 'bulwark',
     name: 'Shield Bulwark',
-    hp: 88,
-    speed: 1.08,
-    rewardStars: 8,
-    shield: 55,
+    hp: 95,
+    speed: 1.05,
+    rewardStars: 6,
+    rewardGold: 7,
+    shield: 48,
     color: '#bd9cff',
   },
   striker: {
     id: 'striker',
     name: 'Comet Striker',
-    hp: 130,
-    speed: 1.55,
-    rewardStars: 9,
+    hp: 118,
+    speed: 1.58,
+    rewardStars: 7,
+    rewardGold: 8,
     color: '#ffb86b',
+  },
+  brute: {
+    id: 'brute',
+    name: 'Iron Brute',
+    hp: 210,
+    speed: 0.88,
+    rewardStars: 9,
+    rewardGold: 10,
+    color: '#a78bfa',
+  },
+  shifter: {
+    id: 'shifter',
+    name: 'Phase Shifter',
+    hp: 88,
+    speed: 1.42,
+    rewardStars: 8,
+    rewardGold: 9,
+    color: '#f0abfc',
+    splitInto: 'scout',
+    splitCount: 2,
+  },
+  mystic: {
+    id: 'mystic',
+    name: 'Void Mystic',
+    hp: 135,
+    speed: 1.12,
+    rewardStars: 10,
+    rewardGold: 11,
+    shield: 72,
+    color: '#c4b5fd',
   },
   warden: {
     id: 'warden',
     name: 'Nebula Warden',
-    hp: 180,
-    speed: 1.05,
-    rewardStars: 13,
-    shield: 85,
+    hp: 175,
+    speed: 1.02,
+    rewardStars: 11,
+    rewardGold: 12,
+    shield: 78,
     color: '#a48cff',
   },
   vanguard: {
     id: 'vanguard',
     name: 'Crown Vanguard',
-    hp: 250,
-    speed: 0.92,
-    rewardStars: 18,
-    shield: 115,
+    hp: 240,
+    speed: 0.95,
+    rewardStars: 14,
+    rewardGold: 15,
+    shield: 105,
     color: '#ffd166',
+  },
+  colossus: {
+    id: 'colossus',
+    name: 'Titan Colossus',
+    hp: 1800,
+    speed: 0.72,
+    rewardStars: 45,
+    rewardGold: 80,
+    shield: 320,
+    color: '#f87171',
+    isBoss: true,
+    leakDamage: 2,
+  },
+  dreadnought: {
+    id: 'dreadnought',
+    name: 'Abyss Dreadnought',
+    hp: 3200,
+    speed: 0.65,
+    rewardStars: 65,
+    rewardGold: 120,
+    shield: 480,
+    color: '#ef4444',
+    isBoss: true,
+    leakDamage: 3,
   },
 };
 
-export const towerDefinitions: Record<TowerId, TowerDefinition> = {
+export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
   kinetic: {
     id: 'kinetic',
-    name: 'Kinetic Spire',
-    role: 'Reliable single-target fire.',
+    name: 'Kinetic Crystal',
+    role: 'Rapid fire with crit bursts.',
     branch: 'kinetic',
-    damage: 22,
-    range: 3.1,
-    cooldown: 0.92,
-    projectileSpeed: 8.5,
+    baseDamage: 18,
+    baseRange: 3.0,
+    baseCooldown: 0.85,
+    projectileSpeed: 9,
     color: '#7dd3fc',
+    shopCost: 16,
+    critChance: 0.12,
   },
-  nature: {
-    id: 'nature',
-    name: 'Verdant Relay',
-    role: 'Poison that scales through longer waves.',
-    branch: 'nature',
-    damage: 12,
-    range: 2.8,
-    cooldown: 1.08,
-    projectileSpeed: 7.2,
+  verdant: {
+    id: 'verdant',
+    name: 'Verdant Spore',
+    role: 'Stacking poison damage over time.',
+    branch: 'verdant',
+    baseDamage: 10,
+    baseRange: 2.75,
+    baseCooldown: 1.0,
+    projectileSpeed: 7.5,
     color: '#66f2a4',
-    poisonDps: 8,
-    poisonDuration: 3.8,
+    shopCost: 18,
+    poisonDps: 7,
+    poisonDuration: 3.5,
   },
   arcane: {
     id: 'arcane',
     name: 'Arcane Lens',
-    role: 'Shield-breaking precision beam.',
+    role: 'Shield-breaking precision beams.',
     branch: 'arcane',
-    damage: 20,
-    range: 3.4,
-    cooldown: 1.12,
-    projectileSpeed: 10,
+    baseDamage: 17,
+    baseRange: 3.35,
+    baseCooldown: 1.05,
+    projectileSpeed: 10.5,
     color: '#c084fc',
-    shieldPierce: 2.7,
+    shopCost: 20,
+    shieldPierce: 2.4,
   },
   nova: {
     id: 'nova',
     name: 'Nova Mortar',
-    role: 'Slow splash when the path turns into a carpet of bodies.',
+    role: 'Slowing splash artillery.',
     branch: 'nova',
-    damage: 34,
-    range: 2.7,
-    cooldown: 1.85,
-    projectileSpeed: 6.2,
+    baseDamage: 28,
+    baseRange: 2.65,
+    baseCooldown: 1.75,
+    projectileSpeed: 6.5,
     color: '#fb7185',
-    splashRadius: 0.85,
+    shopCost: 22,
+    splashRadius: 0.75,
+    slowFactor: 0.35,
+    slowDuration: 1.8,
+  },
+  prism: {
+    id: 'prism',
+    name: 'Prism Shard',
+    role: 'Armor shred and bonus vs tanks.',
+    branch: 'prism',
+    baseDamage: 15,
+    baseRange: 3.1,
+    baseCooldown: 0.95,
+    projectileSpeed: 8.8,
+    color: '#fde68a',
+    shopCost: 24,
+    armorReduction: 0.08,
+    bonusVsHighHp: 0.25,
   },
 };
 
@@ -148,91 +242,83 @@ const areaThreePath = [
   { x: 15, y: 6 },
 ];
 
+function makeTierWaves(tier: TierId): WaveDefinition[] {
+  return Array.from({ length: TOTAL_WAVES }, (_, index) => buildWave(index + 1, tier));
+}
+
 export const areaDefinitions: AreaDefinition[] = [
   {
     id: 'a1',
     name: 'Orion Breach',
-    subtitle: 'Corridor horde route — choke them on the path, then bomb the clump.',
+    subtitle: 'Build your maze, merge gems, survive 50 waves.',
     path: areaOnePath,
     pathNav: buildPathNav(areaOnePath),
     tiers: {
       normal: {
-        waves: [
-          { id: 'a1n1', enemyId: 'scout', count: 100, spawnInterval: 0.1 },
-          { id: 'a1n2', enemyId: 'trooper', count: 100, spawnInterval: 0.1 },
-          { id: 'a1n3', enemyId: 'bulwark', count: 100, spawnInterval: 0.11 },
-        ],
-        enemyHpMultiplier: 1.28,
-        enemySpeedMultiplier: 0.98,
-        starMultiplier: 1.08,
+        waves: makeTierWaves('normal'),
+        enemyHpMultiplier: 1,
+        enemySpeedMultiplier: 1,
+        starMultiplier: 1,
+        goldMultiplier: 1,
+        startingGold: 35,
       },
       hard: {
-        waves: [
-          { id: 'a1h1', enemyId: 'trooper', count: 100, spawnInterval: 0.1 },
-          { id: 'a1h2', enemyId: 'bulwark', count: 100, spawnInterval: 0.1 },
-          { id: 'a1h3', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
-        ],
-        enemyHpMultiplier: 1.62,
-        enemySpeedMultiplier: 1.04,
-        starMultiplier: 1.22,
+        waves: makeTierWaves('hard'),
+        enemyHpMultiplier: 1.45,
+        enemySpeedMultiplier: 1.08,
+        starMultiplier: 1.35,
+        goldMultiplier: 1.15,
+        startingGold: 30,
       },
     },
   },
   {
     id: 'a2',
     name: 'Lunar Causeway',
-    subtitle: 'Double-bend meat grinder — expect floods; save your strike for the stack.',
+    subtitle: 'Tighter bends reward splash gems and maze choke points.',
     path: areaTwoPath,
     pathNav: buildPathNav(areaTwoPath),
     tiers: {
       normal: {
-        waves: [
-          { id: 'a2n1', enemyId: 'scout', count: 100, spawnInterval: 0.1 },
-          { id: 'a2n2', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
-          { id: 'a2n3', enemyId: 'warden', count: 100, spawnInterval: 0.12 },
-        ],
-        enemyHpMultiplier: 1.38,
-        enemySpeedMultiplier: 1.02,
-        starMultiplier: 1.25,
+        waves: makeTierWaves('normal'),
+        enemyHpMultiplier: 1.15,
+        enemySpeedMultiplier: 1.04,
+        starMultiplier: 1.2,
+        goldMultiplier: 1.05,
+        startingGold: 38,
       },
       hard: {
-        waves: [
-          { id: 'a2h1', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
-          { id: 'a2h2', enemyId: 'warden', count: 100, spawnInterval: 0.11 },
-          { id: 'a2h3', enemyId: 'vanguard', count: 100, spawnInterval: 0.14 },
-        ],
-        enemyHpMultiplier: 1.72,
-        enemySpeedMultiplier: 1.08,
-        starMultiplier: 1.38,
+        waves: makeTierWaves('hard'),
+        enemyHpMultiplier: 1.62,
+        enemySpeedMultiplier: 1.12,
+        starMultiplier: 1.48,
+        goldMultiplier: 1.2,
+        startingGold: 32,
       },
     },
   },
   {
     id: 'a3',
     name: 'Crownfall Gate',
-    subtitle: 'Elite tide on a wide bend — splash, shields, and a well-timed bombardment.',
+    subtitle: 'Elite tides and boss rushes test your great gem builds.',
     path: areaThreePath,
     pathNav: buildPathNav(areaThreePath),
     tiers: {
       normal: {
-        waves: [
-          { id: 'a3n1', enemyId: 'trooper', count: 100, spawnInterval: 0.1 },
-          { id: 'a3n2', enemyId: 'warden', count: 100, spawnInterval: 0.11 },
-          { id: 'a3n3', enemyId: 'vanguard', count: 100, spawnInterval: 0.13 },
-        ],
-        enemyHpMultiplier: 1.65,
-        enemySpeedMultiplier: 1.04,
-        starMultiplier: 1.52,
+        waves: makeTierWaves('normal'),
+        enemyHpMultiplier: 1.28,
+        enemySpeedMultiplier: 1.06,
+        starMultiplier: 1.35,
+        goldMultiplier: 1.1,
+        startingGold: 40,
       },
       hard: {
-        waves: [
-          { id: 'a3h1', enemyId: 'striker', count: 100, spawnInterval: 0.1 },
-          { id: 'a3h2', enemyId: 'warden', count: 100, spawnInterval: 0.1 },
-          { id: 'a3h3', enemyId: 'vanguard', count: 100, spawnInterval: 0.12 },
-        ],
-        enemyHpMultiplier: 1.98,
-        enemySpeedMultiplier: 1.1,
-        starMultiplier: 1.75,
+        waves: makeTierWaves('hard'),
+        enemyHpMultiplier: 1.78,
+        enemySpeedMultiplier: 1.14,
+        starMultiplier: 1.62,
+        goldMultiplier: 1.25,
+        startingGold: 35,
       },
     },
   },
@@ -242,21 +328,25 @@ const upgradeDefinitions: UpgradeDefinition[] = [
   ...makeMissileUpgrades('damage', 'Payload Yield', 30, 10, 9),
   ...makeMissileUpgrades('radius', 'Blast Footprint', 28, 8, 0.15),
   ...makeMissileUpgrades('cooldown', 'Launch Cycle', 34, 11, -0.18),
-  ...makeTowerStatUpgrades('kinetic', 'damage', 'Kinetic Damage', 26, 9, 0.14),
-  ...makeTowerStatUpgrades('kinetic', 'range', 'Kinetic Range', 24, 8, 0.16),
-  ...makeTowerStatUpgrades('kinetic', 'rate', 'Kinetic Actuator', 28, 10, -0.06),
-  makeUnlock('unlock-nature', 'Nature Path', 'nature', 85, 0, ['missile-damage-1']),
-  makeUnlock('unlock-arcane', 'Arcane Path', 'arcane', 85, 0, ['missile-damage-1']),
-  makeUnlock('unlock-nova', 'Nova Mortar', 'nova', 1, 1, ['unlock-nature', 'unlock-arcane']),
-  ...makeTowerStatUpgrades('nature', 'damage', 'Nature Toxin', 32, 10, 0.13, ['unlock-nature']),
-  ...makeTowerStatUpgrades('nature', 'range', 'Nature Reach', 30, 9, 0.14, ['unlock-nature']),
-  ...makeTowerStatUpgrades('nature', 'rate', 'Nature Bloom', 32, 10, -0.055, ['unlock-nature']),
-  ...makeTowerStatUpgrades('arcane', 'damage', 'Arcane Fracture', 32, 10, 0.13, ['unlock-arcane']),
-  ...makeTowerStatUpgrades('arcane', 'range', 'Arcane Aperture', 30, 9, 0.15, ['unlock-arcane']),
-  ...makeTowerStatUpgrades('arcane', 'rate', 'Arcane Focusing', 32, 10, -0.055, ['unlock-arcane']),
-  ...makeTowerStatUpgrades('nova', 'damage', 'Nova Charge', 46, 14, 0.14, ['unlock-nova']),
-  ...makeTowerStatUpgrades('nova', 'range', 'Nova Trajectory', 42, 12, 0.14, ['unlock-nova']),
-  ...makeTowerStatUpgrades('nova', 'rate', 'Nova Loader', 48, 14, -0.06, ['unlock-nova']),
+  ...makeGemStatUpgrades('kinetic', 'damage', 'Kinetic Damage', 26, 9, 0.14),
+  ...makeGemStatUpgrades('kinetic', 'range', 'Kinetic Range', 24, 8, 0.16),
+  ...makeGemStatUpgrades('kinetic', 'rate', 'Kinetic Actuator', 28, 10, -0.06),
+  makeUnlock('unlock-verdant', 'Verdant Path', 'verdant', 75, 0, ['missile-damage-1']),
+  makeUnlock('unlock-arcane', 'Arcane Path', 'arcane', 75, 0, ['missile-damage-1']),
+  makeUnlock('unlock-nova', 'Nova Mortar', 'nova', 1, 1, ['unlock-verdant', 'unlock-arcane']),
+  makeUnlock('unlock-prism', 'Prism Shard', 'prism', 1, 2, ['unlock-nova']),
+  ...makeGemStatUpgrades('verdant', 'damage', 'Verdant Toxin', 32, 10, 0.13, ['unlock-verdant']),
+  ...makeGemStatUpgrades('verdant', 'range', 'Verdant Reach', 30, 9, 0.14, ['unlock-verdant']),
+  ...makeGemStatUpgrades('verdant', 'rate', 'Verdant Bloom', 32, 10, -0.055, ['unlock-verdant']),
+  ...makeGemStatUpgrades('arcane', 'damage', 'Arcane Fracture', 32, 10, 0.13, ['unlock-arcane']),
+  ...makeGemStatUpgrades('arcane', 'range', 'Arcane Aperture', 30, 9, 0.15, ['unlock-arcane']),
+  ...makeGemStatUpgrades('arcane', 'rate', 'Arcane Focusing', 32, 10, -0.055, ['unlock-arcane']),
+  ...makeGemStatUpgrades('nova', 'damage', 'Nova Charge', 46, 14, 0.14, ['unlock-nova']),
+  ...makeGemStatUpgrades('nova', 'range', 'Nova Trajectory', 42, 12, 0.14, ['unlock-nova']),
+  ...makeGemStatUpgrades('nova', 'rate', 'Nova Loader', 48, 14, -0.06, ['unlock-nova']),
+  ...makeGemStatUpgrades('prism', 'damage', 'Prism Cut', 48, 14, 0.14, ['unlock-prism']),
+  ...makeGemStatUpgrades('prism', 'range', 'Prism Focus', 44, 12, 0.14, ['unlock-prism']),
+  ...makeGemStatUpgrades('prism', 'rate', 'Prism Refraction', 50, 14, -0.06, ['unlock-prism']),
 ];
 
 export const upgrades = upgradeDefinitions;
@@ -265,10 +355,6 @@ export function getArea(areaId: string): AreaDefinition {
   const area = areaDefinitions.find((candidate) => candidate.id === areaId);
   if (!area) throw new Error(`Missing area: ${areaId}`);
   return area;
-}
-
-export function getTower(towerId: TowerId): TowerDefinition {
-  return towerDefinitions[towerId];
 }
 
 export function getEnemy(enemyId: string): EnemyDefinition {
@@ -285,6 +371,69 @@ export function getUpgrade(upgradeId: string): UpgradeDefinition {
 
 export function areaTierKey(areaId: string, tierId: TierId): string {
   return `${areaId}:${tierId}`;
+}
+
+export function rockPlacementCost(rocksPlaced: number): number {
+  return 2 + rocksPlaced * 2;
+}
+
+export function waveClearGoldBonus(waveNumber: number): number {
+  return 8 + Math.floor(waveNumber * 1.5);
+}
+
+function buildWave(waveNumber: number, tier: TierId): WaveDefinition {
+  const isBoss = waveNumber % 10 === 0;
+  const segments = composeWaveSegments(waveNumber, isBoss, tier);
+  const spawnInterval = Math.max(0.06, 0.14 - waveNumber * 0.0015);
+  return {
+    id: `wave-${waveNumber}-${tier}`,
+    segments,
+    spawnInterval,
+    isBoss,
+    goldBonus: waveClearGoldBonus(waveNumber),
+  };
+}
+
+function composeWaveSegments(waveNumber: number, isBoss: boolean, tier: TierId): WaveSegment[] {
+  if (isBoss) {
+    const bossId = waveNumber >= 40 ? 'dreadnought' : 'colossus';
+    const escorts = waveNumber >= 30 ? 6 : 4;
+    return [
+      { enemyId: bossId, count: 1 },
+      { enemyId: waveNumber >= 20 ? 'vanguard' : 'warden', count: escorts },
+      { enemyId: 'striker', count: Math.floor(waveNumber / 2) },
+    ];
+  }
+
+  const scale = 1 + (waveNumber - 1) * 0.08 + (tier === 'hard' ? 0.15 : 0);
+  const baseCount = Math.max(4, Math.floor(6 + waveNumber * 0.55 * scale));
+  const segments: WaveSegment[] = [];
+
+  if (waveNumber <= 5) {
+    segments.push({ enemyId: 'scout', count: Math.floor(baseCount * 0.7) });
+    segments.push({ enemyId: 'trooper', count: Math.floor(baseCount * 0.3) });
+  } else if (waveNumber <= 12) {
+    segments.push({ enemyId: 'trooper', count: Math.floor(baseCount * 0.45) });
+    segments.push({ enemyId: 'runner', count: Math.floor(baseCount * 0.3) });
+    segments.push({ enemyId: 'bulwark', count: Math.floor(baseCount * 0.25) });
+  } else if (waveNumber <= 22) {
+    segments.push({ enemyId: 'striker', count: Math.floor(baseCount * 0.35) });
+    segments.push({ enemyId: 'bulwark', count: Math.floor(baseCount * 0.25) });
+    segments.push({ enemyId: 'shifter', count: Math.floor(baseCount * 0.2) });
+    segments.push({ enemyId: 'runner', count: Math.floor(baseCount * 0.2) });
+  } else if (waveNumber <= 35) {
+    segments.push({ enemyId: 'brute', count: Math.floor(baseCount * 0.25) });
+    segments.push({ enemyId: 'mystic', count: Math.floor(baseCount * 0.25) });
+    segments.push({ enemyId: 'striker', count: Math.floor(baseCount * 0.25) });
+    segments.push({ enemyId: 'shifter', count: Math.floor(baseCount * 0.25) });
+  } else {
+    segments.push({ enemyId: 'vanguard', count: Math.floor(baseCount * 0.3) });
+    segments.push({ enemyId: 'warden', count: Math.floor(baseCount * 0.25) });
+    segments.push({ enemyId: 'brute', count: Math.floor(baseCount * 0.25) });
+    segments.push({ enemyId: 'mystic', count: Math.floor(baseCount * 0.2) });
+  }
+
+  return segments.filter((segment) => segment.count > 0);
 }
 
 function makeMissileUpgrades(
@@ -308,8 +457,8 @@ function makeMissileUpgrades(
   });
 }
 
-function makeTowerStatUpgrades(
-  towerId: TowerId,
+function makeGemStatUpgrades(
+  family: GemFamilyId,
   stat: TowerStat,
   label: string,
   baseCost: number,
@@ -320,14 +469,14 @@ function makeTowerStatUpgrades(
   return Array.from({ length: 5 }, (_, index) => {
     const level = index + 1;
     return {
-      id: `${towerId}-${stat}-${level}`,
+      id: `${family}-${stat}-${level}`,
       label: `${label} ${level}`,
-      branch: towerDefinitions[towerId].branch,
+      branch: gemDefinitions[family].branch,
       costStars: baseCost + index * costStep,
-      towerId,
+      gemFamily: family,
       towerStat: stat,
       value,
-      requires: level === 1 ? gate : [`${towerId}-${stat}-${level - 1}`],
+      requires: level === 1 ? gate : [`${family}-${stat}-${level - 1}`],
     };
   });
 }
@@ -335,7 +484,7 @@ function makeTowerStatUpgrades(
 function makeUnlock(
   id: string,
   label: string,
-  towerId: TowerId,
+  family: GemFamilyId,
   costStars: number,
   costCrowns: number,
   requires: string[],
@@ -347,7 +496,7 @@ function makeUnlock(
     costStars,
     costCrowns,
     requires,
-    unlockTowerId: towerId,
+    unlockGemFamily: family,
     value: 1,
   };
 }

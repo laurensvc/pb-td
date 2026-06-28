@@ -1,15 +1,30 @@
 import Phaser from 'phaser';
-import { BOARD_HEIGHT, BOARD_WIDTH, getTower } from '../game/content';
+import { BOARD_HEIGHT, BOARD_WIDTH, gemDefinitions } from '../game/content';
 import { cellParity } from '../game/boardParity';
-import { canPlaceRockAt, canPlaceTowerAt } from '../game/engine';
+import { canPlaceGemAt, canPlaceRockAt } from '../game/engine';
 import type {
   EnemyState,
   GameState,
+  GemFamilyId,
+  GemState,
   MissileState,
   ProjectileState,
-  TowerState,
   Vec2,
 } from '../game/types';
+import {
+  ASSET_PATHS,
+  BOSS_ENEMY_IDS,
+  ENEMY_FRAME_SIZE,
+  ENEMY_IDS,
+  ENEMY_WALK_FRAMES,
+  GEM_FAMILIES,
+  GEM_LEVELS,
+  TERRAIN_FRAMES,
+  enemyWalkAssetPath,
+  enemyWalkTextureKey,
+  gemAssetPath,
+  gemTextureKey,
+} from './assetManifest';
 import { getBridge } from './bridge';
 
 interface BoardLayout {
@@ -24,67 +39,61 @@ const COLORS = {
   bg: 0x050812,
   grid: 0x19324a,
   path: 0x35d0ff,
-  buildZone: 0x0e2534,
-  text: '#eef7ff',
-  red: 0xff5a7a,
   green: 0x7fffb2,
+  red: 0xff5a7a,
   shield: 0xbd9cff,
 };
-
-const ART_KEY = 'terrain-towers-enemies';
-
-const TERRAIN_FRAMES = {
-  grass: { x: 8, y: 38, width: 248, height: 146 },
-  path: { x: 272, y: 42, width: 244, height: 150 },
-  forest: { x: 716, y: 216, width: 244, height: 160 },
-  rock: { x: 268, y: 216, width: 242, height: 162 },
-  water: { x: 730, y: 42, width: 242, height: 150 },
-} as const;
-
-const TOWER_FRAMES = {
-  kinetic: { frame: 'tower-archer', x: 1012, y: 33, width: 128, height: 166 },
-  nature: { frame: 'tower-flame', x: 1050, y: 556, width: 118, height: 154 },
-  arcane: { frame: 'tower-crystal', x: 1184, y: 360, width: 132, height: 178 },
-  nova: { frame: 'tower-cannon', x: 1180, y: 222, width: 130, height: 152 },
-} as const;
-
-const ENEMY_FRAMES = {
-  scout: { frame: 'enemy-scout', x: 20, y: 612, width: 74, height: 90 },
-  trooper: { frame: 'enemy-trooper', x: 205, y: 612, width: 82, height: 92 },
-  bulwark: { frame: 'enemy-bulwark', x: 616, y: 602, width: 106, height: 114 },
-  striker: { frame: 'enemy-striker', x: 912, y: 725, width: 108, height: 82 },
-  warden: { frame: 'enemy-warden', x: 220, y: 762, width: 178, height: 166 },
-  vanguard: { frame: 'enemy-vanguard', x: 522, y: 742, width: 226, height: 194 },
-} as const;
 
 export class CosmicBoardScene extends Phaser.Scene {
   private board!: Phaser.GameObjects.Graphics;
   private boardOverlay!: Phaser.GameObjects.Graphics;
-  private actors!: Phaser.GameObjects.Graphics;
   private fx!: Phaser.GameObjects.Graphics;
   private terrainSprites: Phaser.GameObjects.Image[] = [];
-  private towerSprites = new Map<number, Phaser.GameObjects.Image>();
   private rockSprites = new Map<string, Phaser.GameObjects.Image>();
-  private enemySprites = new Map<number, Phaser.GameObjects.Image>();
+  private gemSprites = new Map<number, Phaser.GameObjects.Image>();
+  private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
+  private markerSprites: {
+    spawn?: Phaser.GameObjects.Image;
+    goal?: Phaser.GameObjects.Image;
+  } = {};
   private hoverBoardPoint: Vec2 | null = null;
   private layout: BoardLayout = { left: 0, top: 0, cell: 40, width: 640, height: 400 };
+  private assetsReady = false;
 
   constructor() {
     super('cosmic-board');
   }
 
   preload(): void {
-    this.load.image(ART_KEY, '/assets/terrain-towers-enemies.png');
-    this.load.image('cosmic-rock', '/assets/objects/rock.png');
+    this.load.image('terrain-void', ASSET_PATHS.terrainVoid);
+    this.load.image('terrain-gem', ASSET_PATHS.terrainGem);
+    this.load.image('cosmic-rock', ASSET_PATHS.rock);
+    this.load.image('spawn-portal', ASSET_PATHS.spawnPortal);
+    this.load.image('goal-nexus', ASSET_PATHS.goalNexus);
+
+    for (const family of GEM_FAMILIES) {
+      for (const level of GEM_LEVELS) {
+        this.load.image(gemTextureKey(family, level), gemAssetPath(family, level));
+      }
+    }
+
+    for (const enemyId of ENEMY_IDS) {
+      const key = enemyWalkTextureKey(enemyId);
+      this.load.spritesheet(key, enemyWalkAssetPath(enemyId), {
+        frameWidth: ENEMY_FRAME_SIZE,
+        frameHeight: ENEMY_FRAME_SIZE,
+      });
+    }
   }
 
   create(): void {
     this.cameras.main.setBackgroundColor(COLORS.bg);
+    this.registerTerrainFrames();
+    this.registerAnimations();
     this.board = this.add.graphics().setDepth(1);
     this.boardOverlay = this.add.graphics().setDepth(1.35);
-    this.actors = this.add.graphics().setDepth(2);
-    this.fx = this.add.graphics().setDepth(3);
-    registerArtFrames(this.textures);
+    this.fx = this.add.graphics().setDepth(4);
+    this.assetsReady = true;
     this.input.on('pointerdown', this.handlePointerDown, this);
     this.input.on('pointermove', this.handlePointerMove, this);
     this.input.on('gameout', this.clearHover, this);
@@ -96,8 +105,27 @@ export class CosmicBoardScene extends Phaser.Scene {
     const state = bridge.getState();
     this.layout = computeLayout(this.scale.width, this.scale.height);
     this.drawBoard(state);
-    this.drawActors(state);
+    this.drawSprites(state);
     this.drawFx(state);
+  }
+
+  private registerTerrainFrames(): void {
+    registerTilesetFrames(this.textures, 'terrain-void', 'void');
+    registerTilesetFrames(this.textures, 'terrain-gem', 'gem');
+  }
+
+  private registerAnimations(): void {
+    for (const enemyId of ENEMY_IDS) {
+      const key = enemyWalkTextureKey(enemyId);
+      if (this.anims.exists(`${key}-anim`)) continue;
+      if (!this.textures.exists(key)) continue;
+      this.anims.create({
+        key: `${key}-anim`,
+        frames: this.anims.generateFrameNumbers(key, { start: 0, end: ENEMY_WALK_FRAMES - 1 }),
+        frameRate: BOSS_ENEMY_IDS.includes(enemyId) ? 6 : 9,
+        repeat: -1,
+      });
+    }
   }
 
   private handlePointerMove(pointer: Phaser.Input.Pointer): void {
@@ -109,8 +137,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       state.status !== 'running' &&
       (state.placementMode === 'rock'
         ? canPlaceRockAt(state, boardPoint.x, boardPoint.y)
-        : state.selectedTowerId !== null &&
-          canPlaceTowerAt(state, boardPoint.x, boardPoint.y));
+        : state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y));
     this.input.manager.canvas.style.cursor = canPlace ? 'pointer' : 'crosshair';
   }
 
@@ -119,23 +146,33 @@ export class CosmicBoardScene extends Phaser.Scene {
     const state = bridge.getState();
     const boardPoint = screenToBoard(this.layout, pointer.x, pointer.y);
     if (!boardPoint) return;
+
+    if (pointer.rightButtonDown() && state.status !== 'running') {
+      handleRightClick(bridge, state, boardPoint);
+      return;
+    }
+
     if (state.status !== 'running' && state.placementMode === 'rock') {
       if (canPlaceRockAt(state, boardPoint.x, boardPoint.y)) {
         bridge.dispatch({ type: 'placeRock', x: boardPoint.x, y: boardPoint.y });
       }
       return;
     }
-    if (
-      state.status !== 'running' &&
-      state.selectedTowerId &&
-      canPlaceTowerAt(state, boardPoint.x, boardPoint.y)
-    ) {
-      bridge.dispatch({
-        type: 'placeTower',
-        x: boardPoint.x,
-        y: boardPoint.y,
-        towerId: state.selectedTowerId,
-      });
+    if (state.status !== 'running' && state.placementMode === 'gem') {
+      if (canPlaceGemAt(state, boardPoint.x, boardPoint.y)) {
+        bridge.dispatch({ type: 'placeGem', x: boardPoint.x, y: boardPoint.y });
+      }
+      return;
+    }
+    if (state.status !== 'running' && state.placementMode === 'merge') {
+      const gem = findGemAtCell(state, boardPoint);
+      if (gem) {
+        if (state.mergeSourceGemId === null) {
+          bridge.dispatch({ type: 'selectMergeSource', gemId: gem.id });
+        } else if (state.mergeSourceGemId !== gem.id) {
+          bridge.dispatch({ type: 'mergeGems', targetGemId: gem.id });
+        }
+      }
       return;
     }
     bridge.dispatch({ type: 'fireMissile', x: boardPoint.x, y: boardPoint.y });
@@ -153,10 +190,9 @@ export class CosmicBoardScene extends Phaser.Scene {
     overlay.clear();
     g.fillGradientStyle(0x07111e, 0x0a1020, 0x050812, 0x060a13, 1);
     g.fillRect(0, 0, this.scale.width, this.scale.height);
-
     g.fillStyle(0x071827, 0.96);
     g.fillRect(this.layout.left, this.layout.top, this.layout.width, this.layout.height);
-    g.lineStyle(1, COLORS.grid, 0.42);
+    g.lineStyle(1, COLORS.grid, 0.35);
     for (let x = 0; x <= BOARD_WIDTH; x++) {
       const px = this.layout.left + x * this.layout.cell;
       g.lineBetween(px, this.layout.top, px, this.layout.top + this.layout.height);
@@ -166,34 +202,48 @@ export class CosmicBoardScene extends Phaser.Scene {
       g.lineBetween(this.layout.left, py, this.layout.left + this.layout.width, py);
     }
 
-    this.updateTerrainSprites(state.pathNav.pathCells);
-    drawCheckerboard(overlay, this.layout);
-    drawPathCells(overlay, this.layout, state.pathNav);
+    if (this.assetsReady) {
+      this.updateTerrainSprites(state.pathNav.pathCells);
+      drawPathOverlay(overlay, this.layout, state.pathNav);
+      drawPlacementPreview(overlay, this.layout, state, this.hoverBoardPoint);
+    }
   }
 
-  private drawActors(state: GameState): void {
-    const g = this.actors;
-    g.clear();
+  private drawSprites(state: GameState): void {
+    if (!this.assetsReady) return;
+    this.updateMarkers(state.pathNav);
     this.updateRockSprites(state.rocks);
-    this.updateTowerSprites(state.towers);
+    this.updateGemSprites(state.gems, state.mergeSourceGemId);
     this.updateEnemySprites(state.enemies);
-    for (const enemy of state.enemies) if (enemy.alive) drawEnemyBars(g, this.layout, enemy);
-    for (const projectile of state.projectiles) drawProjectile(g, this.layout, projectile);
+    this.drawEnemyBars(state.enemies);
   }
 
   private drawFx(state: GameState): void {
     const g = this.fx;
     g.clear();
-    const selectedTower = state.selectedTowerId ? getTower(state.selectedTowerId) : null;
+    for (const projectile of state.projectiles) {
+      if (!projectile.active) continue;
+      const color = Phaser.Display.Color.HexStringToColor(projectile.color).color;
+      const point = boardToScreen(this.layout, projectile);
+      g.fillStyle(color, 0.95);
+      g.fillCircle(point.x, point.y, Math.max(3, this.layout.cell * 0.07));
+    }
     if (
-      selectedTower &&
       this.hoverBoardPoint &&
       state.status !== 'running' &&
-      canPlaceTowerAt(state, this.hoverBoardPoint.x, this.hoverBoardPoint.y)
+      state.placementMode === 'gem' &&
+      state.selectedInventoryGemId !== null &&
+      canPlaceGemAt(state, this.hoverBoardPoint.x, this.hoverBoardPoint.y)
     ) {
-      const point = boardToScreen(this.layout, this.hoverBoardPoint);
-      g.lineStyle(2, Phaser.Display.Color.HexStringToColor(selectedTower.color).color, 0.34);
-      g.strokeCircle(point.x, point.y, selectedTower.range * this.layout.cell);
+      const inv = state.inventory.find((item) => item.id === state.selectedInventoryGemId);
+      if (inv) {
+        const stats = gemDefinitions[inv.family];
+        const point = boardToScreen(this.layout, this.hoverBoardPoint);
+        const color = Phaser.Display.Color.HexStringToColor(stats.color).color;
+        g.lineStyle(2, color, 0.34);
+        const range = stats.baseRange + (inv.level - 1) * 0.12;
+        g.strokeCircle(point.x, point.y, range * this.layout.cell);
+      }
     }
     for (const missile of state.missiles) drawMissile(g, this.layout, missile);
   }
@@ -202,11 +252,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     const totalCells = BOARD_WIDTH * BOARD_HEIGHT;
     while (this.terrainSprites.length < totalCells) {
       this.terrainSprites.push(
-        this.add
-          .image(0, 0, ART_KEY, 'terrain-grass')
-          .setOrigin(0.5, 0.62)
-          .setDepth(1.12)
-          .setAlpha(0.9),
+        this.add.image(0, 0, 'terrain-void', TERRAIN_FRAMES.rockCell).setDepth(1.1).setAlpha(0.95),
       );
     }
 
@@ -214,15 +260,42 @@ export class CosmicBoardScene extends Phaser.Scene {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const index = y * BOARD_WIDTH + x;
         const sprite = this.terrainSprites[index];
-        const frame = terrainFrameForCell(x, y, pathCells);
+        const isGemCell = cellParity(x, y) === 'gem';
+        const frame = isGemCell ? TERRAIN_FRAMES.gemCell : TERRAIN_FRAMES.rockCell;
+        const textureKey = isGemCell ? 'terrain-gem' : 'terrain-void';
         const point = boardToScreen(this.layout, { x, y });
         sprite
-          .setFrame(frame)
-          .setPosition(point.x, point.y + this.layout.cell * 0.06)
-          .setDisplaySize(this.layout.cell * 1.32, this.layout.cell * 1.0)
+          .setTexture(textureKey, frame)
+          .setPosition(point.x, point.y)
+          .setDisplaySize(this.layout.cell, this.layout.cell)
           .setVisible(true);
+        if (pathCells.has(`${x},${y}`)) {
+          sprite.setTint(0xb8ecff);
+          sprite.setAlpha(0.88);
+        } else {
+          sprite.clearTint();
+          sprite.setAlpha(0.95);
+        }
       }
     }
+  }
+
+  private updateMarkers(pathNav: GameState['pathNav']): void {
+    const spawnPoint = boardToScreen(this.layout, pathNav.spawnCell);
+    const goalPoint = boardToScreen(this.layout, pathNav.goalCell);
+    this.markerSprites.spawn ??= this.add
+      .image(spawnPoint.x, spawnPoint.y, 'spawn-portal')
+      .setDepth(1.5);
+    this.markerSprites.goal ??= this.add.image(goalPoint.x, goalPoint.y, 'goal-nexus').setDepth(1.5);
+    const markerSize = this.layout.cell * 0.55;
+    this.markerSprites.spawn
+      .setPosition(spawnPoint.x, spawnPoint.y)
+      .setDisplaySize(markerSize, markerSize)
+      .setVisible(true);
+    this.markerSprites.goal
+      .setPosition(goalPoint.x, goalPoint.y)
+      .setDisplaySize(markerSize, markerSize)
+      .setVisible(true);
   }
 
   private updateRockSprites(rocks: GameState['rocks']): void {
@@ -233,28 +306,39 @@ export class CosmicBoardScene extends Phaser.Scene {
       const point = boardToScreen(this.layout, rock);
       const sprite =
         this.rockSprites.get(key) ??
-        this.add.image(0, 0, 'cosmic-rock').setOrigin(0.5, 0.72).setDepth(2.08);
+        this.add.image(0, 0, 'cosmic-rock').setOrigin(0.5, 0.72).setDepth(2.05);
       this.rockSprites.set(key, sprite);
-      scaleToHeight(sprite, this.layout.cell * 1.1);
-      sprite.setPosition(point.x, point.y + this.layout.cell * 0.12).setVisible(true);
+      sprite
+        .setPosition(point.x, point.y + this.layout.cell * 0.08)
+        .setDisplaySize(this.layout.cell * 0.95, this.layout.cell * 0.95)
+        .setVisible(true);
     }
     hideMissingSprites(this.rockSprites, liveKeys);
   }
 
-  private updateTowerSprites(towers: readonly TowerState[]): void {
+  private updateGemSprites(gems: readonly GemState[], mergeSourceId: number | null): void {
     const liveIds = new Set<number>();
-    for (const tower of towers) {
-      liveIds.add(tower.id);
-      const point = boardToScreen(this.layout, tower);
-      const frame = TOWER_FRAMES[tower.towerId].frame;
+    for (const gem of gems) {
+      liveIds.add(gem.id);
+      const point = boardToScreen(this.layout, gem);
+      const texKey = gemTextureKey(gem.family, gem.level);
       const sprite =
-        this.towerSprites.get(tower.id) ??
-        this.add.image(0, 0, ART_KEY, frame).setOrigin(0.5, 0.82).setDepth(2.12);
-      this.towerSprites.set(tower.id, sprite);
-      scaleToHeight(sprite, this.layout.cell * 1.35);
-      sprite.setFrame(frame).setPosition(point.x, point.y + this.layout.cell * 0.24).setVisible(true);
+        this.gemSprites.get(gem.id) ??
+        this.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.12);
+      this.gemSprites.set(gem.id, sprite);
+      const size = this.layout.cell * (0.85 + gem.level * 0.04);
+      sprite
+        .setTexture(texKey)
+        .setPosition(point.x, point.y + this.layout.cell * 0.1)
+        .setDisplaySize(size, size)
+        .setVisible(true);
+      if (gem.id === mergeSourceId) {
+        sprite.setTint(0xfff4a3);
+      } else {
+        sprite.clearTint();
+      }
     }
-    hideMissingSprites(this.towerSprites, liveIds);
+    hideMissingSprites(this.gemSprites, liveIds);
   }
 
   private updateEnemySprites(enemies: readonly EnemyState[]): void {
@@ -263,50 +347,100 @@ export class CosmicBoardScene extends Phaser.Scene {
       if (!enemy.alive) continue;
       liveIds.add(enemy.id);
       const point = boardToScreen(this.layout, enemy);
-      const frame = ENEMY_FRAMES[enemy.definitionId].frame;
+      const texKey = enemyWalkTextureKey(enemy.definitionId);
+      const animKey = `${texKey}-anim`;
+      const isBoss = BOSS_ENEMY_IDS.includes(enemy.definitionId);
       const sprite =
         this.enemySprites.get(enemy.id) ??
-        this.add.image(0, 0, ART_KEY, frame).setOrigin(0.5, 0.86).setDepth(2.18);
+        this.add.sprite(0, 0, texKey, 0).setOrigin(0.5, 0.82).setDepth(2.18);
       this.enemySprites.set(enemy.id, sprite);
-      const height = this.layout.cell * (enemy.definitionId === 'vanguard' ? 1.28 : 0.98);
-      scaleToHeight(sprite, height);
-      sprite.setFrame(frame).setPosition(point.x, point.y + this.layout.cell * 0.22).setVisible(true);
+      const size = this.layout.cell * (isBoss ? 1.35 : 0.95);
+      sprite
+        .setPosition(point.x, point.y + this.layout.cell * 0.12)
+        .setDisplaySize(size, size)
+        .setVisible(true);
+      if (this.anims.exists(animKey)) {
+        if (!sprite.anims.isPlaying || sprite.anims.currentAnim?.key !== animKey) {
+          sprite.play(animKey);
+        }
+      }
+      if (enemy.slowUntil > 0) sprite.setTint(0x88ccff);
+      else sprite.clearTint();
     }
     hideMissingSprites(this.enemySprites, liveIds);
   }
-}
 
-function registerArtFrames(textures: Phaser.Textures.TextureManager): void {
-  const texture = textures.get(ART_KEY);
-  for (const [name, frame] of Object.entries(TERRAIN_FRAMES)) {
-    if (!texture.has(`terrain-${name}`)) {
-      texture.add(`terrain-${name}`, 0, frame.x, frame.y, frame.width, frame.height);
+  private drawEnemyBars(enemies: readonly EnemyState[]): void {
+    const g = this.boardOverlay;
+    for (const enemy of enemies) {
+      if (!enemy.alive) continue;
+      const point = boardToScreen(this.layout, enemy);
+      const isBoss = BOSS_ENEMY_IDS.includes(enemy.definitionId);
+      const barW = this.layout.cell * (isBoss ? 0.7 : 0.5);
+      g.fillStyle(0x02050a, 0.7);
+      g.fillRect(point.x - barW / 2, point.y - this.layout.cell * 0.42, barW, 4);
+      g.fillStyle(COLORS.green, 0.95);
+      g.fillRect(
+        point.x - barW / 2,
+        point.y - this.layout.cell * 0.42,
+        barW * Math.max(0, enemy.hp / enemy.maxHp),
+        4,
+      );
+      if (enemy.maxShield > 0) {
+        g.fillStyle(COLORS.shield, 0.92);
+        g.fillRect(
+          point.x - barW / 2,
+          point.y - this.layout.cell * 0.35,
+          barW * Math.max(0, enemy.shield / enemy.maxShield),
+          3,
+        );
+      }
     }
   }
-  for (const tower of Object.values(TOWER_FRAMES)) {
-    if (!texture.has(tower.frame)) texture.add(tower.frame, 0, tower.x, tower.y, tower.width, tower.height);
-  }
-  for (const enemy of Object.values(ENEMY_FRAMES)) {
-    if (!texture.has(enemy.frame)) texture.add(enemy.frame, 0, enemy.x, enemy.y, enemy.width, enemy.height);
+}
+
+function registerTilesetFrames(
+  textures: Phaser.Textures.TextureManager,
+  textureKey: string,
+  prefix: string,
+): void {
+  if (!textures.exists(textureKey)) return;
+  const texture = textures.get(textureKey);
+  const cols = 4;
+  const rows = 4;
+  const tile = 32;
+  for (let i = 0; i < cols * rows; i++) {
+    const frameName = `${prefix}-${i}`;
+    if (texture.has(frameName)) continue;
+    const x = (i % cols) * tile;
+    const y = Math.floor(i / cols) * tile;
+    texture.add(frameName, 0, x, y, tile, tile);
   }
 }
 
-function terrainFrameForCell(x: number, y: number, pathCells: ReadonlySet<string>): string {
-  if (pathCells.has(`${x},${y}`)) return 'terrain-path';
-  const hash = (x * 17 + y * 31) % 19;
-  if (hash === 0) return 'terrain-water';
-  if (hash <= 2) return 'terrain-forest';
-  if (hash <= 4) return 'terrain-rock';
-  return 'terrain-grass';
+function handleRightClick(
+  bridge: ReturnType<typeof getBridge>,
+  state: GameState,
+  boardPoint: Vec2,
+): void {
+  const cell = { x: Math.floor(boardPoint.x), y: Math.floor(boardPoint.y) };
+  const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
+  if (rock) {
+    bridge.dispatch({ type: 'sellRock', x: cell.x, y: cell.y });
+    return;
+  }
+  const gem = findGemAtCell(state, boardPoint);
+  if (gem) bridge.dispatch({ type: 'sellGem', gemId: gem.id });
 }
 
-function scaleToHeight(sprite: Phaser.GameObjects.Image, height: number): void {
-  const frame = sprite.frame;
-  sprite.setDisplaySize((height * frame.width) / frame.height, height);
+function findGemAtCell(state: GameState, boardPoint: Vec2): GemState | undefined {
+  const cx = Math.floor(boardPoint.x);
+  const cy = Math.floor(boardPoint.y);
+  return state.gems.find((g) => Math.floor(g.x) === cx && Math.floor(g.y) === cy);
 }
 
 function hideMissingSprites<T extends string | number>(
-  sprites: Map<T, Phaser.GameObjects.Image>,
+  sprites: Map<T, Phaser.GameObjects.Image | Phaser.GameObjects.Sprite>,
   liveIds: ReadonlySet<T>,
 ): void {
   for (const [id, sprite] of sprites) {
@@ -330,80 +464,40 @@ function computeLayout(width: number, height: number): BoardLayout {
   };
 }
 
-function drawCheckerboard(g: Phaser.GameObjects.Graphics, layout: BoardLayout): void {
-  for (let y = 0; y < BOARD_HEIGHT; y++) {
-    for (let x = 0; x < BOARD_WIDTH; x++) {
-      const isRockCell = cellParity(x, y) === 'rock';
-      g.fillStyle(isRockCell ? 0x0a1828 : 0x12283a, 0.28);
-      g.fillRect(
-        layout.left + x * layout.cell,
-        layout.top + y * layout.cell,
-        layout.cell,
-        layout.cell,
-      );
-    }
-  }
-}
-
-function drawPathCells(
+function drawPathOverlay(
   g: Phaser.GameObjects.Graphics,
   layout: BoardLayout,
   pathNav: GameState['pathNav'],
 ): void {
-  g.fillStyle(COLORS.path, 0.14);
+  g.fillStyle(COLORS.path, 0.1);
   for (const key of pathNav.pathCells) {
     const [x, y] = key.split(',').map(Number);
-    g.fillRect(
-      layout.left + x * layout.cell,
-      layout.top + y * layout.cell,
-      layout.cell,
-      layout.cell,
-    );
-  }
-  const start = boardToScreen(layout, pathNav.spawnCell);
-  const end = boardToScreen(layout, pathNav.goalCell);
-  g.fillStyle(COLORS.green, 0.9);
-  g.fillCircle(start.x, start.y, layout.cell * 0.18);
-  g.fillStyle(COLORS.red, 0.9);
-  g.fillCircle(end.x, end.y, layout.cell * 0.18);
-}
-
-function drawEnemyBars(g: Phaser.GameObjects.Graphics, layout: BoardLayout, enemy: EnemyState): void {
-  const point = boardToScreen(layout, enemy);
-  const radius = layout.cell * (enemy.maxShield > 0 ? 0.25 : 0.21);
-  if (enemy.shield > 0) {
-    g.lineStyle(3, COLORS.shield, 0.86);
-    g.strokeCircle(point.x, point.y, radius + layout.cell * 0.08);
-  }
-  g.fillStyle(0x02050a, 0.7);
-  g.fillRect(point.x - layout.cell * 0.28, point.y - layout.cell * 0.42, layout.cell * 0.56, 4);
-  g.fillStyle(COLORS.green, 0.95);
-  g.fillRect(
-    point.x - layout.cell * 0.28,
-    point.y - layout.cell * 0.42,
-    layout.cell * 0.56 * Math.max(0, enemy.hp / enemy.maxHp),
-    4,
-  );
-  if (enemy.maxShield > 0) {
-    g.fillStyle(COLORS.shield, 0.92);
-    g.fillRect(
-      point.x - layout.cell * 0.28,
-      point.y - layout.cell * 0.35,
-      layout.cell * 0.56 * Math.max(0, enemy.shield / enemy.maxShield),
-      3,
-    );
+    g.fillRect(layout.left + x * layout.cell, layout.top + y * layout.cell, layout.cell, layout.cell);
   }
 }
 
-function drawProjectile(
+function drawPlacementPreview(
   g: Phaser.GameObjects.Graphics,
   layout: BoardLayout,
-  projectile: ProjectileState,
+  state: GameState,
+  hover: Vec2 | null,
 ): void {
-  const color = Phaser.Display.Color.HexStringToColor(projectile.color).color;
-  const point = boardToScreen(layout, projectile);
-  g.fillStyle(color, 0.95);
-  g.fillCircle(point.x, point.y, Math.max(3, layout.cell * 0.07));
+  if (!hover || state.status === 'running') return;
+  const cell = { x: Math.floor(hover.x), y: Math.floor(hover.y) };
+  const px = layout.left + cell.x * layout.cell;
+  const py = layout.top + cell.y * layout.cell;
+  if (state.placementMode === 'rock' && canPlaceRockAt(state, hover.x, hover.y)) {
+    g.fillStyle(COLORS.green, 0.25);
+    g.fillRect(px, py, layout.cell, layout.cell);
+    g.lineStyle(2, COLORS.green, 0.8);
+    g.strokeRect(px + 2, py + 2, layout.cell - 4, layout.cell - 4);
+  }
+  if (state.placementMode === 'gem' && canPlaceGemAt(state, hover.x, hover.y)) {
+    g.fillStyle(COLORS.green, 0.2);
+    g.fillRect(px, py, layout.cell, layout.cell);
+    g.lineStyle(2, COLORS.green, 0.7);
+    g.strokeRect(px + 2, py + 2, layout.cell - 4, layout.cell - 4);
+  }
 }
 
 function drawMissile(

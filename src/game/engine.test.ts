@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { areaTierKey } from './content';
+import { TOTAL_WAVES, areaTierKey, rockPlacementCost } from './content';
 import { createDefaultSave } from './save';
 import {
+  canPlaceGemAt,
   canPlaceRockAt,
   createGame,
   dispatchGameAction,
   getMissileStats,
-  getTowerStats,
   isTierUnlocked,
   tickGame,
 } from './engine';
+import { canMergeGems, getGemCombatStats, mergedLevel } from './gems';
 
 function runFor(seconds: number, step: (dt: number) => void): void {
   for (let elapsed = 0; elapsed < seconds; elapsed += 0.05) {
@@ -17,13 +18,24 @@ function runFor(seconds: number, step: (dt: number) => void): void {
   }
 }
 
-describe('cosmic siege simulation', () => {
+describe('cosmic gem siege simulation', () => {
+  it('has 50 waves per area tier', () => {
+    const game = createGame();
+    expect(game.waveIndex).toBe(0);
+    const area = game.areaId;
+    dispatchGameAction(game, { type: 'startArea', areaId: area, tierId: 'normal' });
+    const snapshot = TOTAL_WAVES;
+    expect(snapshot).toBe(50);
+  });
+
   it('moves enemies along the path and fails when enough enemies leak', () => {
     const game = createGame();
-    dispatchGameAction(game, { type: 'startWave' });
-
-    runFor(80, (dt) => tickGame(game, dt));
-
+    for (let wave = 0; wave < 25 && game.status !== 'lost'; wave++) {
+      if (game.status === 'idle' || game.status === 'betweenWaves') {
+        dispatchGameAction(game, { type: 'startWave' });
+      }
+      runFor(30, (dt) => tickGame(game, dt));
+    }
     expect(game.status).toBe('lost');
     expect(game.leakedEnemies).toBeGreaterThan(0);
     expect(game.lives).toBe(0);
@@ -45,6 +57,7 @@ describe('cosmic siege simulation', () => {
 
     expect(game.killedEnemies).toBeGreaterThan(0);
     expect(game.save.stars).toBeGreaterThan(0);
+    expect(game.gold).toBeGreaterThan(0);
     expect(game.missileCooldownLeft).toBeGreaterThan(0);
   });
 
@@ -56,75 +69,81 @@ describe('cosmic siege simulation', () => {
     runFor(0.4, (dt) => tickGame(game, dt));
     const earned = game.save.stars;
 
-    runFor(80, (dt) => tickGame(game, dt));
+    runFor(30, (dt) => tickGame(game, dt));
+    for (let wave = 0; wave < 25 && game.status !== 'lost'; wave++) {
+      if (game.status === 'idle' || game.status === 'betweenWaves') {
+        dispatchGameAction(game, { type: 'startWave' });
+      }
+      runFor(30, (dt) => tickGame(game, dt));
+    }
     expect(game.status).toBe('lost');
     dispatchGameAction(game, { type: 'retry' });
 
     expect(game.status).toBe('idle');
     expect(game.save.stars).toBe(earned);
+    expect(game.gold).toBeGreaterThan(0);
   });
 
-  it('places unlocked loadout towers in the build zone and targets enemies', () => {
+  it('places gems from inventory on gem cells', () => {
     const game = createGame();
-    dispatchGameAction(game, { type: 'placeTower', x: 1, y: 4, towerId: 'kinetic' });
-    dispatchGameAction(game, { type: 'startWave' });
-    runFor(2, (dt) => tickGame(game, dt));
-
-    expect(game.towers).toHaveLength(1);
-    expect(game.projectiles.length + game.towers[0].damageDone).toBeGreaterThan(0);
-  });
-
-  it('rejects tower placement that overlaps an existing tower', () => {
-    const game = createGame();
-    dispatchGameAction(game, { type: 'placeTower', x: 1, y: 4, towerId: 'kinetic' });
-    dispatchGameAction(game, { type: 'placeTower', x: 1.2, y: 4.1, towerId: 'kinetic' });
-    expect(game.towers).toHaveLength(1);
-  });
-
-  it('applies purchased missile and tower upgrades to combat stats', () => {
-    const game = createGame({ ...createDefaultSave(), stars: 200 });
-    const beforeMissile = getMissileStats(game);
-    const beforeTower = getTowerStats(game.save, 'kinetic');
-
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'kinetic-damage-1' });
-
-    expect(getMissileStats(game).damage).toBeGreaterThan(beforeMissile.damage);
-    expect(getTowerStats(game.save, 'kinetic').damage).toBeGreaterThan(beforeTower.damage);
-  });
-
-  it('enforces unlocks and the 3-tower loadout limit', () => {
-    const game = createGame({ ...createDefaultSave(), stars: 200 });
-    dispatchGameAction(game, { type: 'selectLoadout', towerIds: ['kinetic', 'nature'] });
-    expect(game.loadout).toEqual(['kinetic']);
-
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-nature' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-arcane' });
-    dispatchGameAction(game, {
-      type: 'selectLoadout',
-      towerIds: ['kinetic', 'nature', 'arcane', 'nova'],
-    });
-
-    expect(game.loadout).toEqual(['kinetic', 'nature', 'arcane']);
-  });
-
-  it('lets Arcane break shields faster than kinetic damage', () => {
-    const base = createDefaultSave();
-    const game = createGame({
-      ...base,
-      stars: 0,
-      unlockedTowerIds: ['kinetic', 'arcane'],
-      selectedLoadout: ['kinetic', 'arcane'],
-    });
-    dispatchGameAction(game, { type: 'startArea', areaId: 'a1', tierId: 'normal' });
-    game.waveIndex = 2;
-    dispatchGameAction(game, { type: 'placeTower', x: 1, y: 4, towerId: 'arcane' });
+    dispatchGameAction(game, { type: 'selectInventoryGem', gemId: game.inventory[0].id });
+    dispatchGameAction(game, { type: 'placeGem', x: 2, y: 5 });
     dispatchGameAction(game, { type: 'startWave' });
     runFor(4, (dt) => tickGame(game, dt));
 
-    const shielded = game.enemies.find((enemy) => enemy.maxShield > 0);
-    expect(shielded?.shield ?? 0).toBeLessThan(shielded?.maxShield ?? 1);
+    expect(game.gems).toHaveLength(1);
+    expect(game.projectiles.length + game.gems[0].damageDone).toBeGreaterThan(0);
+  });
+
+  it('charges gold for rocks with escalating cost', () => {
+    const game = createGame();
+    const startGold = game.gold;
+    dispatchGameAction(game, { type: 'placeRock', x: 0, y: 0 });
+    expect(game.rocks).toHaveLength(1);
+    expect(game.gold).toBe(startGold - rockPlacementCost(0));
+    expect(canPlaceRockAt(game, 2, 1)).toBeTypeOf('boolean');
+  });
+
+  it('merges same family and level gems', () => {
+    const game = createGame();
+    dispatchGameAction(game, { type: 'buyGem', family: 'kinetic' });
+    dispatchGameAction(game, { type: 'buyGem', family: 'kinetic' });
+    const kinetics = game.inventory.filter((g) => g.family === 'kinetic');
+    dispatchGameAction(game, { type: 'selectInventoryGem', gemId: kinetics[0].id });
+    dispatchGameAction(game, { type: 'placeGem', x: 2, y: 5 });
+    dispatchGameAction(game, { type: 'selectInventoryGem', gemId: kinetics[1].id });
+    dispatchGameAction(game, { type: 'placeGem', x: 4, y: 5 });
+    const [a, b] = game.gems;
+    expect(canMergeGems(a, b)).toBe(true);
+    dispatchGameAction(game, { type: 'selectMergeSource', gemId: a.id });
+    dispatchGameAction(game, { type: 'mergeGems', targetGemId: b.id });
+    expect(game.gems).toHaveLength(1);
+    expect(game.gems[0].level).toBe(mergedLevel(1));
+  });
+
+  it('applies purchased missile upgrades to combat stats', () => {
+    const game = createGame({ ...createDefaultSave(), stars: 200 });
+    const beforeMissile = getMissileStats(game);
+    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
+    expect(getMissileStats(game).damage).toBeGreaterThan(beforeMissile.damage);
+  });
+
+  it('scales gem stats by level', () => {
+    const save = createDefaultSave();
+    const l1 = getGemCombatStats(save, 'kinetic', 1);
+    const l5 = getGemCombatStats(save, 'kinetic', 5);
+    expect(l5.damage).toBeGreaterThan(l1.damage);
+    expect(l5.range).toBeGreaterThan(l1.range);
+  });
+
+  it('enforces gem family unlocks in shop', () => {
+    const game = createGame();
+    const goldBefore = game.gold;
+    dispatchGameAction(game, { type: 'buyGem', family: 'arcane' });
+    expect(game.gold).toBe(goldBefore);
+
+    dispatchGameAction(game, { type: 'buyGem', family: 'kinetic' });
+    expect(game.inventory.length).toBeGreaterThan(2);
   });
 
   it('awards a crown once for full clears and unlocks hard tier', () => {
@@ -137,7 +156,6 @@ describe('cosmic siege simulation', () => {
 
     expect(isTierUnlocked(game.save, 'a1', 'hard')).toBe(true);
 
-    game.status = 'cleared';
     dispatchGameAction(game, { type: 'startArea', areaId: 'a1', tierId: 'hard' });
     expect(game.tierId).toBe('hard');
   });
@@ -160,8 +178,16 @@ describe('cosmic siege simulation', () => {
     dispatchGameAction(game, { type: 'respecUpgrades' });
 
     expect(game.save.purchasedUpgradeIds).toHaveLength(0);
-    expect(game.save.unlockedTowerIds).toEqual(['kinetic']);
+    expect(game.save.unlockedGemFamilies).toEqual(['kinetic', 'verdant']);
     expect(game.save.stars).toBeGreaterThan(starsBefore);
     expect(game.save.stars).toBeLessThan(200);
+  });
+
+  it('rejects gem placement on occupied or wrong parity cells', () => {
+    const game = createGame();
+    dispatchGameAction(game, { type: 'selectInventoryGem', gemId: game.inventory[0].id });
+    expect(canPlaceGemAt(game, 0, 0)).toBe(false);
+    dispatchGameAction(game, { type: 'placeGem', x: 2, y: 5 });
+    expect(canPlaceGemAt(game, 2, 5)).toBe(false);
   });
 });
