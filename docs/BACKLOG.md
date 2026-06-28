@@ -1,463 +1,460 @@
-# Cosmic Gem Siege — Full GemTD Backlog
+# Project Facet — Development Backlog
 
-Product goal: evolve **PB TD / Cosmic Siege** from a fixed-path horde TD MVP into a **full-fledged GemTD-style** browser game — checkerboard maze building, gem merge progression, wave economy, long seasonal runs, and pixel-art presentation generated through the **PixelLab MCP** server.
+Authoritative backlog for **Project Facet**: a browser-based GemTD-style tower defense with maze building, gem merging, combination towers, and shared-seed competitive races.
 
----
-
-## 1. Vision
-
-**Cosmic Gem Siege** keeps the cosmic theme and fail-forward meta (stars, crowns, upgrade tree) while adopting the core GemTD loop:
-
-1. Build a **maze** with rocks on a checkerboard.
-2. Place and **merge gems** (towers) on opposite-colored cells.
-3. Survive **long wave seasons** (target: 50 waves) with escalating enemy mixes.
-4. Spend **run gold** on rocks, gems, lucky draws, and mid-run tools.
-5. Earn **persistent stars/crowns** for meta upgrades between runs.
-
-Success looks like: a solo player can plan a maze, merge toward a “great gem” build, lose lives on leaks, still earn meta currency, and return for another season with new quests and areas.
+**Repo:** `pb-td` (rename optional)  
+**Companion:** [PIXELLAB-ASSET-TRACKER.md](./PIXELLAB-ASSET-TRACKER.md)  
+**Last updated:** 2026-06-28  
+**Phase 0 progress:** complete  
+**Phase 1 progress:** core sim + UI + auth scaffold (see table below)
 
 ---
 
-## 2. Current State vs GemTD Target
+## North star
 
-| Area | Today (MVP) | GemTD target |
-|------|-------------|--------------|
-| Board | 16×10 grid, **fixed path** | Checkerboard build cells; **player-routed maze** |
-| Towers | 4 tower types, 1 per slot, no merge | **5 gem families**, levels 1–7, **merge pairs** |
-| Economy | Stars from kills (meta only) | **Gold per wave** + stars/crowns (meta) |
-| Placement | Authored build-zone cells near path | **Rocks** (block) + **gems** (attack), parity rules |
-| Waves | 3 waves × 100 spawns per area tier | **50-wave seasons**, bosses, mixed compositions |
-| Between waves | Place towers, buy meta upgrades | Shop, lucky box, merge UI, quest checks |
-| Active ability | Orbital missile (click AoE) | Optional hero skill / consumable (keep missile as hero power) |
-| Content | 3 areas, 6 enemy types | 12+ enemies, elites, bosses, 6+ areas |
-| Art | Single atlas `terrain-towers-enemies.png` | Full PixelLab tilesets, gems, rocks, VFX, UI |
-| Social | None | Leaderboards, async seeds, co-op (later) |
+Project Facet is a desktop-first browser game for 1–4 friends in private rooms. Players build mazes from rocks and towers, choose from shared gem offers, merge and combine towers, and survive escalating waves. Standard Race gives each player an identical board seed and offer sequence while competing on lives, wave reach, and build quality.
 
-**Keep from MVP:** React + Phaser stack, deterministic engine tests, save/respec, crown tier unlocks, shield/poison/splash combat primitives.
+### First private launch (done-state)
 
-**Replace or extend:** path model, placement rules, tower identity, wave structure, in-run economy.
+- 1–4 players, private invite links, 24-wave Standard Race (+ 12-wave short mode)
+- Eight gem families, four combination towers, dual placement (rocks + towers)
+- Deterministic pathfinding, authoritative Colyseus simulation
+- Firebase Google auth, reconnect, replays, match history
+- Original pixel art (transparent PNG), complete tooltips, no account power
+- Ten clean multiplayer matches without desync before friend release
 
----
+### Non-goals (v1)
 
-## 3. Milestones
-
-| Milestone | Name | Outcome |
-|-----------|------|---------|
-| **M0** | Foundation (done) | Fixed-path MVP, meta tree, 3 areas — see `ISSUES.MD` |
-| **M1** | Maze Core | Checkerboard, rocks, dynamic pathfinding, valid-maze validation |
-| **M2** | Gem Loop | 5 gem types, merge, levels 1–6, parity placement |
-| **M3** | Season Structure | 50-wave template, gold economy, lucky box, wave intermission UI |
-| **M4** | Combat Depth | Bosses, elites, gem-specific passives, quest cards |
-| **M5** | Content & Meta | 6 areas, difficulty tiers, extended upgrade tree, balance pass |
-| **M6** | Polish & Ship | PixelLab art integration, juice, audio, mobile, leaderboard |
-
-Recommended order: **M1 → M2 → M3** are blocking; M4–M6 can overlap once M3 is playable.
+- Public matchmaking, ranked ladder, mobile-first UI
+- Persistent power progression, loot boxes, battle passes
+- User-generated maps, voice chat, in-game friend system, hero units
+- Full clone of another game's content or naming
 
 ---
 
-## 4. Epic Backlog
+## Design pillars
 
-Priority key: **P0** (blocking), **P1** (core fun), **P2** (depth), **P3** (polish / live ops).
+Every epic should pass these checks:
 
----
-
-### Epic A — Checkerboard Maze Foundation (M1) `P0`
-
-Replace fixed-path TD with GemTD-style maze routing.
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| A-1 | As a player, I build on a **checkerboard** where only half the cells accept rocks and the other half accept gems | Parity enum per cell; invalid cell type rejects placement |
-| A-2 | As a player, I place **rocks** that block movement | Rock occupies cell; removed only by sell/refund rules |
-| A-3 | When I place or remove a rock, the **path recalculates** | A* (or BFS) from spawn → goal; enemies follow shortest path |
-| A-4 | The game **rejects invalid mazes** (no path, spawn/goal blocked) | Placement preview shows red/green; illegal rock placement blocked |
-| A-5 | Spawn and goal cells are **fixed per area** | Authored in area definitions; visual markers on board |
-| A-6 | Board sizes match GemTD feel | Start with **5×5** build core per area; outer rim for spawn/goal (configurable per area) |
-| A-7 | **Sell rock** with refund curve | Refund % configurable; prevents infinite gold exploit |
-
-**Engine touchpoints:** new `maze.ts`, replace `pathNav` distance field with dynamic graph, update `pathBuild.ts` → `boardParity.ts`.
-
-**PixelLab assets (Epic A):**
-
-| Asset | MCP tool | Prompt / notes |
-|-------|----------|----------------|
-| Cosmic void floor (dark cell) | `create_topdown_tileset` | lower: `deep space void`, upper: `dark cosmic stone floor`, 32px, `high top-down` |
-| Cosmic light cell (gem slot) | chained tileset | lower: prior dark base id, upper: `glowing starfield tile, subtle cyan grid` |
-| Rock blocker | `create_1_direction_object` | `cosmic asteroid rock, chunky, top-down, single color outline`, 48px |
-| Spawn portal | `create_map_object` | `alien warp gate, cyan energy ring`, 64×64 |
-| Goal nexus | `create_map_object` | `cosmic breach core, pulsing red`, 64×64 |
-| Path hint overlay | `create_tiles_pro` | `1). path dust trail 2). path edge sparkle` — use for optional path preview FX |
-
-**Style lock:** generate dark cell tileset first; pass `upper_base_tile_id` into light cell set; use exported PNG as `style_images` for rocks/portals.
+1. **Maze construction is primary skill** — routing matters as much as DPS.
+2. **Randomness creates decisions, not wins** — shared offers, visible odds, limited costly rerolls.
+3. **No account power** — cosmetics and history only; never stronger towers or economy.
+4. **Information is visible** — tooltips show damage, range, tags, merge results, recipes.
 
 ---
 
-### Epic B — Gem Types & Merge System (M2) `P0`
+## Grill session decisions (locked)
 
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| B-1 | Five gem families exist: **Kinetic, Verdant, Arcane, Nova, Prism** (cosmic reskin of Amethyst/Topaz/Emerald/Sapphire/Opal roles) | Data-driven `GemDefinition` with branch + color |
-| B-2 | Gems have **levels 1–6**; two adjacent same-type same-level gems **merge** into level+1 | Merge action in intermission; animation + SFX hook |
-| B-3 | Level 7 **“Great”** gem requires quest or lucky box (see Epic E) | Unique sprite + kit modifier |
-| B-4 | Each gem level scales **damage, range, attack speed** per family curve | Tables in `content.ts`; unit tests per family |
-| B-5 | **Family passives** (GemTD fidelity): | |
-| | Kinetic (Amethyst-like) | Multi-hit / crit chance per level |
-| | Verdant (Emerald-like) | Poison stacks, spreads on merge tier |
-| | Arcane (Sapphire-like) | Shield break + magic resist shred |
-| | Nova (Topaz-like) | Slow on hit; splash at higher tiers |
-| | Prism (Opal-like) | Armor reduction; bonus vs high-HP |
-| B-6 | Drag-or-click **merge UX** with legal target highlighting | Illegal merge shows reason |
-| B-7 | **Gem inventory** from wave rewards and shop | Holds unplaced gems between waves |
-| B-8 | Migrate existing 4 towers into gem families or deprecate | Migration note in save `version` bump |
+These override ambiguous parts of the original design doc.
 
-**PixelLab assets (Epic B):**
+| Topic | Decision |
+|-------|----------|
+| Maze model | **Dual placement** — rocks and gem towers both block ground pathing |
+| Rock economy | **5 new rocks per build phase** (free). Rocks **persist** across waves |
+| Build phase order | **Rocks → Prospect → Upgrade** |
+| Tower growth | **1 new tower per build phase** via free rock→gem upgrade; power from **merges** |
+| Merge (Phase 1) | On-board, anytime in build phase: 2 identical → +1 tier |
+| Merge (Phase 2) | Add 4→+2 tier + undo before next wave |
+| Board size | **28×20** from Phase 1 |
+| Monorepo | **Phase 0** — sim in `packages/sim` before slice |
+| Legacy purge | **Phase 1 start** (PF-1.0) — before new features |
+| Phase 0 gate | Full contract **blocks** Phase 1 code |
+| Determinism | **Phase 1 exit** (PF-1.12) — floats OK during slice |
+| Flyers | Straight **spawn→exit aerial lane**; Phase 2 |
+| Crystal Dust | Full economy Phase 2 |
+| Auth | **Firebase Google OAuth from Phase 1** — solo requires login |
+| Hosting | **Firebase Hosting** (web) + **Colyseus** (Cloud Run or homelab) |
+| Match DB | PostgreSQL **or** Firestore — decide in Phase 0 infra doc |
+| Persistence | Match history + replays + cosmetic unlocks only |
+| Rock mistakes | **Sell rocks** during build phase for partial gold refund |
+| Rerolls | **Unlimited** while gold lasts: 10 → 20 → 40 → 80 → 160… |
+| Gold sinks (Phase 1) | Rerolls + combination costs |
+| Assets | Pixel art, **transparent PNG**, PixelLab pipeline |
 
-| Asset | MCP tool | Notes |
-|-------|----------|-------|
-| Gem sprites L1–L6 × 5 families | `create_1_direction_object` | Batch with `item_descriptions`: e.g. `small cyan kinetic crystal` … `massive kinetic great crystal`; size 32–48px |
-| Merge flash FX | `create_1_direction_object` | `starburst merge sparkle, 32px`, lineless |
-| Great gem variants (×5) | `create_map_object` | 48×48, style-matched to L6 via `background_image` |
-| Projectile sprites per family | `create_1_direction_object` | 16px bolts, orbs, spores, mortar shell, prism shard |
+### Build phase FSM
 
-**Pipeline:** one family at a time; select best candidate via `get_object` → `select_object_frames`; atlas pack into `public/assets/gems/` with Phaser JSON.
-
----
-
-### Epic C — Wave Economy & Intermission (M3) `P0`
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| C-1 | **Gold** earned per kill during a run (separate from stars) | Shown in HUD; persists only for current attempt |
-| C-2 | **Rock cost** escalates per rock placed (GemTD curve) | Formula + tests; soft cap option |
-| C-3 | **Gem shop** between waves: buy random gem by family or tier | Weighted table; pity counter optional |
-| C-4 | **Lucky box** — spend gold for random gem level | Animation; log outcome |
-| C-5 | Intermission phases: `planning` → `wave` → `reward` | Clear UI states; block input appropriately |
-| C-6 | **Interest** on banked gold (optional, P2) | +X% if player skips shop |
-| C-7 | Starfall missile costs **gold or cooldown** during wave | Tunable; default keep cooldown-only |
-| C-8 | **50-wave season** template per area | Wave table generator + hand-tuned bosses |
-
-**PixelLab assets (Epic C):**
-
-| Asset | MCP tool | Notes |
-|-------|----------|-------|
-| Gold coin icon | `create_1_direction_object` | `pixel gold star coin`, 24px |
-| Lucky box | `create_1_direction_object` | `cosmic loot crate, purple glow`, 40px |
-| Shop panel frame | `create_map_object` | UI frame 256×128, nine-slice later in code |
-| Wave banner | `create_1_direction_object` | `WAVE text hologram badge` for intermission |
-
----
-
-### Epic D — Enemies, Bosses & Waves (M4) `P1`
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| D-1 | Expand roster to **12+ enemy types** | Fast, tank, shield, split, heal, invisible, flying |
-| D-2 | **Boss every 10 waves** with telegraphed abilities | Boss bar UI; unique rewards |
-| D-3 | **Wave composition** mixes types (not single-id floods) | `WaveSegment[]` with weights |
-| D-4 | **Elite modifiers** (armored, swift, regen) | Small icon + stat multipliers |
-| D-5 | Area-specific enemy themes | Orion, Lunar, Crownfall + 3 new areas |
-| D-6 | Leak damage respects **lives**; boss leaks = 2 lives | Config per enemy |
-| D-7 | Pathing supports **flying** (optional shortcut) | Second path layer or ignore rocks flag |
-
-**PixelLab assets (Epic D):**
-
-| Asset | MCP tool | Notes |
-|-------|----------|-------|
-| Enemy walkers (12 types) | `create_character` | `mode: standard`, `view: high top-down`, size 32–48, chibi proportions |
-| Enemy walk cycles | `animate_character` | walk ×4 directions minimum |
-| Bosses (6) | `create_character` | `mode: pro` or `v3`, size 64–96 |
-| Boss ability telegraphs | `create_1_direction_object` | ground AOEs, 32–64px |
-| Elite aura FX | `create_1_direction_object` | `red elite crown aura`, lineless overlay |
-| Shield bar segment | `create_1_direction_object` | 8×4px UI pip |
-
----
-
-### Epic E — Quests, Great Gems & Meta (M4–M5) `P1`
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| E-1 | **Quest cards** each season (e.g. “Merge 3 Verdant gems”, “Clear wave 30 without leak”) | 3 active quests; reroll costs gold |
-| E-2 | Completing quests grants **great gem recipe** or meta stars | Reward table |
-| E-3 | Extend **upgrade tree** for gem families and maze tools | +rock cap, +merge range, missile tiers |
-| E-4 | **Crowns** unlock new areas and hard modifiers | Keep MVP behavior |
-| E-5 | **Respec** remains for meta stars | Already implemented |
-| E-6 | **Daily seed** run for leaderboard | Same maze + wave seed for all |
-
-**PixelLab assets (Epic E):**
-
-| Asset | MCP tool | Notes |
-|-------|----------|-------|
-| Quest card frame | `create_map_object` | 180×240 card |
-| Quest icons (8) | `create_1_direction_object` | merge, kill, leakless, boss, gold, etc. |
-| Crown / star icons (HD) | `create_1_direction_object` | replace Lucide in HUD optionally |
-
----
-
-### Epic F — Areas & Map Variety (M5) `P1`
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| F-1 | **6 areas** with unique checkerboard layouts | Different spawn/goal positions, blocked cells |
-| F-2 | **Normal / Hard / Nightmare** tiers | Multipliers + extra quest |
-| F-3 | **Environmental tiles** (slow terrain, damage terrain) | Optional P2 |
-| F-4 | Area select screen with **preview minimap** | React route or modal |
-| F-5 | Chained **PixelLab tilesets** per biome | void→nebula→lunar→solar→crown→abyss |
-
-**PixelLab assets (Epic F):**
-
-| Biome | `create_topdown_tileset` chain |
-|-------|-------------------------------|
-| Orion Breach | void → steel platform → rust debris |
-| Lunar Causeway | moon dust → silver path → crater rock |
-| Crownfall Gate | gold trim floor → marble → royal carpet |
-| Nebula Drift (new) | purple gas → crystal floor |
-| Solar Flare (new) | obsidian → magma crack → cooled basalt |
-| Abyss Gate (new) | dark water → void stone → corruption vein |
-
-Use `lower_base_tile_id` / `upper_base_tile_id` chaining for seamless biome transitions.
-
----
-
-### Epic G — UX, Juice & Audio (M6) `P2`
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| G-1 | Tutorial **first season** (waves 1–5) | Step prompts for rock, gem, merge, start wave |
-| G-2 | Merge, hit, leak, boss **particles** | Phaser particle emitters |
-| G-3 | **Sound** — placement, merge, wave start, boss | WebAudio or howler |
-| G-4 | **Mobile** touch — tap place, long-press sell | Responsive layout |
-| G-5 | **Accessibility** — reduced motion, colorblind gem shapes | Shape overlay per family |
-| G-6 | Settings: volume, speed ×1–×3 | Persist in save |
-
-**PixelLab assets (Epic G):**
-
-| Asset | MCP tool | Notes |
-|-------|----------|-------|
-| Hit sparks (3 colors) | `create_1_direction_object` | 16px |
-| Leak warning skull | `create_1_direction_object` | 24px |
-| Tutorial arrow | `create_1_direction_object` | bouncy cursor hand |
-
----
-
-### Epic H — Online & Live Ops (post-ship) `P3`
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| H-1 | **Leaderboard** — highest wave / fastest boss kill | API + guest name |
-| H-2 | **Season rotations** — weekly mutators | JSON config |
-| H-3 | **Co-op async** — share maze seed | Out of initial ship scope |
-| H-4 | Analytics — funnel, wave death heatmap | Privacy-safe events |
-
----
-
-### Epic I — Engineering Quality `P1`
-
-| ID | Story | Acceptance criteria |
-|----|-------|---------------------|
-| I-1 | **Deterministic sim** tests for maze + merge + economy | Vitest coverage for new modules |
-| I-2 | Save **migration** v1 → v2 (gem inventory, areas) | `save.ts` version bump |
-| I-3 | **Content authoring** — JSON or TS for waves/areas | Document schema in `docs/CONTENT-SCHEMA.md` |
-| I-4 | Split **engine** from **render** further | Snapshot drives Phaser; no game logic in scene |
-| I-5 | Performance — 500+ enemies stress test | 60fps target desktop |
-| I-6 | CI — test, lint, build on PR | GitHub Actions |
-
----
-
-## 5. Suggested Sprint Slices (first 8 weeks)
-
-| Week | Focus | Deliverable |
-|------|-------|-------------|
-| 1 | A-1–A-4 | Checkerboard + A* path + tests |
-| 2 | A-5–A-7, PixelLab floor + rock | Playable maze sandbox |
-| 3 | B-1–B-4 | Gems L1–6 data + placement |
-| 4 | B-5–B-8 | Merge UX + combat passives |
-| 5 | C-1–C-5 | Gold + shop + intermission UI |
-| 6 | C-6–C-8 | 50-wave template area 1 |
-| 7 | D-1–D-4 | Enemy roster + bosses |
-| 8 | PixelLab integration pass | Replace atlas placeholders with gem/enemy art |
-
----
-
-## 6. PixelLab MCP — Operational Playbook
-
-All assets should be generated via the **user-pixellab** MCP server. Standard workflow:
-
-```
-1. create_*        → receive job id
-2. get_* / poll    → wait for completed PNG
-3. select_object_frames (if review status)
-4. Download → public/assets/<category>/
-5. Register in Phaser preload + atlas JSON
-```
-
-### 6.1 Project conventions
-
-| Setting | Value |
-|---------|-------|
-| Tile size | 32×32 (board), 16×16 (FX) |
-| View | `high top-down` for board; `low top-down` for characters |
-| Outline | `single color outline` (game readability) |
-| Shading | `medium shading` |
-| Detail | `medium detail` |
-
-### 6.2 Generation order (minimize style drift)
-
-1. **Terrain** — `create_topdown_tileset` chain for void/light cells  
-2. **Rocks & portals** — `create_1_direction_object` with terrain style reference  
-3. **Gems L1–L6** — one family at a time, 6 calls or batched `item_descriptions`  
-4. **Enemies** — `create_character` then `animate_character`  
-5. **UI** — `create_map_object` / small `create_1_direction_object`  
-6. **VFX** — last; lineless outlines  
-
-### 6.3 Asset manifest (target files)
-
-```
-public/assets/
-  terrain/
-    cosmic-void-tileset.png
-    cosmic-light-tileset.png
-  gems/
-    kinetic-L1.png … kinetic-GREAT.png
-    verdant-L1.png … 
-    arcane-L1.png …
-    nova-L1.png …
-    prism-L1.png …
-  objects/
-    rock.png
-    spawn-portal.png
-    goal-nexus.png
-    lucky-box.png
-  enemies/
-    <id>/
-      rotations.png
-      atlas.json
-  fx/
-    merge-burst.png
-    hit-spark.png
-  ui/
-    shop-frame.png
-    quest-card.png
-```
-
-### 6.4 MCP tool cheat sheet
-
-| Need | Tool |
-|------|------|
-| Wang terrain transitions | `create_topdown_tileset` |
-| Isometric / shaped tiles | `create_tiles_pro` |
-| Towers, gems, rocks, icons | `create_1_direction_object` |
-| Style-matched prop on map | `create_map_object` |
-| Walking enemies | `create_character` + `animate_character` |
-| Static enemy state | `create_character_state` |
-| Check job status | `get_topdown_tileset`, `get_object`, `get_character`, `get_map_object` |
-| Pick variants | `select_object_frames` |
-| Credit check | `get_balance` |
-
-### 6.5 Example MCP calls (reference)
-
-**Dark floor tileset:**
-```json
-{
-  "tool": "create_topdown_tileset",
-  "lower_description": "deep space void black",
-  "upper_description": "dark cosmic metal floor with faint cyan seams",
-  "tile_size": { "width": 32, "height": 32 },
-  "view": "high top-down",
-  "outline": "single color outline",
-  "shading": "medium shading"
-}
-```
-
-**Kinetic gem level 3:**
-```json
-{
-  "tool": "create_1_direction_object",
-  "description": "cyan kinetic crystal gem, tier 3, glowing core, top-down tower defense sprite",
-  "size": 40,
-  "view": "top-down"
-}
-```
-
-**Void scout enemy:**
-```json
-{
-  "tool": "create_character",
-  "description": "small alien void scout, sleek, cyan eyes",
-  "name": "Void Scout",
-  "size": 40,
-  "view": "high top-down",
-  "proportions": "{\"type\": \"preset\", \"name\": \"chibi\"}",
-  "mode": "standard",
-  "n_directions": 8
-}
+```mermaid
+stateDiagram-v2
+  direction LR
+  BuildPhase --> PlaceRocks: up_to_5_new
+  PlaceRocks --> Prospect: rocks_done_or_skipped
+  Prospect --> UpgradeRock: gem_claimed
+  UpgradeRock --> ReadyOrTimer: one_free_conversion
+  ReadyOrTimer --> WavePhase: ready_or_timeout
+  WavePhase --> BuildPhase: wave_cleared
 ```
 
 ---
 
-## 7. Content Targets (GemTD parity checklist)
+## Current state → target
 
-- [ ] 5 gem families with distinct passives  
-- [ ] Merge levels 1–6 + Great gem  
-- [ ] Rock placement maze on checkerboard  
-- [ ] Dynamic pathfinding  
-- [ ] 50 waves per season  
-- [ ] In-run gold + shop + lucky box  
-- [ ] 3+ quest types per run  
-- [ ] Boss every 10 waves  
-- [ ] 6 areas × 3 tiers  
-- [ ] Meta upgrade tree (stars/crowns)  
-- [ ] Fail-forward stars on loss  
-- [ ] Full PixelLab art pass  
-
----
-
-## 8. Out of Scope (v1)
-
-- Real-time multiplayer  
-- Steam / native builds  
-- Pay-to-win monetization  
-- Full Dota 2 Arcade feature parity (courier, -swap, etc.)  
-- User-generated maze sharing (consider v2)  
+| Area | Today (`pb-td`) | Target (Project Facet) |
+|------|-----------------|------------------------|
+| Structure | Single Vite app, `src/game/` | Monorepo: `apps/web`, `apps/game-server`, `packages/*` |
+| Board | 16×10, checkerboard parity | 28×20 terrain map; rocks + towers block |
+| Build loop | Shop, lucky box, random buy | 5 rocks → prospect → 1 free upgrade |
+| Gems | 5 families, L1–L7 | 8 families (Flame…Arcane), T1–T5 |
+| Combos | None | 4 at launch |
+| Economy | Stars/crowns meta | Gold + Crystal Dust; merges = power |
+| Waves | 50 waves, 3 areas | 24-wave Standard Race |
+| Multiplayer | None | Colyseus + Firebase Auth |
+| Auth | None | Google OAuth Phase 1 |
 
 ---
 
-## 9. Risks & Mitigations
+## Code migration map
+
+### Keep (refactor into monorepo)
+
+| Asset | Current path | Target |
+|-------|--------------|--------|
+| Sim pattern | `src/game/engine.ts` | `packages/sim/` — `dispatch`, `tick`, no React/Phaser |
+| Types / actions | `src/game/types.ts` | `packages/sim/types.ts` |
+| Maze / path | `src/game/maze.ts`, `pathNav.ts`, `pathBuild.ts` | `packages/sim/` — extend for dual blockers + air lane |
+| Gem stats | `src/game/gems.ts` | `packages/sim/gems.ts` |
+| Phaser scene | `src/phaser/CosmicBoardScene.ts` | `apps/web/src/phaser/BoardScene.ts` |
+| Bridge | `src/phaser/bridge.ts` | `apps/web/src/phaser/bridge.ts` |
+| React host | `src/components/PhaserGameHost.tsx` | `apps/web/src/components/` |
+| Game hook | `src/hooks/useCosmicGame.ts` | `apps/web/src/hooks/useGame.ts` |
+| HUD | `src/App.tsx` | `apps/web/src/App.tsx` |
+| Tests | `src/game/*.test.ts` | `packages/sim/*.test.ts` |
+| Toolchain | `package.json`, `vite.config.ts`, Tailwind | Root + `apps/web` |
+
+### Retire at PF-1.0
+
+| System | Files | Reason |
+|--------|-------|--------|
+| Starfall missile | `engine.ts`, `App.tsx`, `CosmicBoardScene.ts` | Not GemTD |
+| Checkerboard parity | `boardParity.ts`, `boardParity.test.ts` | Terrain map replaces parity |
+| Stars/crowns upgrades | `save.ts`, upgrade UI in `App.tsx` | No account power |
+| Lucky box / random shop | `content.ts`, `engine.ts` | Prospect system replaces |
+| 3-area 50-wave content | `content.ts` | 24-wave Facet schedule |
+| Fixed path polylines | `content.ts` area `path[]` | Spawn/goal + maze BFS |
+| Cosmic naming/assets | `public/assets/*`, `assetManifest.ts` | Replace per asset tracker |
+
+### New packages / apps
+
+```text
+pb-td/
+├── apps/
+│   ├── web/                 React + Phaser client
+│   └── game-server/         Colyseus (Phase 3)
+├── packages/
+│   ├── sim/                 Deterministic game simulation
+│   ├── content/             Gems, enemies, waves, board JSON
+│   ├── protocol/            Zod command schemas
+│   └── config/              Shared TS/eslint/vitest config
+├── infra/                   Docker Compose (Phase 5)
+└── docs/
+    ├── backlog.md           (this file)
+    └── PIXELLAB-ASSET-TRACKER.md
+```
+
+---
+
+## Tech stack
+
+| Layer | Choice |
+|-------|--------|
+| Frontend | React 19, TypeScript, Vite, Tailwind, Zustand (UI only) |
+| Board render | Phaser 4 |
+| Simulation | `packages/sim` — fixed tick (20 tps), seeded RNG, integer milli-damage |
+| Multiplayer | Colyseus, WebSockets, server-authoritative |
+| Auth | Firebase Google OAuth |
+| Hosting | Firebase Hosting (web); Colyseus on Cloud Run or homelab |
+| Persistence | PostgreSQL or Firestore (match + command logs) |
+| Tests | Vitest; determinism CI from Phase 1 exit |
+| Assets | PixelLab MCP, transparent PNG, 32×32 tiles |
+
+**Architecture rule:** Game rules live only in `packages/sim`. React/Phaser send commands and render state.
+
+---
+
+## Phase roadmap
+
+### Phase 0 — Game contract + monorepo (blocks Phase 1)
+
+**Goal:** Written rules, schemas, board data, monorepo shell.
+
+| ID | Epic | Deliverable | Status |
+|----|------|-------------|--------|
+| PF-0.1 | Core rules | [game-design.md](./game-design.md) | done |
+| PF-0.2 | Visual direction | [ui-wireframes.md](./ui-wireframes.md) | done |
+| PF-0.3 | Content schemas | `packages/content` | done |
+| PF-0.4 | Waves + board | JSON in `packages/content/data/` | done (slice-6; standard-24 doc only) |
+| PF-0.5 | Protocol sketch | `packages/protocol` | done |
+| PF-0.6 | Monorepo bootstrap | `pnpm dev` → `apps/web` | done |
+
+**Exit:** No TBD mechanics; monorepo runs locally.
+
+---
+
+### Phase 1 — Vertical slice (solo + Firebase auth)
+
+**Goal:** Prove maze + prospect + merge + combat loop in ~10 minutes.
+
+**PF-1.0** Legacy purge — **done** (Cosmic Siege `game/`, `phaser/` removed).
+
+| ID | Ticket | Status |
+|----|--------|--------|
+| PF-1.1 | Firebase Google auth | done |
+| PF-1.2 | 28×20 board + placement | done |
+| PF-1.3 | Rock placement + path validation | done |
+| PF-1.4 | Prospect + escalating reroll | done |
+| PF-1.5 | Free rock→tower upgrade | done |
+| PF-1.6 | Merge + sell | partial |
+| PF-1.7 | Enemy movement | done |
+| PF-1.8 | Combat + lives + gold | done |
+| PF-1.9 | 1 combination tower | done |
+| PF-1.10 | 6-wave FSM + boss | done |
+| PF-1.11 | Local replay | done (`packages/sim/replay.ts`) |
+| PF-1.12 | Determinism hardening | partial |
+
+**Content lock:** 1 board, 3 gem families, 1 combo, 6 waves, 1 boss, ground only.
+
+---
+
+### Phase 2 — Full solo game
+
+| ID | Epic |
+|----|------|
+| PF-2.1 | 8 gem families × 5 tiers, distinct mechanics |
+| PF-2.2 | 4 combination towers + recipe browser |
+| PF-2.3 | 24 waves, 8 archetypes, 5 bosses |
+| PF-2.4 | Flyer aerial lane (straight line) |
+| PF-2.5 | Gold + Crystal Dust (full) |
+| PF-2.6 | Merge 4→+2 + undo before wave |
+| PF-2.7 | Full HUD + tooltips |
+| PF-2.8 | Maze feedback (path length, heatmap, range) — no maze score |
+| PF-2.9 | Accessibility (colour-blind, reduced motion, scalable text) |
+| PF-2.10 | Replay UI (play/pause/speed/jump wave) |
+| PF-2.11 | Sim test suite expansion |
+
+**Exit:** Strategically complete solo; no mandatory gem family.
+
+---
+
+### Phase 3 — Multiplayer
+
+| ID | Epic |
+|----|------|
+| PF-3.1 | Colyseus server, invite links, 1–4 players, shared seed |
+| PF-3.2 | Standard Race (same offers, separate boards) |
+| PF-3.3 | Ready timer, speed vote, pause vote |
+| PF-3.4 | Reconnect (90s) + spectators; Firebase UID |
+| PF-3.5 | Server validation + rate limits |
+| PF-3.6 | Match persistence (Postgres or Firestore) |
+| PF-3.7 | Server replay verification |
+| PF-3.8 | Match history API (TanStack Query) |
+
+**Exit:** Four players finish; replay matches server; history per Google account.
+
+---
+
+### Phase 4 — Content and balance
+
+- Remaining 4 combos, difficulty modifiers, challenge seeds
+- `apps/admin` balance dashboard, wave editor, replay browser
+- VFX/audio, board themes
+- 1,000-seed automated sim runs
+- Balance red-flag monitoring (see below)
+
+---
+
+### Phase 5 — Private launch
+
+- Firebase Hosting production + Colyseus production deploy
+- `docs/runbook.md` (Firebase + Colyseus split)
+- Monitoring, backups, cosmetic unlock persistence
+- **Gate:** 10 multiplayer matches without desync/corruption
+
+---
+
+## Content inventory
+
+### Gem families (8)
+
+| Family | Role | Core mechanic |
+|--------|------|---------------|
+| Flame | DoT | Burn, spread at high tiers |
+| Tide | Control | Slow, weaken movement |
+| Gale | Chain | Bounce damage, swarm punish |
+| Stone | Heavy | Armour break, splash, anti-boss |
+| Thorn | Scaling | Stack poison on long routes |
+| Radiant | Mark/crit | Amplify damage taken |
+| Umbral | Debuff | Curse, boss vulnerability |
+| Arcane | Precision | Fast beams, flexible targeting |
+
+Tiers: T1–T5. Merge: 2→+1 tier; 4→+2 tier (Phase 2).
+
+### Launch combinations (4)
+
+| Combo | Inputs | Role |
+|-------|--------|------|
+| Magma Core | Flame + Stone | Splash, armour shred |
+| Tempest Coil | Tide + Gale | Chain slow |
+| Wildfire Grove | Flame + Thorn | Spreading burn |
+| Prism Array | Radiant + Arcane | Damage amp |
+
+Deferred: Sunforge Bastion, Venom Current, Storm Wraith, Rift Lens.
+
+### Enemy archetypes
+
+| Archetype | Tests |
+|-----------|-------|
+| Runner | Maze length |
+| Swarm | AoE |
+| Bulwark | Armour shred |
+| Wisp | Damage diversity |
+| Leech | Focus fire |
+| Flyer | Anti-air (aerial lane) |
+| Siege Beast | Leak threat |
+| Boss | Wave objective |
+
+### Life damage on leak
+
+| Enemy | Lives |
+|-------|------:|
+| Standard | 1 |
+| Bulwark | 2 |
+| Flyer | 1 |
+| Siege Beast | 3 |
+| Boss | 5 |
+
+Start: 20 lives.
+
+### Wave structure (24)
+
+| Act | Waves | Focus |
+|-----|------:|-------|
+| I | 1–6 | Maze, first merges |
+| II | 7–12 | Armour, swarm, first flyer |
+| III | 13–18 | Combos, resistances |
+| IV | 19–24 | Bosses, optimization |
+
+Milestones: wave 3 swarm, 5 flyer, 6 mini-boss, 12 major boss, 24 final boss.
+
+### Bosses (initial)
+
+| Boss | Mechanic |
+|------|----------|
+| The Burrower | Stacking armour without sustained hits |
+| The Tempest | Splits into flying fragments |
+| The Mirror | Reflects burst damage |
+| The Warden | Shields minions |
+| The Final Colossus | Alternates armour / speed |
+
+### Commands (multiplayer)
+
+`PLACE_ROCK`, `SELL_ROCK`, `PLACE_TOWER` (via upgrade), `SELL_TOWER`, `SELECT_GEM`, `REROLL_OFFER`, `MERGE_GEMS`, `CREATE_COMBINATION`, `SET_TARGETING`, `READY_FOR_WAVE`, `REQUEST_SPEED`, `VOTE_PAUSE`, `PING_TILE`
+
+Each: `playerId`, `roomId`, `clientSequence`, `commandType`, `payload`.
+
+### Hotkeys
+
+| Key | Action |
+|-----|--------|
+| Left click | Select |
+| Right click | Inspect / cancel |
+| Drag | Pan board |
+| Wheel | Zoom |
+| Space | Ready |
+| R | Reroll offer |
+| M | Merge |
+| C | Combination menu |
+| S | Sell |
+| 1–3 | Speed request |
+| Tab | Scoreboard |
+| Esc | Close / cancel |
+
+---
+
+## Asset track (pixel, transparent)
+
+See [PIXELLAB-ASSET-TRACKER.md](./PIXELLAB-ASSET-TRACKER.md) for job IDs. Families in tracker will migrate from Cosmic names to **Flame, Tide, Gale, Stone, Thorn, Radiant, Umbral, Arcane**.
+
+| ID | Epic | Scope |
+|----|------|-------|
+| PF-A1 | Board tiles | Buildable, blocked, spawn, exit — 32×32 PNG |
+| PF-A2 | Gem tiers | 8 families × 5 tiers |
+| PF-A3 | Combos | 4 combination sprites |
+| PF-A4 | Enemies | 8 archetypes + 5 bosses |
+| PF-A5 | UI icons | Families, damage tags, resistances |
+| PF-A6 | FX | Projectiles, merge burst, heatmap overlay |
+
+**Style:** Facet/crystal theme — distinct from retired Cosmic Siege void palette.
+
+---
+
+## Testing and quality gates
+
+| Phase | Gate |
+|-------|------|
+| 0 | Schemas validate sample content JSON |
+| 1 | Unit tests: maze, merge, prospect, combat; **determinism test at exit** |
+| 2 | Boss mechanics, flyers, combos, win conditions covered |
+| 3 | E2E: room, invite, reconnect, replay match server |
+| 4 | 1,000-seed sim suite in CI |
+
+**Determinism:** same seed + same commands + same content version = identical final state.
+
+---
+
+## Balance red flags
+
+Investigate when:
+
+- One gem in >70% of winning builds
+- A combo never selected
+- Wave success <20% or >85%
+- Reroll always correct
+- Maze path length is only stat that matters
+- Win/loss explained only by missing one gem roll
+
+**Metrics per match:** wave reached, gem/combo usage, rerolls, gold spent, path length, leaks per wave, boss time, disconnect rate.
+
+---
+
+## Risks
 
 | Risk | Mitigation |
 |------|------------|
-| Maze pathfinding bugs | Extensive Vitest + visual debug overlay |
-| Merge UX confusion | Tutorial + shape icons per family |
-| 50-wave balance | Telemetry + iterative area 1 tuning |
-| PixelLab style inconsistency | Strict generation order + `style_images` references |
-| Scope creep | Ship M1–M3 before bosses/quests |
+| Scope creep | Freeze MVP: 8 gems, 4 combos, 24 waves |
+| Phase 1 heavy before fun | Full Phase 0 contract; validate merge curve by wave 3 |
+| 1 tower/phase pacing | Design merges as main power spike; playtest early |
+| Hybrid infra (Firebase + Colyseus) | Document in runbook |
+| Multiplayer desync | Shared sim, command log, replay debugging |
+| RNG feels unfair | Shared seed, visible offers, costly rerolls, soft resistances |
+| Dominant strategy | Automated seed sims + metrics |
+| Legal/creative derivative | Original art, names, recipes, UI |
 
 ---
 
-## 10. Definition of Done — “Full GemTD”
+## Ticket numbering
 
-The game is **GemTD-complete** when a player can:
-
-1. Select an area and start a **50-wave season**.  
-2. Place **rocks** to maze and **gems** on valid cells.  
-3. **Merge** gems through level 6 toward a **Great** build.  
-4. Spend **gold** on rocks, shop gems, and lucky boxes between waves.  
-5. Face **bosses** and diverse enemy types with gem-counter play.  
-6. Complete **quests** for bonus rewards.  
-7. Earn **stars/crowns** for persistent upgrades across runs.  
-8. Play on a board rendered with **PixelLab-produced** terrain, gems, enemies, and UI art.
+```text
+PF-{phase}.{seq}   Engineering epics
+PF-A{seq}          Art/assets
+PF-B{seq}          Balance/tooling
+```
 
 ---
 
-## 11. Loop Progress Log
+## Related docs
 
-| Date | Action |
-|------|--------|
-| 2026-06-27 | Started PixelLab T-01 + O-01 jobs; added `boardParity.ts` + `maze.ts` (Epic A foundation) with tests |
-| 2026-06-27 | Exported T-01 tileset + O-01 rock; chained T-02 gem-cell tileset (generating) |
-| 2026-06-27 | Epic A maze wired into engine: dynamic pathNav, rocks, checkerboard placement |
-| 2026-06-27 | T-02 first job timed out; retried as `33c6e27f-fcc6-4fd2-af2a-4f8e261575bb` |
-| 2026-06-27 | T-02 gem-cell tileset exported to `public/assets/terrain/gem-cell.png` — Phase 1 terrain complete |
+| Doc | Status |
+|-----|--------|
+| [backlog.md](./backlog.md) | Active |
+| [game-design.md](./game-design.md) | Phase 0 — done |
+| [ui-wireframes.md](./ui-wireframes.md) | Phase 0 — done |
+| [content-schema.md](./content-schema.md) | Phase 0 — done |
+| [board-default-28x20.md](./board-default-28x20.md) | Phase 0 — done |
+| [waves-standard-24.md](./waves-standard-24.md) | Phase 0 — done |
+| [infra.md](./infra.md) | Phase 0 — done |
+| [PIXELLAB-ASSET-TRACKER.md](./PIXELLAB-ASSET-TRACKER.md) | Active (families updating) |
+| `balancing.md` | Phase 4 |
+| `runbook.md` | Phase 5 |
 
 ---
 
-*Last updated: 2026-06-27 · Maintained in `docs/BACKLOG.md`*
+*Maintained in `docs/backlog.md`. Grill decisions from 2026-06-28 sessions are binding until explicitly revised.*

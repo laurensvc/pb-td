@@ -1,11 +1,38 @@
 # AGENTS.md
 
-## Cursor Cloud specific instructions
+## Project Facet (`pb-td`)
 
-Cosmic Siege (`pb-td`) is a **frontend-only** browser tower-defense/clicker game. There is **no backend, database, or external service** — game progress is persisted to the browser's `localStorage` (`src/game/save.ts`). Rendering uses Phaser (`src/phaser`) inside a React 19 + Vite app, with Zustand for state.
+Browser GemTD-style tower defense — monorepo pivot from Cosmic Siege.
 
-- Package manager is **pnpm** (pinned via `packageManager` in `package.json`). Dependencies are installed automatically by the startup update script (`pnpm install`).
-- Standard scripts are documented in `README.md` / `package.json` (`pnpm dev`, `pnpm test`, `pnpm lint`, `pnpm build`). Use those rather than re-deriving commands.
-- The dev server (`pnpm dev`) runs on **port 5173** and does not expose a network host by default; use `http://localhost:5173/`. Tests run headless via Vitest + jsdom, so no server is needed for `pnpm test`.
-- To verify the game end-to-end, load `http://localhost:5173/`, enter an area (e.g. Orion Breach, Normal), click **Start Wave**, then click the board to fire the Starfall missile / place towers — progress and earned stars persist in `localStorage`.
-- `pnpm build` emits a large single JS chunk and prints a >500 kB chunk-size warning; this is expected and not an error.
+### Structure
+
+```text
+apps/web/           React + Facet UI (main client)
+apps/game-server/   Colyseus multiplayer (Phase 3)
+apps/admin/         Balance dashboard stub (Phase 4)
+packages/sim/       Authoritative game rules
+packages/content/   Board, waves, gems JSON + Zod schemas
+packages/protocol/  Multiplayer command schemas
+infra/              Docker Compose
+docs/               backlog, game-design, runbook
+```
+
+### Commands (from repo root)
+
+- `pnpm install`
+- `pnpm dev` — web client on http://localhost:5173/
+- `pnpm test` — all workspace tests
+- `pnpm --filter @facet/game-server dev` — Colyseus on :2567
+
+### Game rules
+
+Live in `packages/sim`. UI in `apps/web/src/components/FacetApp.tsx`.  
+Design contract: `docs/game-design.md`. Backlog: `docs/backlog.md`.
+
+### Legacy code
+
+Cosmic Siege code removed in PF-1.0. All rules live in `packages/sim`.
+
+### Firebase
+
+Set `VITE_FIREBASE_*` in `apps/web/.env`. Without config, dev auth bypasses with a mock user.

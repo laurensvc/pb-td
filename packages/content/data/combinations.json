@@ -1,0 +1,12 @@
+[
+  {
+    "id": "magma-core",
+    "displayName": "Magma Core",
+    "familyA": "flame",
+    "familyB": "stone",
+    "minTier": 2,
+    "goldCost": 120,
+    "dustCost": 0,
+    "resultTierRule": "lower_input"
+  }
+]

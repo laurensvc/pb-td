@@ -1,6 +1,8 @@
 # PixelLab Asset Tracker
 
-Companion to [`BACKLOG.md`](./BACKLOG.md). Track generation jobs, file paths, and integration status for Cosmic Gem Siege art.
+Companion to [`backlog.md`](./backlog.md). Track generation jobs, file paths, and integration status for **Project Facet** art.
+
+> **Note:** Gem families in this tracker still use legacy Cosmic Siege names (Kinetic, Verdant, …). Align exports to Project Facet families (Flame, Tide, Gale, Stone, Thorn, Radiant, Umbral, Arcane) per [backlog.md](./backlog.md) when regenerating assets.
 
 **MCP server:** `user-pixellab`  
 **Status key:** `planned` · `generating` · `review` · `exported` · `in-game`

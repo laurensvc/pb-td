@@ -1,50 +1,30 @@
 {
   "name": "pb-td",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "dev": "pnpm --filter @facet/web dev",
+    "dev:server": "pnpm --filter @facet/game-server dev",
+    "dev:admin": "pnpm --filter @facet/admin dev",
+    "build": "pnpm -r run build",
+    "preview": "pnpm --filter @facet/web preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "pnpm -r run test",
     "assets:generate": "node scripts/generate-pixel-art.mjs",
     "assets:pixellab": "node scripts/pixellab-sync.mjs"
   },
-  "dependencies": {
-    "@vitejs/plugin-react": "^6.0.1",
-    "lucide-react": "^1.12.0",
-    "phaser": "v4.1.0",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "vite": "^8.0.10",
-    "zustand": "^5.0.12"
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@tailwindcss/postcss": "^4.2.4",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/node": "^25.6.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitest/coverage-v8": "^4.1.5",
-    "autoprefixer": "^10.5.0",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
-    "jsdom": "^29.1.0",
-    "pngjs": "^7.0.0",
-    "postcss": "^8.5.12",
     "prettier": "^3.8.3",
-    "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.1",
-    "vitest": "^4.1.5"
+    "typescript-eslint": "^8.59.1"
   },
   "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531"
 }

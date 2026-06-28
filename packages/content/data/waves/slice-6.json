@@ -1,0 +1,43 @@
+{
+  "id": "slice-6",
+  "totalWaves": 6,
+  "waves": [
+    {
+      "wave": 1,
+      "segments": [{ "enemyId": "runner", "count": 8, "intervalTicks": 15 }],
+      "preview": "8 Runners"
+    },
+    {
+      "wave": 2,
+      "segments": [{ "enemyId": "runner", "count": 10, "intervalTicks": 12 }],
+      "preview": "10 Runners"
+    },
+    {
+      "wave": 3,
+      "segments": [{ "enemyId": "swarm", "count": 20, "intervalTicks": 6 }],
+      "preview": "20 Swarm"
+    },
+    {
+      "wave": 4,
+      "segments": [
+        { "enemyId": "runner", "count": 6, "intervalTicks": 12 },
+        { "enemyId": "bulwark", "count": 4, "intervalTicks": 20 }
+      ],
+      "preview": "Runners + Bulwarks"
+    },
+    {
+      "wave": 5,
+      "segments": [
+        { "enemyId": "runner", "count": 8, "intervalTicks": 10 },
+        { "enemyId": "bulwark", "count": 6, "intervalTicks": 18 }
+      ],
+      "preview": "Mixed pressure"
+    },
+    {
+      "wave": 6,
+      "segments": [{ "enemyId": "bulwark", "count": 4, "intervalTicks": 20 }],
+      "bossId": "burrower",
+      "preview": "The Burrower"
+    }
+  ]
+}
