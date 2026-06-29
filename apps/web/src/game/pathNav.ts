@@ -1,14 +1,8 @@
 import { cellsAlongPath, cellKey } from './pathBuild';
-import type { EnemyState, PathNavData, Vec2 } from './types';
+import { hexKey, hexNeighbors, hexWorldCenter } from './hexGrid';
+import type { PathNavData, Vec2 } from './types';
 
 export const LEAK_EPSILON = 0.15;
-
-const NEIGHBORS: readonly [number, number][] = [
-  [0, 1],
-  [0, -1],
-  [1, 0],
-  [-1, 0],
-];
 
 export function buildPathNav(path: readonly Vec2[]): PathNavData {
   const pathCells = cellsAlongPath(path);
@@ -29,26 +23,12 @@ export function buildPathNav(path: readonly Vec2[]): PathNavData {
 }
 
 export function nearestPathCell(x: number, y: number, pathCells: ReadonlySet<string>): Vec2 {
-  const candidates: Vec2[] = [
-    { x: Math.floor(x), y: Math.floor(y) },
-    { x: Math.ceil(x), y: Math.floor(y) },
-    { x: Math.floor(x), y: Math.ceil(y) },
-    { x: Math.ceil(x), y: Math.ceil(y) },
-  ];
   let best: Vec2 | undefined;
   let bestDist = Infinity;
-  for (const candidate of candidates) {
-    if (!pathCells.has(cellKey(candidate.x, candidate.y))) continue;
-    const dist = Math.hypot(candidate.x - x, candidate.y - y);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = candidate;
-    }
-  }
-  if (best) return best;
   for (const key of pathCells) {
     const [cx, cy] = key.split(',').map(Number);
-    const dist = Math.hypot(cx - x, cy - y);
+    const center = hexWorldCenter(cx, cy);
+    const dist = Math.hypot(center.x - x, center.y - y);
     if (dist < bestDist) {
       bestDist = dist;
       best = { x: cx, y: cy };
@@ -64,7 +44,7 @@ export function pathProgressAt(nav: PathNavData, x: number, y: number): number {
 }
 
 export function stepEnemyOnPath(
-  enemy: EnemyState,
+  enemy: { x: number; y: number; pathProgress: number; speed: number },
   nav: PathNavData,
   dt: number,
 ): 'moving' | 'leaked' {
@@ -78,26 +58,25 @@ export function stepEnemyOnPath(
 
   let nextCell = cell;
   let bestDist = distToGoal;
-  for (const [dx, dy] of NEIGHBORS) {
-    const nx = cell.x + dx;
-    const ny = cell.y + dy;
-    const neighborKey = cellKey(nx, ny);
+  for (const neighbor of hexNeighbors(cell.x, cell.y)) {
+    const neighborKey = hexKey(neighbor.x, neighbor.y);
     if (!nav.pathCells.has(neighborKey)) continue;
     const neighborDist = nav.distanceToGoal.get(neighborKey) ?? Infinity;
     if (neighborDist < bestDist) {
       bestDist = neighborDist;
-      nextCell = { x: nx, y: ny };
+      nextCell = neighbor;
     }
   }
 
-  const dx = nextCell.x - enemy.x;
-  const dy = nextCell.y - enemy.y;
+  const nextCenter = hexWorldCenter(nextCell.x, nextCell.y);
+  const dx = nextCenter.x - enemy.x;
+  const dy = nextCenter.y - enemy.y;
   const segmentLength = Math.hypot(dx, dy) || 0.001;
   const travel = enemy.speed * dt;
 
   if (travel >= segmentLength) {
-    enemy.x = nextCell.x;
-    enemy.y = nextCell.y;
+    enemy.x = nextCenter.x;
+    enemy.y = nextCenter.y;
   } else {
     enemy.x += (dx / segmentLength) * travel;
     enemy.y += (dy / segmentLength) * travel;
@@ -107,10 +86,8 @@ export function stepEnemyOnPath(
   const updatedDist = nav.distanceToGoal.get(cellKey(updatedCell.x, updatedCell.y)) ?? distToGoal;
   enemy.pathProgress = nav.maxProgress - updatedDist;
 
-  if (
-    updatedDist === 0 &&
-    Math.hypot(enemy.x - nav.goalCell.x, enemy.y - nav.goalCell.y) <= LEAK_EPSILON
-  ) {
+  const goalCenter = hexWorldCenter(nav.goalCell.x, nav.goalCell.y);
+  if (updatedDist === 0 && Math.hypot(enemy.x - goalCenter.x, enemy.y - goalCenter.y) <= LEAK_EPSILON) {
     return 'leaked';
   }
 
@@ -130,13 +107,11 @@ function bfsDistanceToGoal(pathCells: ReadonlySet<string>, goalCell: Vec2): Map<
     const currentKey = cellKey(current.x, current.y);
     const currentDist = distances.get(currentKey) ?? 0;
 
-    for (const [dx, dy] of NEIGHBORS) {
-      const nx = current.x + dx;
-      const ny = current.y + dy;
-      const neighborKey = cellKey(nx, ny);
+    for (const neighbor of hexNeighbors(current.x, current.y)) {
+      const neighborKey = hexKey(neighbor.x, neighbor.y);
       if (!pathCells.has(neighborKey) || distances.has(neighborKey)) continue;
       distances.set(neighborKey, currentDist + 1);
-      queue.push({ x: nx, y: ny });
+      queue.push(neighbor);
     }
   }
 

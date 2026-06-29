@@ -1,3 +1,4 @@
+import { hexAreAdjacent, worldToHex } from './hexGrid';
 import type { GemFamilyId, GemLevel } from './types';
 
 export type RecipeKind = 'pure' | 'hybrid' | 'great';
@@ -131,7 +132,7 @@ export function areAdjacentGems(
   bx: number,
   by: number,
 ): boolean {
-  const dx = Math.abs(Math.floor(ax) - Math.floor(bx));
-  const dy = Math.abs(Math.floor(ay) - Math.floor(by));
-  return dx <= 1 && dy <= 1 && (dx > 0 || dy > 0);
+  const a = worldToHex(ax, ay);
+  const b = worldToHex(bx, by);
+  return hexAreAdjacent(a, b);
 }

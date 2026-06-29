@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BOARD_HEIGHT, BOARD_WIDTH, gemDefinitions } from '../game/content';
 import { cellParity } from '../game/boardParity';
 import { canPlaceGemAt, canPlaceRockAt } from '../game/engine';
+import { hexPixelCorners, worldToHex } from '../game/hexGrid';
 import type {
   EnemyState,
   FxEvent,
@@ -18,7 +19,6 @@ import {
   ENEMY_WALK_FRAMES,
   GEM_FAMILIES,
   GEM_LEVELS,
-  TERRAIN_FRAMES,
   enemyWalkAssetPath,
   enemyWalkTextureKey,
   gemAssetPath,
@@ -29,9 +29,9 @@ import {
   boardToScreen,
   cellCenter,
   cellToScreen,
-  cellTopLeft,
   computeLayout,
   pointerToCanvas,
+  rangeToPixels,
   screenToBoard,
   screenToCell,
   type BoardLayout,
@@ -50,7 +50,6 @@ export class CosmicBoardScene extends Phaser.Scene {
   private board!: Phaser.GameObjects.Graphics;
   private boardOverlay!: Phaser.GameObjects.Graphics;
   private fx!: Phaser.GameObjects.Graphics;
-  private terrainSprites: Phaser.GameObjects.Image[] = [];
   private rockSprites = new Map<string, Phaser.GameObjects.Image>();
   private gemSprites = new Map<number, Phaser.GameObjects.Image>();
   private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
@@ -59,7 +58,15 @@ export class CosmicBoardScene extends Phaser.Scene {
     goal?: Phaser.GameObjects.Image;
   } = {};
   private hoverCell: Vec2 | null = null;
-  private layout: BoardLayout = { left: 0, top: 0, cell: 40, width: 640, height: 400 };
+  private layout: BoardLayout = {
+    left: 0,
+    top: 0,
+    hexRadius: 22,
+    padX: 0,
+    padY: 0,
+    width: 640,
+    height: 400,
+  };
   private assetsReady = false;
 
   constructor() {
@@ -204,18 +211,9 @@ export class CosmicBoardScene extends Phaser.Scene {
     g.fillRect(0, 0, this.scale.width, this.scale.height);
     g.fillStyle(0x071827, 0.96);
     g.fillRect(this.layout.left, this.layout.top, this.layout.width, this.layout.height);
-    g.lineStyle(1, COLORS.grid, 0.35);
-    for (let x = 0; x <= BOARD_WIDTH; x++) {
-      const px = this.layout.left + x * this.layout.cell;
-      g.lineBetween(px, this.layout.top, px, this.layout.top + this.layout.height);
-    }
-    for (let y = 0; y <= BOARD_HEIGHT; y++) {
-      const py = this.layout.top + y * this.layout.cell;
-      g.lineBetween(this.layout.left, py, this.layout.left + this.layout.width, py);
-    }
 
     if (this.assetsReady) {
-      this.updateTerrainSprites(state.pathNav.pathCells);
+      drawHexTerrain(g, this.layout, state.pathNav.pathCells);
       drawPathOverlay(overlay, this.layout, state.pathNav);
       drawPlacementPreview(overlay, this.layout, state, this.hoverCell);
     }
@@ -238,7 +236,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       const color = Phaser.Display.Color.HexStringToColor(projectile.color).color;
       const point = boardToScreen(this.layout, projectile);
       g.fillStyle(color, 0.95);
-      g.fillCircle(point.x, point.y, Math.max(3, this.layout.cell * 0.07));
+      g.fillCircle(point.x, point.y, Math.max(3, this.layout.hexRadius * 0.12));
     }
     if (
       this.hoverCell &&
@@ -255,44 +253,12 @@ export class CosmicBoardScene extends Phaser.Scene {
           const color = Phaser.Display.Color.HexStringToColor(stats.color).color;
           g.lineStyle(2, color, 0.34);
           const range = stats.baseRange + (inv.level - 1) * 0.12;
-          g.strokeCircle(point.x, point.y, range * this.layout.cell);
+          g.strokeCircle(point.x, point.y, rangeToPixels(this.layout, range));
         }
       }
     }
     for (const missile of state.missiles) drawMissile(g, this.layout, missile);
     for (const fx of state.fxEvents) drawFxPopup(g, this.layout, fx);
-  }
-
-  private updateTerrainSprites(pathCells: ReadonlySet<string>): void {
-    const totalCells = BOARD_WIDTH * BOARD_HEIGHT;
-    while (this.terrainSprites.length < totalCells) {
-      this.terrainSprites.push(
-        this.add.image(0, 0, 'terrain-void', TERRAIN_FRAMES.rockCell).setDepth(1.1).setAlpha(0.95),
-      );
-    }
-
-    for (let y = 0; y < BOARD_HEIGHT; y++) {
-      for (let x = 0; x < BOARD_WIDTH; x++) {
-        const index = y * BOARD_WIDTH + x;
-        const sprite = this.terrainSprites[index];
-        const isGemCell = cellParity(x, y) === 'gem';
-        const frame = isGemCell ? TERRAIN_FRAMES.gemCell : TERRAIN_FRAMES.rockCell;
-        const textureKey = isGemCell ? 'terrain-gem' : 'terrain-void';
-        const point = cellToScreen(this.layout, { x, y });
-        sprite
-          .setTexture(textureKey, frame)
-          .setPosition(point.x, point.y)
-          .setDisplaySize(this.layout.cell, this.layout.cell)
-          .setVisible(true);
-        if (pathCells.has(`${x},${y}`)) {
-          sprite.setTint(0xb8ecff);
-          sprite.setAlpha(0.88);
-        } else {
-          sprite.clearTint();
-          sprite.setAlpha(0.95);
-        }
-      }
-    }
   }
 
   private updateMarkers(pathNav: GameState['pathNav']): void {
@@ -302,7 +268,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       .image(spawnPoint.x, spawnPoint.y, 'spawn-portal')
       .setDepth(1.5);
     this.markerSprites.goal ??= this.add.image(goalPoint.x, goalPoint.y, 'goal-nexus').setDepth(1.5);
-    const markerSize = this.layout.cell * 0.55;
+    const markerSize = this.layout.hexRadius * 1.1;
     this.markerSprites.spawn
       .setPosition(spawnPoint.x, spawnPoint.y)
       .setDisplaySize(markerSize, markerSize)
@@ -324,8 +290,8 @@ export class CosmicBoardScene extends Phaser.Scene {
         this.add.image(0, 0, 'cosmic-rock').setOrigin(0.5, 0.72).setDepth(2.05);
       this.rockSprites.set(key, sprite);
       sprite
-        .setPosition(point.x, point.y + this.layout.cell * 0.08)
-        .setDisplaySize(this.layout.cell * 0.95, this.layout.cell * 0.95)
+        .setPosition(point.x, point.y + this.layout.hexRadius * 0.12)
+        .setDisplaySize(this.layout.hexRadius * 1.7, this.layout.hexRadius * 1.7)
         .setVisible(true);
     }
     hideMissingSprites(this.rockSprites, liveKeys);
@@ -341,11 +307,11 @@ export class CosmicBoardScene extends Phaser.Scene {
         this.gemSprites.get(gem.id) ??
         this.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.12);
       this.gemSprites.set(gem.id, sprite);
-      const size = this.layout.cell * (0.85 + gem.level * 0.04);
+      const size = this.layout.hexRadius * (1.35 + gem.level * 0.05);
       const pulse = 1 + Math.sin(this.time.now / 180) * 0.04;
       sprite
         .setTexture(texKey)
-        .setPosition(point.x, point.y + this.layout.cell * 0.1)
+        .setPosition(point.x, point.y + this.layout.hexRadius * 0.08)
         .setDisplaySize(size * pulse, size * pulse)
         .setVisible(true);
       if (gem.id === mergeSourceId) {
@@ -370,9 +336,9 @@ export class CosmicBoardScene extends Phaser.Scene {
         this.enemySprites.get(enemy.id) ??
         this.add.sprite(0, 0, texKey, 0).setOrigin(0.5, 0.82).setDepth(2.18);
       this.enemySprites.set(enemy.id, sprite);
-      const size = this.layout.cell * (isBoss ? 1.35 : 0.95);
+      const size = this.layout.hexRadius * (isBoss ? 2.5 : 1.75);
       sprite
-        .setPosition(point.x, point.y + this.layout.cell * 0.12)
+        .setPosition(point.x, point.y + this.layout.hexRadius * 0.15)
         .setDisplaySize(size, size)
         .setVisible(true);
       if (this.anims.exists(animKey)) {
@@ -397,13 +363,13 @@ export class CosmicBoardScene extends Phaser.Scene {
       if (!enemy.alive) continue;
       const point = boardToScreen(this.layout, enemy);
       const isBoss = BOSS_ENEMY_IDS.includes(enemy.definitionId);
-      const barW = this.layout.cell * (isBoss ? 0.7 : 0.5);
+      const barW = this.layout.hexRadius * (isBoss ? 1.2 : 0.85);
       g.fillStyle(0x02050a, 0.7);
-      g.fillRect(point.x - barW / 2, point.y - this.layout.cell * 0.42, barW, 4);
+      g.fillRect(point.x - barW / 2, point.y - this.layout.hexRadius * 0.75, barW, 4);
       g.fillStyle(COLORS.green, 0.95);
       g.fillRect(
         point.x - barW / 2,
-        point.y - this.layout.cell * 0.42,
+        point.y - this.layout.hexRadius * 0.75,
         barW * Math.max(0, enemy.hp / enemy.maxHp),
         4,
       );
@@ -411,7 +377,7 @@ export class CosmicBoardScene extends Phaser.Scene {
         g.fillStyle(COLORS.shield, 0.92);
         g.fillRect(
           point.x - barW / 2,
-          point.y - this.layout.cell * 0.35,
+          point.y - this.layout.hexRadius * 0.62,
           barW * Math.max(0, enemy.shield / enemy.maxShield),
           3,
         );
@@ -446,7 +412,8 @@ function handleRightClick(
 ): void {
   const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
   if (rock) {
-    bridge.dispatch({ type: 'sellRock', x: cell.x, y: cell.y });
+    const center = cellCenter(cell);
+    bridge.dispatch({ type: 'sellRock', x: center.x, y: center.y });
     return;
   }
   const gem = findGemAtCell(state, cell);
@@ -460,7 +427,10 @@ function handleRightClick(
 }
 
 function findGemAtCell(state: GameState, cell: Vec2): GemState | undefined {
-  return state.gems.find((g) => Math.floor(g.x) === cell.x && Math.floor(g.y) === cell.y);
+  return state.gems.find((g) => {
+    const gemCell = worldToHex(g.x, g.y);
+    return gemCell.x === cell.x && gemCell.y === cell.y;
+  });
 }
 
 function hideMissingSprites<T extends string | number>(
@@ -472,16 +442,61 @@ function hideMissingSprites<T extends string | number>(
   }
 }
 
+function hexScreenCorners(layout: BoardLayout, cell: Vec2): Vec2[] {
+  return hexPixelCorners(cell.x, cell.y, layout.hexRadius).map((corner) => ({
+    x: layout.left + layout.padX + corner.x,
+    y: layout.top + layout.padY + corner.y,
+  }));
+}
+
+function drawHexShape(
+  g: Phaser.GameObjects.Graphics,
+  corners: Vec2[],
+  fill: number,
+  fillAlpha: number,
+  stroke?: number,
+  strokeAlpha = 0.35,
+): void {
+  g.fillStyle(fill, fillAlpha);
+  g.beginPath();
+  g.moveTo(corners[0]!.x, corners[0]!.y);
+  for (let i = 1; i < corners.length; i++) g.lineTo(corners[i]!.x, corners[i]!.y);
+  g.closePath();
+  g.fillPath();
+  if (stroke !== undefined) {
+    g.lineStyle(1, stroke, strokeAlpha);
+    g.strokePath();
+  }
+}
+
+function drawHexTerrain(
+  g: Phaser.GameObjects.Graphics,
+  layout: BoardLayout,
+  pathCells: ReadonlySet<string>,
+): void {
+  for (let r = 0; r < BOARD_HEIGHT; r++) {
+    for (let q = 0; q < BOARD_WIDTH; q++) {
+      const cell = { x: q, y: r };
+      const isGemCell = cellParity(q, r) === 'gem';
+      const onPath = pathCells.has(`${q},${r}`);
+      const fill = isGemCell ? 0x1a4560 : 0x101c2a;
+      const corners = hexScreenCorners(layout, cell);
+      drawHexShape(g, corners, fill, onPath ? 0.82 : 0.95, COLORS.grid, 0.28);
+      if (onPath) {
+        drawHexShape(g, corners, COLORS.path, 0.12, undefined);
+      }
+    }
+  }
+}
+
 function drawPathOverlay(
   g: Phaser.GameObjects.Graphics,
   layout: BoardLayout,
   pathNav: GameState['pathNav'],
 ): void {
-  g.fillStyle(COLORS.path, 0.1);
   for (const key of pathNav.pathCells) {
     const [x, y] = key.split(',').map(Number);
-    const topLeft = cellTopLeft(layout, { x, y });
-    g.fillRect(topLeft.x, topLeft.y, layout.cell, layout.cell);
+    drawHexShape(g, hexScreenCorners(layout, { x, y }), COLORS.path, 0.08, undefined);
   }
 }
 
@@ -493,18 +508,12 @@ function drawPlacementPreview(
 ): void {
   if (!hoverCell || state.status === 'running') return;
   const boardPoint = cellCenter(hoverCell);
-  const topLeft = cellTopLeft(layout, hoverCell);
+  const corners = hexScreenCorners(layout, hoverCell);
   if (state.placementMode === 'rock' && canPlaceRockAt(state, boardPoint.x, boardPoint.y)) {
-    g.fillStyle(COLORS.green, 0.25);
-    g.fillRect(topLeft.x, topLeft.y, layout.cell, layout.cell);
-    g.lineStyle(2, COLORS.green, 0.8);
-    g.strokeRect(topLeft.x + 2, topLeft.y + 2, layout.cell - 4, layout.cell - 4);
+    drawHexShape(g, corners, COLORS.green, 0.25, COLORS.green, 0.85);
   }
   if (state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y)) {
-    g.fillStyle(COLORS.green, 0.2);
-    g.fillRect(topLeft.x, topLeft.y, layout.cell, layout.cell);
-    g.lineStyle(2, COLORS.green, 0.7);
-    g.strokeRect(topLeft.x + 2, topLeft.y + 2, layout.cell - 4, layout.cell - 4);
+    drawHexShape(g, corners, COLORS.green, 0.18, COLORS.green, 0.75);
   }
 }
 
@@ -514,7 +523,7 @@ function drawMissile(
   missile: MissileState,
 ): void {
   const point = boardToScreen(layout, missile);
-  const radius = missile.radius * layout.cell;
+  const radius = rangeToPixels(layout, missile.radius);
   if (missile.active) {
     g.lineStyle(2, 0xfff4a3, 0.75);
     g.strokeCircle(point.x, point.y, Math.max(6, radius * (1 - missile.impactIn / 0.24)));
@@ -532,7 +541,7 @@ function drawFxPopup(g: Phaser.GameObjects.Graphics, layout: BoardLayout, fx: Fx
   const color =
     fx.kind === 'merge' ? 0xfff4a3 : fx.kind === 'quest' ? 0xc084fc : 0x7fffb2;
   g.fillStyle(color, alpha * 0.25);
-  g.fillCircle(point.x, point.y - layout.cell * 0.2, layout.cell * 0.35);
+  g.fillCircle(point.x, point.y - layout.hexRadius * 0.25, layout.hexRadius * 0.45);
   g.lineStyle(2, color, alpha * 0.85);
-  g.strokeCircle(point.x, point.y - layout.cell * 0.2, layout.cell * 0.22);
+  g.strokeCircle(point.x, point.y - layout.hexRadius * 0.25, layout.hexRadius * 0.28);
 }

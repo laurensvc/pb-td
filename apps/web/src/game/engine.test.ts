@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_WAVES, areaTierKey, rockPlacementCost } from './content';
+import { hexWorldCenter } from './hexGrid';
 import { createDefaultSave } from './save';
 import {
   canPlaceGemAt,
@@ -87,7 +88,7 @@ describe('cosmic gem siege simulation', () => {
   it('places gems from inventory on gem cells', () => {
     const game = createGame();
     dispatchGameAction(game, { type: 'selectInventoryGem', gemId: game.inventory[0].id });
-    dispatchGameAction(game, { type: 'placeGem', x: 2, y: 5 });
+    dispatchGameAction(game, { type: 'placeGem', ...hexWorldCenter(2, 5) });
     dispatchGameAction(game, { type: 'startWave' });
     runFor(4, (dt) => tickGame(game, dt));
 
@@ -98,10 +99,11 @@ describe('cosmic gem siege simulation', () => {
   it('charges gold for rocks with escalating cost', () => {
     const game = createGame();
     const startGold = game.gold;
-    dispatchGameAction(game, { type: 'placeRock', x: 0, y: 0 });
+    dispatchGameAction(game, { type: 'placeRock', ...hexWorldCenter(0, 0) });
     expect(game.rocks).toHaveLength(1);
     expect(game.gold).toBe(startGold - rockPlacementCost(0));
-    expect(canPlaceRockAt(game, 2, 1)).toBeTypeOf('boolean');
+    const probe = hexWorldCenter(2, 1);
+    expect(canPlaceRockAt(game, probe.x, probe.y)).toBeTypeOf('boolean');
   });
 
   it('merges same family and level gems', () => {
@@ -110,9 +112,9 @@ describe('cosmic gem siege simulation', () => {
     dispatchGameAction(game, { type: 'buyGem', family: 'kinetic' });
     const kinetics = game.inventory.filter((g) => g.family === 'kinetic');
     dispatchGameAction(game, { type: 'selectInventoryGem', gemId: kinetics[0].id });
-    dispatchGameAction(game, { type: 'placeGem', x: 2, y: 5 });
+    dispatchGameAction(game, { type: 'placeGem', ...hexWorldCenter(2, 5) });
     dispatchGameAction(game, { type: 'selectInventoryGem', gemId: kinetics[1].id });
-    dispatchGameAction(game, { type: 'placeGem', x: 3, y: 6 });
+    dispatchGameAction(game, { type: 'placeGem', ...hexWorldCenter(3, 4) });
     const [a, b] = game.gems;
     expect(canMergeGems(a, b, game.greatUnlocked)).toBe(true);
     dispatchGameAction(game, { type: 'selectMergeSource', gemId: a.id });
@@ -162,11 +164,12 @@ describe('cosmic gem siege simulation', () => {
 
   it('places rocks on rock parity cells and blocks invalid mazes', () => {
     const game = createGame();
-    dispatchGameAction(game, { type: 'placeRock', x: 0, y: 0 });
+    dispatchGameAction(game, { type: 'placeRock', ...hexWorldCenter(0, 0) });
     expect(game.rocks).toHaveLength(1);
-    dispatchGameAction(game, { type: 'placeRock', x: 1, y: 0 });
+    dispatchGameAction(game, { type: 'placeRock', ...hexWorldCenter(1, 0) });
     expect(game.rocks).toHaveLength(1);
-    expect(canPlaceRockAt(game, 15, 8)).toBe(false);
+    const offMaze = hexWorldCenter(15, 8);
+    expect(canPlaceRockAt(game, offMaze.x, offMaze.y)).toBe(false);
   });
 
   it('charges the paid respec cost and resets upgrade purchases', () => {
@@ -186,8 +189,10 @@ describe('cosmic gem siege simulation', () => {
   it('rejects gem placement on occupied or wrong parity cells', () => {
     const game = createGame();
     dispatchGameAction(game, { type: 'selectInventoryGem', gemId: game.inventory[0].id });
-    expect(canPlaceGemAt(game, 0, 0)).toBe(false);
-    dispatchGameAction(game, { type: 'placeGem', x: 2, y: 5 });
-    expect(canPlaceGemAt(game, 2, 5)).toBe(false);
+    const rockCell = hexWorldCenter(0, 0);
+    expect(canPlaceGemAt(game, rockCell.x, rockCell.y)).toBe(false);
+    dispatchGameAction(game, { type: 'placeGem', ...hexWorldCenter(2, 5) });
+    const occupied = hexWorldCenter(2, 5);
+    expect(canPlaceGemAt(game, occupied.x, occupied.y)).toBe(false);
   });
 });

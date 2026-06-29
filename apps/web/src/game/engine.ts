@@ -16,6 +16,7 @@ import {
   upgrades,
 } from './content';
 import { acceptsRock, parityMatchesPlacement } from './boardParity';
+import { hexWorldCenter, worldToHex } from './hexGrid';
 import {
   effectiveDamageMultiplier,
   gemDamageType,
@@ -347,12 +348,13 @@ function placeGem(state: GameState, x: number, y: number): void {
   if (invIndex < 0) return;
   const invGem = state.inventory[invIndex];
 
+  const center = hexWorldCenter(cell.x, cell.y);
   state.gems.push({
     id: state.nextGemId++,
     family: invGem.family,
     level: invGem.level,
-    x: cell.x + 0.5,
-    y: cell.y + 0.5,
+    x: center.x,
+    y: center.y,
     cooldownLeft: 0,
     kills: 0,
     damageDone: 0,
@@ -561,6 +563,7 @@ function spawnEnemy(
 ): void {
   const definition = getEnemy(enemyId);
   const spawn = state.pathNav.spawnCell;
+  const spawnCenter = hexWorldCenter(spawn.x, spawn.y);
   const waveScale = 1 + state.waveIndex * 0.04;
   const hp = Math.round(definition.hp * tier.enemyHpMultiplier * waveScale);
   const shield = Math.round((definition.shield ?? 0) * tier.enemyHpMultiplier * waveScale);
@@ -568,9 +571,9 @@ function spawnEnemy(
     id: state.nextEnemyId++,
     definitionId: definition.id,
     name: definition.name,
-    x: spawn.x + 0.5,
-    y: spawn.y + 0.5,
-    pathProgress: pathProgressAt(state.pathNav, spawn.x + 0.5, spawn.y + 0.5),
+    x: spawnCenter.x,
+    y: spawnCenter.y,
+    pathProgress: pathProgressAt(state.pathNav, spawnCenter.x, spawnCenter.y),
     hp,
     maxHp: hp,
     shield,
@@ -625,16 +628,15 @@ function stepFlyingEnemy(
   dt: number,
 ): 'moving' | 'leaked' {
   const goal = nav.goalCell;
-  const gx = goal.x + 0.5;
-  const gy = goal.y + 0.5;
-  const dx = gx - enemy.x;
-  const dy = gy - enemy.y;
+  const goalCenter = hexWorldCenter(goal.x, goal.y);
+  const dx = goalCenter.x - enemy.x;
+  const dy = goalCenter.y - enemy.y;
   const dist = Math.hypot(dx, dy);
   if (dist < 0.15) return 'leaked';
   const travel = enemy.speed * dt;
   if (travel >= dist) {
-    enemy.x = gx;
-    enemy.y = gy;
+    enemy.x = goalCenter.x;
+    enemy.y = goalCenter.y;
     enemy.pathProgress = nav.maxProgress;
     return 'leaked';
   }
@@ -1018,15 +1020,18 @@ function replaceState(target: GameState, source: GameState): void {
 }
 
 function toCell(x: number, y: number): Vec2 {
-  return { x: Math.floor(x), y: Math.floor(y) };
+  return worldToHex(x, y);
 }
 
 function rockAtCell(state: GameState, x: number, y: number): boolean {
   return state.rocks.some((rock) => rock.x === x && rock.y === y);
 }
 
-function gemAtCell(state: GameState, x: number, y: number): boolean {
-  return state.gems.some((gem) => Math.floor(gem.x) === x && Math.floor(gem.y) === y);
+function gemAtCell(state: GameState, q: number, r: number): boolean {
+  return state.gems.some((gem) => {
+    const cell = worldToHex(gem.x, gem.y);
+    return cell.x === q && cell.y === r;
+  });
 }
 
 function mazeLayoutFromState(state: GameState): ReturnType<typeof createMazeLayout> {
