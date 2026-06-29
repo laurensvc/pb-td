@@ -7,8 +7,9 @@ export const ENEMY_FRAME_SIZE = 48;
 export const ENEMY_WALK_FRAMES = 4;
 
 export const ASSET_PATHS = {
-  terrainVoid: '/assets/terrain/void-floor.png',
-  terrainGem: '/assets/terrain/gem-cell.png',
+  terrainVoid: '/assets/terrain/hex-rock-floor.png',
+  terrainGem: '/assets/terrain/hex-gem-floor.png',
+  terrainPath: '/assets/terrain/hex-path-floor.png',
   rock: '/assets/objects/rock.png',
   spawnPortal: '/assets/objects/spawn-portal.png',
   goalNexus: '/assets/objects/goal-nexus.png',

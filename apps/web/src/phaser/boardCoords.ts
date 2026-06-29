@@ -19,10 +19,10 @@ export interface BoardLayout {
   height: number;
 }
 
-/** Right sidebar width + margin (matches .control-panel in styles.css). */
-export const PANEL_RESERVE = 434;
-/** Top HUD height + margin (matches .top-hud overlay). */
-export const HUD_RESERVE = 76;
+/** Right sidebar width + margin (matches .game-panel in styles.css). */
+export const PANEL_RESERVE = 392;
+/** Top HUD height + margin (matches .game-hud overlay). */
+export const HUD_RESERVE = 72;
 
 export function computeLayout(width: number, height: number): BoardLayout {
   const reservedTop = width >= 980 ? HUD_RESERVE : 56;

@@ -50,6 +50,7 @@ export class CosmicBoardScene extends Phaser.Scene {
   private board!: Phaser.GameObjects.Graphics;
   private boardOverlay!: Phaser.GameObjects.Graphics;
   private fx!: Phaser.GameObjects.Graphics;
+  private terrainSprites = new Map<string, Phaser.GameObjects.Image>();
   private rockSprites = new Map<string, Phaser.GameObjects.Image>();
   private gemSprites = new Map<number, Phaser.GameObjects.Image>();
   private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
@@ -74,8 +75,9 @@ export class CosmicBoardScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image('terrain-void', ASSET_PATHS.terrainVoid);
-    this.load.image('terrain-gem', ASSET_PATHS.terrainGem);
+    this.load.image('hex-rock-floor', ASSET_PATHS.terrainVoid);
+    this.load.image('hex-gem-floor', ASSET_PATHS.terrainGem);
+    this.load.image('hex-path-floor', ASSET_PATHS.terrainPath);
     this.load.image('cosmic-rock', ASSET_PATHS.rock);
     this.load.image('spawn-portal', ASSET_PATHS.spawnPortal);
     this.load.image('goal-nexus', ASSET_PATHS.goalNexus);
@@ -97,7 +99,6 @@ export class CosmicBoardScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.registerTerrainFrames();
     this.registerAnimations();
     this.board = this.add.graphics().setDepth(1);
     this.boardOverlay = this.add.graphics().setDepth(1.35);
@@ -116,11 +117,6 @@ export class CosmicBoardScene extends Phaser.Scene {
     this.drawBoard(state);
     this.drawSprites(state);
     this.drawFx(state);
-  }
-
-  private registerTerrainFrames(): void {
-    registerTilesetFrames(this.textures, 'terrain-void', 'void');
-    registerTilesetFrames(this.textures, 'terrain-gem', 'gem');
   }
 
   private registerAnimations(): void {
@@ -213,10 +209,36 @@ export class CosmicBoardScene extends Phaser.Scene {
     g.fillRect(this.layout.left, this.layout.top, this.layout.width, this.layout.height);
 
     if (this.assetsReady) {
-      drawHexTerrain(g, this.layout, state.pathNav.pathCells);
+      this.updateHexTerrain(state.pathNav.pathCells);
       drawPathOverlay(overlay, this.layout, state.pathNav);
       drawPlacementPreview(overlay, this.layout, state, this.hoverCell);
     }
+  }
+
+  private updateHexTerrain(pathCells: ReadonlySet<string>): void {
+    const liveKeys = new Set<string>();
+    const tileW = this.layout.hexRadius * Math.sqrt(3);
+    const tileH = this.layout.hexRadius * 2;
+    for (let r = 0; r < BOARD_HEIGHT; r++) {
+      for (let q = 0; q < BOARD_WIDTH; q++) {
+        const key = `${q},${r}`;
+        liveKeys.add(key);
+        const onPath = pathCells.has(key);
+        const isGemCell = cellParity(q, r) === 'gem';
+        const texture = onPath ? 'hex-path-floor' : isGemCell ? 'hex-gem-floor' : 'hex-rock-floor';
+        const point = cellToScreen(this.layout, { x: q, y: r });
+        const sprite =
+          this.terrainSprites.get(key) ??
+          this.add.image(0, 0, texture).setOrigin(0.5, 0.5).setDepth(0.8);
+        this.terrainSprites.set(key, sprite);
+        sprite
+          .setTexture(texture)
+          .setPosition(point.x, point.y)
+          .setDisplaySize(tileW, tileH)
+          .setVisible(true);
+      }
+    }
+    hideMissingSprites(this.terrainSprites, liveKeys);
   }
 
   private drawSprites(state: GameState): void {
@@ -386,24 +408,6 @@ export class CosmicBoardScene extends Phaser.Scene {
   }
 }
 
-function registerTilesetFrames(
-  textures: Phaser.Textures.TextureManager,
-  textureKey: string,
-  prefix: string,
-): void {
-  if (!textures.exists(textureKey)) return;
-  const texture = textures.get(textureKey);
-  const cols = 4;
-  const rows = 4;
-  const tile = 32;
-  for (let i = 0; i < cols * rows; i++) {
-    const frameName = `${prefix}-${i}`;
-    if (texture.has(frameName)) continue;
-    const x = (i % cols) * tile;
-    const y = Math.floor(i / cols) * tile;
-    texture.add(frameName, 0, x, y, tile, tile);
-  }
-}
 
 function handleRightClick(
   bridge: ReturnType<typeof getBridge>,
@@ -469,25 +473,6 @@ function drawHexShape(
   }
 }
 
-function drawHexTerrain(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  pathCells: ReadonlySet<string>,
-): void {
-  for (let r = 0; r < BOARD_HEIGHT; r++) {
-    for (let q = 0; q < BOARD_WIDTH; q++) {
-      const cell = { x: q, y: r };
-      const isGemCell = cellParity(q, r) === 'gem';
-      const onPath = pathCells.has(`${q},${r}`);
-      const fill = isGemCell ? 0x1a4560 : 0x101c2a;
-      const corners = hexScreenCorners(layout, cell);
-      drawHexShape(g, corners, fill, onPath ? 0.82 : 0.95, COLORS.grid, 0.28);
-      if (onPath) {
-        drawHexShape(g, corners, COLORS.path, 0.12, undefined);
-      }
-    }
-  }
-}
 
 function drawPathOverlay(
   g: Phaser.GameObjects.Graphics,

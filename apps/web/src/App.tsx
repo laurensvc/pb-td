@@ -1,22 +1,4 @@
-import {
-  Coins,
-  Crown,
-  Gem,
-  Gauge,
-  Gift,
-  Merge,
-  Mountain,
-  MousePointer2,
-  Play,
-  RotateCcw,
-  ScrollText,
-  ShoppingBag,
-  Sparkles,
-  Target,
-  Undo2,
-  Zap,
-} from 'lucide-react';
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties } from 'react';
 import {
   LUCKY_BOX_COST,
   RANDOM_GEM_COST,
@@ -44,8 +26,10 @@ import type {
 import { PhaserGameHost } from './components/PhaserGameHost';
 import { useCosmicGame } from './hooks/useCosmicGame';
 
+type SideTab = 'build' | 'shop' | 'progress';
+
 const branchLabels: Record<UpgradeBranch, string> = {
-  missile: 'Orbital Barrage',
+  missile: 'Orbital',
   kinetic: 'Kinetic',
   verdant: 'Verdant',
   arcane: 'Arcane',
@@ -82,112 +66,140 @@ export default function App() {
   const save = game.current.save;
   const respecCost = getRespecCost(save);
   const planning = snapshot.status === 'idle' || snapshot.status === 'betweenWaves';
+  const [tab, setTab] = useState<SideTab>('build');
 
   return (
     <main className="app-shell">
       <PhaserGameHost bridge={controller.bridge} />
 
-      <section className="hud top-hud" aria-label="Run status">
-        <div className="brand-block">
-          <span className="eyebrow">Cosmic Gem Siege</span>
-          <strong>{snapshot.areaName}</strong>
-          <span>
-            GemTD · {snapshot.tierId.toUpperCase()} · Wave {snapshot.wave}/{snapshot.totalWaves}
+      <header className="game-hud" aria-label="Run status">
+        <div className="hud-title">
+          <span className="game-logo">Cosmic Gem Siege</span>
+          <span className="hud-subtitle">
+            {snapshot.areaName} · {snapshot.tierId.toUpperCase()} · Wave {snapshot.wave}/
+            {snapshot.totalWaves}
             {snapshot.isBossWave ? ' · BOSS' : ''}
           </span>
         </div>
-        <StatChip icon={<Coins size={16} />} label="Gold" value={snapshot.gold} />
-        <StatChip
-          icon={<Gauge size={16} />}
-          label="Path"
-          value={`${snapshot.pathLength} tiles`}
-        />
-        <StatChip
-          icon={<Coins size={16} />}
-          label="Next wave"
-          value={`+${snapshot.waveIncome}g · ${snapshot.interestPreview} interest`}
-        />
-        <StatChip
-          icon={<Target size={16} />}
-          label="Lives"
-          value={`${snapshot.lives}/${snapshot.maxLives}`}
-        />
-        <StatChip icon={<Sparkles size={16} />} label="Stars" value={snapshot.stars} />
-        <StatChip icon={<Crown size={16} />} label="Crowns" value={snapshot.crowns} />
-        <StatChip
-          icon={<MousePointer2 size={16} />}
-          label="Orbital strike"
-          value={
-            snapshot.missileCooldownLeft <= 0
-              ? 'Ready'
-              : `${snapshot.missileCooldownLeft.toFixed(1)}s`
-          }
-        />
-        <button
-          className="primary-action"
-          type="button"
-          disabled={!snapshot.canStartWave}
-          onClick={() => dispatch({ type: 'startWave' })}
-        >
-          <Play size={17} />
-          Start Wave
-        </button>
-      </section>
 
-      <aside className="control-panel" aria-label="Progression and controls">
-        <ResultPanel snapshot={snapshot} dispatch={dispatch} />
-        <QuestPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-        <RecipePanel />
-        <AreaPanel save={save} dispatch={dispatch} />
-        <ShopPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-        <MazePanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-        <InventoryPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-        <PlacedGemsPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-        <UpgradePanel save={save} dispatch={dispatch} />
-        <section className="panel compact">
-          <div className="panel-heading">
-            <h2>Save</h2>
-            <button
-              type="button"
-              className="ghost-button"
-              disabled={respecCost > save.stars}
-              onClick={() => dispatch({ type: 'respecUpgrades' })}
-              title="Refund upgrades, paying the respec fee."
-            >
-              <Undo2 size={15} />
-              Respec {respecCost}
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => dispatch({ type: 'resetSave' })}
-              title="Reset save"
-            >
-              <RotateCcw size={15} />
-            </button>
+        <div className="resource-bar">
+          <ResourcePill icon="gold" label="Gold" value={snapshot.gold} />
+          <ResourcePill icon="heart" label="Lives" value={`${snapshot.lives}/${snapshot.maxLives}`} />
+          <ResourcePill icon="star" label="Stars" value={snapshot.stars} />
+          <ResourcePill icon="crown" label="Crowns" value={snapshot.crowns} />
+        </div>
+
+        <div className="hud-actions">
+          <div className="wave-readout">
+            <span>Path {snapshot.pathLength}</span>
+            <span>
+              Next +{snapshot.waveIncome}g · {snapshot.interestPreview} interest
+            </span>
+            <span>
+              Strike{' '}
+              {snapshot.missileCooldownLeft <= 0
+                ? 'READY'
+                : `${snapshot.missileCooldownLeft.toFixed(1)}s`}
+            </span>
           </div>
-          <p className="microcopy">
-            Attempt rewards: +{snapshot.attemptStars} stars, +{snapshot.attemptCrowns} crowns.
-          </p>
-        </section>
+          <button
+            className="game-button primary"
+            type="button"
+            disabled={!snapshot.canStartWave}
+            onClick={() => dispatch({ type: 'startWave' })}
+          >
+            Start Wave
+          </button>
+        </div>
+      </header>
+
+      <aside className="game-panel" aria-label="Game controls">
+        <ResultPanel snapshot={snapshot} dispatch={dispatch} />
+
+        <nav className="panel-tabs" aria-label="Panel sections">
+          {(
+            [
+              ['build', 'Build'],
+              ['shop', 'Shop'],
+              ['progress', 'Progress'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={tab === id ? 'panel-tab active' : 'panel-tab'}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="panel-body">
+          {tab === 'build' && (
+            <>
+              <MazePanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+              <InventoryPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+              <PlacedGemsPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+              <RecipePanel />
+            </>
+          )}
+          {tab === 'shop' && (
+            <>
+              <ShopPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+              <QuestPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+            </>
+          )}
+          {tab === 'progress' && (
+            <>
+              <AreaPanel save={save} dispatch={dispatch} />
+              <UpgradePanel save={save} dispatch={dispatch} />
+              <section className="game-card compact">
+                <div className="card-header">
+                  <h2>Save</h2>
+                  <div className="card-actions">
+                    <button
+                      type="button"
+                      className="game-button ghost"
+                      disabled={respecCost > save.stars}
+                      onClick={() => dispatch({ type: 'respecUpgrades' })}
+                    >
+                      Respec {respecCost}★
+                    </button>
+                    <button
+                      type="button"
+                      className="game-button ghost danger"
+                      onClick={() => dispatch({ type: 'resetSave' })}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <p className="hint">
+                  Run rewards: +{snapshot.attemptStars}★ · +{snapshot.attemptCrowns}♛
+                </p>
+              </section>
+            </>
+          )}
+        </div>
       </aside>
     </main>
   );
 }
 
-function StatChip({
+function ResourcePill({
   icon,
   label,
   value,
 }: {
-  icon: ReactNode;
+  icon: 'gold' | 'heart' | 'star' | 'crown';
   label: string;
   value: string | number;
 }) {
   return (
-    <div className="stat-chip">
-      {icon}
-      <span>{label}</span>
+    <div className={`resource-pill resource-${icon}`}>
+      <span className="resource-icon" aria-hidden />
+      <span className="resource-label">{label}</span>
       <strong>{value}</strong>
     </div>
   );
@@ -202,13 +214,12 @@ function ResultPanel({
 }) {
   if (!snapshot.resultTitle) return null;
   return (
-    <section className="panel result-panel">
+    <section className="game-card result-banner">
       <div>
         <h2>{snapshot.resultTitle}</h2>
         <p>{snapshot.resultMessage}</p>
       </div>
-      <button type="button" className="primary-action" onClick={() => dispatch({ type: 'retry' })}>
-        <RotateCcw size={17} />
+      <button type="button" className="game-button primary" onClick={() => dispatch({ type: 'retry' })}>
         Retry
       </button>
     </section>
@@ -223,19 +234,18 @@ function AreaPanel({
   dispatch: (action: GameAction) => void;
 }) {
   return (
-    <section className="panel">
-      <div className="panel-heading">
+    <section className="game-card">
+      <div className="card-header">
         <h2>Areas</h2>
-        <Gauge size={16} />
       </div>
       <div className="area-list">
         {areaDefinitions.map((area) => (
-          <article key={area.id} className="area-card">
+          <article key={area.id} className="area-row">
             <div>
               <strong>{area.name}</strong>
               <span>{area.subtitle}</span>
             </div>
-            <div className="tier-row">
+            <div className="button-row">
               {(['normal', 'hard'] as const satisfies readonly TierId[]).map((tierId) => {
                 const unlocked = isTierUnlocked(save, area.id, tierId);
                 const cleared = save.clearedAreaTiers.includes(areaTierKey(area.id, tierId));
@@ -244,7 +254,7 @@ function AreaPanel({
                     key={tierId}
                     type="button"
                     disabled={!unlocked}
-                    className={cleared ? 'tier-button cleared' : 'tier-button'}
+                    className={cleared ? 'game-button small cleared' : 'game-button small'}
                     onClick={() => dispatch({ type: 'startArea', areaId: area.id, tierId })}
                   >
                     {tierId}
@@ -270,34 +280,31 @@ function ShopPanel({
   dispatch: (action: GameAction) => void;
 }) {
   return (
-    <section className="panel">
-      <div className="panel-heading">
+    <section className="game-card">
+      <div className="card-header">
         <h2>Shop</h2>
-        <ShoppingBag size={16} />
       </div>
-      <div className="shop-grid">
+      <div className="shop-row">
         <button
           type="button"
           disabled={!planning || snapshot.gold < RANDOM_GEM_COST}
-          className="shop-button"
+          className="game-button shop"
           onClick={() => dispatch({ type: 'buyRandomGem' })}
         >
-          <Gift size={15} />
-          <span>Random gem</span>
+          <span>Random Gem</span>
           <strong>{RANDOM_GEM_COST}g</strong>
         </button>
         <button
           type="button"
           disabled={!planning || snapshot.gold < LUCKY_BOX_COST}
-          className="shop-button"
+          className="game-button shop"
           onClick={() => dispatch({ type: 'buyLuckyBox' })}
         >
-          <Sparkles size={15} />
-          <span>Lucky box</span>
+          <span>Lucky Box</span>
           <strong>{LUCKY_BOX_COST}g</strong>
         </button>
       </div>
-      <div className="gem-shop-row">
+      <div className="gem-shop-grid">
         {GEM_FAMILIES.map((family) => {
           const def = gemDefinitions[family];
           const unlocked = snapshot.unlockedGemFamilies.includes(family);
@@ -306,11 +313,11 @@ function ShopPanel({
               key={family}
               type="button"
               disabled={!planning || !unlocked || snapshot.gold < def.shopCost}
-              className="gem-shop-button"
+              className="game-button gem-buy"
               style={{ '--tower-color': def.color } as CSSProperties}
               onClick={() => dispatch({ type: 'buyGem', family })}
             >
-              <span className="tower-swatch" />
+              <span className="tower-icon" />
               <span>{def.name}</span>
               <strong>{unlocked ? `${def.shopCost}g` : 'Locked'}</strong>
             </button>
@@ -331,41 +338,38 @@ function MazePanel({
   dispatch: (action: GameAction) => void;
 }) {
   return (
-    <section className="panel">
-      <div className="panel-heading">
-        <h2>Maze</h2>
-        <Mountain size={16} />
+    <section className="game-card">
+      <div className="card-header">
+        <h2>Build</h2>
       </div>
-      <div className="tier-row">
+      <div className="button-row">
         <button
           type="button"
           disabled={!planning}
-          className={snapshot.placementMode === 'rock' ? 'tier-button cleared' : 'tier-button'}
+          className={snapshot.placementMode === 'rock' ? 'game-button small active' : 'game-button small'}
           onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'rock' })}
         >
-          Place rock ({snapshot.rockCost}g)
+          Rock ({snapshot.rockCost}g)
         </button>
         <button
           type="button"
           disabled={!planning}
-          className={snapshot.placementMode === 'gem' ? 'tier-button cleared' : 'tier-button'}
+          className={snapshot.placementMode === 'gem' ? 'game-button small active' : 'game-button small'}
           onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'gem' })}
         >
-          Place gem
+          Gem
         </button>
         <button
           type="button"
           disabled={!planning}
-          className={snapshot.placementMode === 'merge' ? 'tier-button cleared' : 'tier-button'}
+          className={snapshot.placementMode === 'merge' ? 'game-button small active' : 'game-button small'}
           onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'merge' })}
         >
-          <Merge size={14} />
           Merge
         </button>
       </div>
-      <p className="microcopy">
-        Rocks: {snapshot.rockCount}. Right-click to sell. In gem mode, right-click picks up. Merge
-        adjacent gems (diagonal counts). Hybrid recipes in the recipe book.
+      <p className="hint">
+        Rocks placed: {snapshot.rockCount}. Right-click sells. Gem mode picks up. Merge adjacent hex gems.
       </p>
     </section>
   );
@@ -381,15 +385,14 @@ function InventoryPanel({
   dispatch: (action: GameAction) => void;
 }) {
   return (
-    <section className="panel">
-      <div className="panel-heading">
+    <section className="game-card">
+      <div className="card-header">
         <h2>Inventory</h2>
-        <Gem size={16} />
       </div>
       {snapshot.inventory.length === 0 ? (
-        <p className="microcopy">No gems in inventory. Buy from shop between waves.</p>
+        <p className="hint">Buy gems between waves.</p>
       ) : (
-        <div className="inventory-grid">
+        <div className="chip-grid">
           {snapshot.inventory.map((gem) => (
             <InventoryGemButton
               key={gem.id}
@@ -430,7 +433,7 @@ function InventoryGemButton({
       }
       onClick={onSelect}
     >
-      <span className="tower-swatch" />
+      <span className="tower-icon" />
       <strong>{gemDisplayName(gem.family, gem.level)}</strong>
     </button>
   );
@@ -448,12 +451,12 @@ function PlacedGemsPanel({
   if (snapshot.placedGems.length === 0) return null;
 
   return (
-    <section className="panel compact">
-      <div className="panel-heading">
-        <h2>Placed Gems</h2>
-        <span className="microcopy">{snapshot.placedGems.length} on board</span>
+    <section className="game-card compact">
+      <div className="card-header">
+        <h2>On Board</h2>
+        <span className="hint">{snapshot.placedGems.length} gems</span>
       </div>
-      <div className="inventory-grid">
+      <div className="chip-grid">
         {snapshot.placedGems.map((gem) => {
           const def = gemDefinitions[gem.family];
           const isMergeSource = snapshot.mergeSourceGemId === gem.id;
@@ -481,11 +484,9 @@ function PlacedGemsPanel({
                 }
               }}
             >
-              <span className="tower-swatch" />
+              <span className="tower-icon" />
               <strong>{gemDisplayName(gem.family, gem.level)}</strong>
-              <span className="microcopy">
-                {snapshot.placementMode === 'merge' ? 'Merge target' : 'Sell'}
-              </span>
+              <span className="hint">{snapshot.placementMode === 'merge' ? 'Merge' : 'Sell'}</span>
             </button>
           );
         })}
@@ -504,29 +505,25 @@ function QuestPanel({
   dispatch: (action: GameAction) => void;
 }) {
   return (
-    <section className="panel compact">
-      <div className="panel-heading">
+    <section className="game-card compact">
+      <div className="card-header">
         <h2>Quests</h2>
-        <ScrollText size={16} />
       </div>
       <div className="quest-list">
         {snapshot.quests.map((quest) => (
-          <article key={quest.id} className={quest.completed ? 'quest-card done' : 'quest-card'}>
+          <article key={quest.id} className={quest.completed ? 'quest-row done' : 'quest-row'}>
             <div>
               <strong>{quest.label}</strong>
               <span>
                 {Math.min(quest.progress, quest.target)}/{quest.target}
-                {quest.unlockGreat && !snapshot.greatUnlocked.includes(quest.unlockGreat)
-                  ? ` · Unlocks Great ${quest.unlockGreat}`
-                  : ''}
               </span>
             </div>
-            <div className="quest-actions">
+            <div className="quest-meta">
               <strong>{quest.completed ? 'Done' : `+${quest.rewardGold}g`}</strong>
               {!quest.completed && (
                 <button
                   type="button"
-                  className="ghost-button"
+                  className="game-button ghost"
                   disabled={!planning || snapshot.gold < QUEST_REROLL_COST}
                   onClick={() => dispatch({ type: 'rerollQuest', questId: quest.id })}
                 >
@@ -537,32 +534,27 @@ function QuestPanel({
           </article>
         ))}
       </div>
-      {snapshot.greatUnlocked.length > 0 && (
-        <p className="microcopy">Great gems unlocked: {snapshot.greatUnlocked.join(', ')}</p>
-      )}
     </section>
   );
 }
 
 function RecipePanel() {
   return (
-    <section className="panel compact">
-      <div className="panel-heading">
-        <h2>Recipe Book</h2>
-        <Merge size={16} />
+    <section className="game-card compact">
+      <div className="card-header">
+        <h2>Hybrids</h2>
       </div>
       <ul className="recipe-list">
         {hybridRecipes.map((recipe) => (
           <li key={recipe.id}>
-            <span className="recipe-label">{recipe.label}</span>
-            <span className="microcopy">
+            <strong>{recipe.label}</strong>
+            <span className="hint">
               {gemDefinitions[recipe.inputs[0].family].name} L{recipe.inputs[0].level} +{' '}
               {gemDefinitions[recipe.inputs[1].family].name} L{recipe.inputs[1].level}
             </span>
           </li>
         ))}
       </ul>
-      <p className="microcopy">Place both gems on diagonally adjacent cells, then merge.</p>
     </section>
   );
 }
@@ -579,16 +571,15 @@ function UpgradePanel({
     nodes: upgrades.filter((upgrade) => upgrade.branch === branch),
   }));
   return (
-    <section className="panel upgrade-panel">
-      <div className="panel-heading">
-        <h2>Upgrade Tree</h2>
-        <Zap size={16} />
+    <section className="game-card upgrade-card">
+      <div className="card-header">
+        <h2>Upgrades</h2>
       </div>
       <div className="upgrade-tree">
         {grouped.map(({ branch, nodes }) => (
           <div key={branch} className={`upgrade-branch branch-${branch}`}>
             <h3>{branchLabels[branch]}</h3>
-            <div className="node-list">
+            <div className="upgrade-grid">
               {nodes.map((upgrade) => (
                 <UpgradeNode
                   key={upgrade.id}
