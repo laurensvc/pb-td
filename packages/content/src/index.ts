@@ -12,7 +12,6 @@ import {
   type GemDefinition,
   type WaveSchedule,
 } from './schemas';
-import { validateContentPack } from './validate';
 
 export const defaultBoard: BoardLayout = boardLayoutSchema.parse(boardJson);
 export const sliceGems: GemDefinition[] = gemsJson.map((g) => gemDefinitionSchema.parse(g));

@@ -11,7 +11,7 @@ import path from 'node:path';
 
 const API_BASE = 'https://api.pixellab.ai/mcp';
 const ROOT = path.resolve(import.meta.dirname, '..');
-const ASSETS = path.join(ROOT, 'public', 'assets');
+const ASSETS = path.join(ROOT, 'apps', 'web', 'public', 'assets');
 const TOKEN = process.env.PIXELLAB_API_KEY ?? process.env.PIXELLAB_SECRET ?? process.env.PIXELLAB_TOKEN;
 
 const GEM_FAMILIES = [
@@ -159,7 +159,7 @@ async function syncEnemies() {
       proportions: '{"type": "preset", "name": "chibi"}',
     });
     const character = await poll((id) => api(`/characters/${id}`), job.character_id, enemy.id);
-    const animJob = await api('/animate-character', {
+    await api('/animate-character', {
       character_id: job.character_id,
       template_animation_id: 'walking',
       directions: ['south'],

@@ -9,7 +9,6 @@ import type {
   FacetState,
   GemOffer,
   PathNavData,
-  TowerState,
 } from './types';
 
 const STARTING_LIVES = 20;

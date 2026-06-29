@@ -22,7 +22,7 @@ export function recordCommand(
   action: FacetAction,
 ): void {
   if (action.type === 'TICK' || action.type === 'START_MATCH') return;
-  recording.commands.push({ tick, action: structuredClone(action) });
+  recording.commands.push({ tick, action: JSON.parse(JSON.stringify(action)) as FacetAction });
 }
 
 export function replayCommands(

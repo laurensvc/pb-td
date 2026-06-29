@@ -30,13 +30,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 button {
@@ -474,6 +468,50 @@ button {
   border-color: rgba(91, 216, 255, 0.55);
 }
 
+.quest-list,
+.recipe-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quest-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(8, 16, 28, 0.65);
+  border: 1px solid rgba(125, 211, 252, 0.12);
+}
+
+.quest-card.done {
+  opacity: 0.65;
+  border-color: rgba(127, 255, 178, 0.35);
+}
+
+.quest-card strong,
+.recipe-label {
+  display: block;
+  font-size: 12px;
+}
+
+.quest-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.recipe-list li {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(8, 16, 28, 0.5);
+  border: 1px solid rgba(192, 132, 252, 0.15);
+}
+
 @media (max-width: 979px) {
   .top-hud {
     right: 14px;
@@ -496,179 +534,12 @@ button {
   .stat-chip {
     min-width: 84px;
   }
-}
 
-/* ── Project Facet UI ── */
-.auth-screen {
-  min-height: 100vh;
-  display: grid;
-  place-content: center;
-  gap: 12px;
-  text-align: center;
-  padding: 24px;
-}
-
-.auth-hint {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.auth-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.9rem;
-}
-
-.facet-app {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 40px);
-}
-
-.facet-hud {
-  display: flex;
-  gap: 16px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-}
-
-.facet-phase {
-  margin-left: auto;
-  color: var(--muted);
-  text-transform: capitalize;
-}
-
-.facet-main {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.facet-board-panel {
-  flex: 1;
-  overflow: auto;
-  padding: 16px;
-}
-
-.facet-board-wrap {
-  position: relative;
-  margin: 0 auto;
-}
-
-.facet-board {
-  position: relative;
-}
-
-.facet-cell {
-  position: absolute;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 0;
-  cursor: pointer;
-  background: rgba(20, 30, 48, 0.9);
-}
-
-.facet-cell.blocked {
-  background: #1a1a2e;
-  cursor: not-allowed;
-}
-.facet-cell.spawn {
-  background: #1e4d6b;
-}
-.facet-cell.exit {
-  background: #6b1e3a;
-}
-.facet-cell.rock {
-  background: #4a5568;
-}
-.facet-cell.tower {
-  background: #2d6a4f;
-}
-.facet-cell.family-flame {
-  background: #9b2226;
-}
-.facet-cell.family-stone {
-  background: #6c757d;
-}
-.facet-cell.family-thorn {
-  background: #2d6a4f;
-}
-
-.facet-enemy {
-  position: absolute;
-  background: #ff6b6b;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.facet-sidebar {
-  width: 280px;
-  border-left: 1px solid var(--line);
-  padding: 16px;
-  overflow-y: auto;
-  background: var(--panel);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.facet-sidebar h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-  margin: 0 0 8px;
-}
-
-.offer-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.offer-btn,
-.btn-primary,
-.btn-secondary,
-.btn-ghost {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
-  background: var(--panel-strong);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: #1e5a8a;
-  border-color: var(--cyan);
-}
-.btn-secondary {
-  font-size: 0.85rem;
-}
-.btn-ghost {
-  background: transparent;
-  font-size: 0.85rem;
-}
-
-.offer-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.claimed {
-  color: var(--green);
-  font-size: 0.85rem;
-}
-
-.tower-list {
-  font-size: 0.85rem;
-  padding-left: 16px;
-  margin: 0;
+  .tower-grid,
+  .node-list,
+  .shop-grid,
+  .gem-shop-row,
+  .inventory-grid {
+    grid-template-columns: 1fr;
+  }
 }

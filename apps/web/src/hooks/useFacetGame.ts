@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createFacetState,
   dispatchFacet,
   facetSnapshot,
   type FacetAction,
   type FacetSnapshot,
-  type FacetState,
 } from '@facet/sim';
 
 export function useFacetGame(seed = 42) {
-  const stateRef = useRef<FacetState>(createFacetState(seed));
-  const [snapshot, setSnapshot] = useState<FacetSnapshot>(() => facetSnapshot(stateRef.current));
+  const initial = useMemo(() => createFacetState(seed), [seed]);
+  const stateRef = useRef(initial);
+  const [snapshot, setSnapshot] = useState<FacetSnapshot>(() => facetSnapshot(initial));
 
   const dispatch = (action: FacetAction) => {
     dispatchFacet(stateRef.current, action);

@@ -10,7 +10,7 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const ASSETS = path.join(ROOT, 'public', 'assets');
+const ASSETS = path.join(ROOT, 'apps', 'web', 'public', 'assets');
 const ENEMY_FRAME_SIZE = 48;
 
 const GEM_FAMILIES = {
@@ -19,6 +19,14 @@ const GEM_FAMILIES = {
   arcane: { color: [0xc0, 0x84, 0xfc], shape: 'circle' },
   nova: { color: [0xfb, 0x71, 0x85], shape: 'square' },
   prism: { color: [0xfd, 0xe6, 0x8a], shape: 'star' },
+  toxic_shot: { color: [0x5e, 0xe4, 0xa8], shape: 'diamond' },
+  plasma_mortar: { color: [0xe8, 0x79, 0xf9], shape: 'square' },
+  pierce_crystal: { color: [0xa5, 0xb4, 0xfc], shape: 'diamond' },
+  spore_bomb: { color: [0x4a, 0xde, 0x80], shape: 'hex' },
+  slayer_shard: { color: [0xfc, 0xd3, 0x4d], shape: 'star' },
+  venom_lens: { color: [0x86, 0xef, 0xac], shape: 'circle' },
+  shatter_star: { color: [0xfd, 0xe0, 0x47], shape: 'star' },
+  executioner: { color: [0xfb, 0xbf, 0x24], shape: 'diamond' },
 };
 
 const ENEMIES = {
