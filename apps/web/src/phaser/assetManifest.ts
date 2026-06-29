@@ -17,7 +17,7 @@ export const ASSET_PATHS = {
 /** Wang tileset frame index per checkerboard parity (4×4 grid of 32px tiles). */
 export const TERRAIN_FRAMES = {
   rockCell: 'void-0',
-  gemCell: 'gem-2',
+  gemCell: 'gem-1',
   pathOverlay: 'void-6',
 } as const;
 

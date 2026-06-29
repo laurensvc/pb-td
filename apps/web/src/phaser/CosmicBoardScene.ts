@@ -25,14 +25,17 @@ import {
   gemTextureKey,
 } from './assetManifest';
 import { getBridge } from './bridge';
-
-interface BoardLayout {
-  left: number;
-  top: number;
-  cell: number;
-  width: number;
-  height: number;
-}
+import {
+  boardToScreen,
+  cellCenter,
+  cellToScreen,
+  cellTopLeft,
+  computeLayout,
+  pointerToCanvas,
+  screenToBoard,
+  screenToCell,
+  type BoardLayout,
+} from './boardCoords';
 
 const COLORS = {
   bg: 0x050812,
@@ -55,7 +58,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     spawn?: Phaser.GameObjects.Image;
     goal?: Phaser.GameObjects.Image;
   } = {};
-  private hoverBoardPoint: Vec2 | null = null;
+  private hoverCell: Vec2 | null = null;
   private layout: BoardLayout = { left: 0, top: 0, cell: 40, width: 640, height: 400 };
   private assetsReady = false;
 
@@ -127,10 +130,15 @@ export class CosmicBoardScene extends Phaser.Scene {
     }
   }
 
+  private pointerCanvasPoint(pointer: Phaser.Input.Pointer): Vec2 {
+    return pointerToCanvas(pointer, this.game.canvas, this.scale.width, this.scale.height);
+  }
+
   private handlePointerMove(pointer: Phaser.Input.Pointer): void {
     const state = getBridge().getState();
-    const boardPoint = screenToBoard(this.layout, pointer.x, pointer.y);
-    this.hoverBoardPoint = boardPoint;
+    const canvasPoint = this.pointerCanvasPoint(pointer);
+    this.hoverCell = screenToCell(this.layout, canvasPoint.x, canvasPoint.y);
+    const boardPoint = this.hoverCell ? cellCenter(this.hoverCell) : null;
     const canPlace =
       boardPoint !== null &&
       state.status !== 'running' &&
@@ -143,11 +151,13 @@ export class CosmicBoardScene extends Phaser.Scene {
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
     const bridge = getBridge();
     const state = bridge.getState();
-    const boardPoint = screenToBoard(this.layout, pointer.x, pointer.y);
-    if (!boardPoint) return;
+    const canvasPoint = this.pointerCanvasPoint(pointer);
+    const cell = screenToCell(this.layout, canvasPoint.x, canvasPoint.y);
+    if (!cell) return;
+    const boardPoint = cellCenter(cell);
 
     if (pointer.rightButtonDown() && state.status !== 'running') {
-      handleRightClick(bridge, state, boardPoint);
+      handleRightClick(bridge, state, cell);
       return;
     }
 
@@ -164,7 +174,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       return;
     }
     if (state.status !== 'running' && state.placementMode === 'merge') {
-      const gem = findGemAtCell(state, boardPoint);
+      const gem = findGemAtCell(state, cell);
       if (gem) {
         if (state.mergeSourceGemId === null) {
           bridge.dispatch({ type: 'selectMergeSource', gemId: gem.id });
@@ -174,11 +184,14 @@ export class CosmicBoardScene extends Phaser.Scene {
       }
       return;
     }
-    bridge.dispatch({ type: 'fireMissile', x: boardPoint.x, y: boardPoint.y });
+    const missilePoint = screenToBoard(this.layout, canvasPoint.x, canvasPoint.y);
+    if (missilePoint) {
+      bridge.dispatch({ type: 'fireMissile', x: missilePoint.x, y: missilePoint.y });
+    }
   }
 
   private clearHover(): void {
-    this.hoverBoardPoint = null;
+    this.hoverCell = null;
     this.input.manager.canvas.style.cursor = 'default';
   }
 
@@ -204,7 +217,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     if (this.assetsReady) {
       this.updateTerrainSprites(state.pathNav.pathCells);
       drawPathOverlay(overlay, this.layout, state.pathNav);
-      drawPlacementPreview(overlay, this.layout, state, this.hoverBoardPoint);
+      drawPlacementPreview(overlay, this.layout, state, this.hoverCell);
     }
   }
 
@@ -228,20 +241,22 @@ export class CosmicBoardScene extends Phaser.Scene {
       g.fillCircle(point.x, point.y, Math.max(3, this.layout.cell * 0.07));
     }
     if (
-      this.hoverBoardPoint &&
+      this.hoverCell &&
       state.status !== 'running' &&
       state.placementMode === 'gem' &&
-      state.selectedInventoryGemId !== null &&
-      canPlaceGemAt(state, this.hoverBoardPoint.x, this.hoverBoardPoint.y)
+      state.selectedInventoryGemId !== null
     ) {
-      const inv = state.inventory.find((item) => item.id === state.selectedInventoryGemId);
-      if (inv) {
-        const stats = gemDefinitions[inv.family];
-        const point = boardToScreen(this.layout, this.hoverBoardPoint);
-        const color = Phaser.Display.Color.HexStringToColor(stats.color).color;
-        g.lineStyle(2, color, 0.34);
-        const range = stats.baseRange + (inv.level - 1) * 0.12;
-        g.strokeCircle(point.x, point.y, range * this.layout.cell);
+      const boardPoint = cellCenter(this.hoverCell);
+      if (canPlaceGemAt(state, boardPoint.x, boardPoint.y)) {
+        const inv = state.inventory.find((item) => item.id === state.selectedInventoryGemId);
+        if (inv) {
+          const stats = gemDefinitions[inv.family];
+          const point = cellToScreen(this.layout, this.hoverCell);
+          const color = Phaser.Display.Color.HexStringToColor(stats.color).color;
+          g.lineStyle(2, color, 0.34);
+          const range = stats.baseRange + (inv.level - 1) * 0.12;
+          g.strokeCircle(point.x, point.y, range * this.layout.cell);
+        }
       }
     }
     for (const missile of state.missiles) drawMissile(g, this.layout, missile);
@@ -263,7 +278,7 @@ export class CosmicBoardScene extends Phaser.Scene {
         const isGemCell = cellParity(x, y) === 'gem';
         const frame = isGemCell ? TERRAIN_FRAMES.gemCell : TERRAIN_FRAMES.rockCell;
         const textureKey = isGemCell ? 'terrain-gem' : 'terrain-void';
-        const point = boardToScreen(this.layout, { x, y });
+        const point = cellToScreen(this.layout, { x, y });
         sprite
           .setTexture(textureKey, frame)
           .setPosition(point.x, point.y)
@@ -281,8 +296,8 @@ export class CosmicBoardScene extends Phaser.Scene {
   }
 
   private updateMarkers(pathNav: GameState['pathNav']): void {
-    const spawnPoint = boardToScreen(this.layout, pathNav.spawnCell);
-    const goalPoint = boardToScreen(this.layout, pathNav.goalCell);
+    const spawnPoint = cellToScreen(this.layout, pathNav.spawnCell);
+    const goalPoint = cellToScreen(this.layout, pathNav.goalCell);
     this.markerSprites.spawn ??= this.add
       .image(spawnPoint.x, spawnPoint.y, 'spawn-portal')
       .setDepth(1.5);
@@ -303,7 +318,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     for (const rock of rocks) {
       const key = `${rock.x},${rock.y}`;
       liveKeys.add(key);
-      const point = boardToScreen(this.layout, rock);
+      const point = cellToScreen(this.layout, rock);
       const sprite =
         this.rockSprites.get(key) ??
         this.add.image(0, 0, 'cosmic-rock').setOrigin(0.5, 0.72).setDepth(2.05);
@@ -427,15 +442,14 @@ function registerTilesetFrames(
 function handleRightClick(
   bridge: ReturnType<typeof getBridge>,
   state: GameState,
-  boardPoint: Vec2,
+  cell: Vec2,
 ): void {
-  const cell = { x: Math.floor(boardPoint.x), y: Math.floor(boardPoint.y) };
   const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
   if (rock) {
     bridge.dispatch({ type: 'sellRock', x: cell.x, y: cell.y });
     return;
   }
-  const gem = findGemAtCell(state, boardPoint);
+  const gem = findGemAtCell(state, cell);
   if (gem) {
     if (state.placementMode === 'gem') {
       bridge.dispatch({ type: 'pickUpGem', gemId: gem.id });
@@ -445,10 +459,8 @@ function handleRightClick(
   }
 }
 
-function findGemAtCell(state: GameState, boardPoint: Vec2): GemState | undefined {
-  const cx = Math.floor(boardPoint.x);
-  const cy = Math.floor(boardPoint.y);
-  return state.gems.find((g) => Math.floor(g.x) === cx && Math.floor(g.y) === cy);
+function findGemAtCell(state: GameState, cell: Vec2): GemState | undefined {
+  return state.gems.find((g) => Math.floor(g.x) === cell.x && Math.floor(g.y) === cell.y);
 }
 
 function hideMissingSprites<T extends string | number>(
@@ -460,22 +472,6 @@ function hideMissingSprites<T extends string | number>(
   }
 }
 
-function computeLayout(width: number, height: number): BoardLayout {
-  const reservedTop = width >= 980 ? 28 : 18;
-  const reservedBottom = width >= 980 ? 24 : 18;
-  const reservedRight = width >= 980 ? 430 : 0;
-  const availableWidth = Math.max(320, width - reservedRight - 32);
-  const availableHeight = Math.max(280, height - reservedTop - reservedBottom);
-  const cell = Math.floor(Math.min(availableWidth / BOARD_WIDTH, availableHeight / BOARD_HEIGHT));
-  return {
-    left: Math.max(16, Math.floor((availableWidth - cell * BOARD_WIDTH) / 2)),
-    top: reservedTop + Math.max(0, Math.floor((availableHeight - cell * BOARD_HEIGHT) / 2)),
-    cell,
-    width: cell * BOARD_WIDTH,
-    height: cell * BOARD_HEIGHT,
-  };
-}
-
 function drawPathOverlay(
   g: Phaser.GameObjects.Graphics,
   layout: BoardLayout,
@@ -484,7 +480,8 @@ function drawPathOverlay(
   g.fillStyle(COLORS.path, 0.1);
   for (const key of pathNav.pathCells) {
     const [x, y] = key.split(',').map(Number);
-    g.fillRect(layout.left + x * layout.cell, layout.top + y * layout.cell, layout.cell, layout.cell);
+    const topLeft = cellTopLeft(layout, { x, y });
+    g.fillRect(topLeft.x, topLeft.y, layout.cell, layout.cell);
   }
 }
 
@@ -492,23 +489,22 @@ function drawPlacementPreview(
   g: Phaser.GameObjects.Graphics,
   layout: BoardLayout,
   state: GameState,
-  hover: Vec2 | null,
+  hoverCell: Vec2 | null,
 ): void {
-  if (!hover || state.status === 'running') return;
-  const cell = { x: Math.floor(hover.x), y: Math.floor(hover.y) };
-  const px = layout.left + cell.x * layout.cell;
-  const py = layout.top + cell.y * layout.cell;
-  if (state.placementMode === 'rock' && canPlaceRockAt(state, hover.x, hover.y)) {
+  if (!hoverCell || state.status === 'running') return;
+  const boardPoint = cellCenter(hoverCell);
+  const topLeft = cellTopLeft(layout, hoverCell);
+  if (state.placementMode === 'rock' && canPlaceRockAt(state, boardPoint.x, boardPoint.y)) {
     g.fillStyle(COLORS.green, 0.25);
-    g.fillRect(px, py, layout.cell, layout.cell);
+    g.fillRect(topLeft.x, topLeft.y, layout.cell, layout.cell);
     g.lineStyle(2, COLORS.green, 0.8);
-    g.strokeRect(px + 2, py + 2, layout.cell - 4, layout.cell - 4);
+    g.strokeRect(topLeft.x + 2, topLeft.y + 2, layout.cell - 4, layout.cell - 4);
   }
-  if (state.placementMode === 'gem' && canPlaceGemAt(state, hover.x, hover.y)) {
+  if (state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y)) {
     g.fillStyle(COLORS.green, 0.2);
-    g.fillRect(px, py, layout.cell, layout.cell);
+    g.fillRect(topLeft.x, topLeft.y, layout.cell, layout.cell);
     g.lineStyle(2, COLORS.green, 0.7);
-    g.strokeRect(px + 2, py + 2, layout.cell - 4, layout.cell - 4);
+    g.strokeRect(topLeft.x + 2, topLeft.y + 2, layout.cell - 4, layout.cell - 4);
   }
 }
 
@@ -539,26 +535,4 @@ function drawFxPopup(g: Phaser.GameObjects.Graphics, layout: BoardLayout, fx: Fx
   g.fillCircle(point.x, point.y - layout.cell * 0.2, layout.cell * 0.35);
   g.lineStyle(2, color, alpha * 0.85);
   g.strokeCircle(point.x, point.y - layout.cell * 0.2, layout.cell * 0.22);
-}
-
-function boardToScreen(layout: BoardLayout, point: Vec2): Vec2 {
-  return {
-    x: layout.left + (point.x + 0.5) * layout.cell,
-    y: layout.top + (point.y + 0.5) * layout.cell,
-  };
-}
-
-function screenToBoard(layout: BoardLayout, x: number, y: number): Vec2 | null {
-  if (
-    x < layout.left ||
-    y < layout.top ||
-    x > layout.left + layout.width ||
-    y > layout.top + layout.height
-  ) {
-    return null;
-  }
-  return {
-    x: (x - layout.left) / layout.cell - 0.5,
-    y: (y - layout.top) / layout.cell - 0.5,
-  };
 }
