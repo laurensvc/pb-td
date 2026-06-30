@@ -3,13 +3,16 @@ import type { GameState, GemState, Vec2 } from '../../game/types';
 import { isPlanningPhase } from '../boardInput';
 import { cellCenter } from '../boardCoords';
 import type { PhaserBridge } from '../bridge';
+import { findRawGemAtCell } from '../render/placementGhost';
 
-export function handleRightClick(
-  bridge: PhaserBridge,
-  state: GameState,
-  cell: Vec2,
-): void {
+export function handleRightClick(bridge: PhaserBridge, state: GameState, cell: Vec2): void {
   const planning = isPlanningPhase(state.status);
+  const raw = findRawGemAtCell(state, cell);
+  if (planning && raw && (state.buildStep === 'rocks' || state.buildStep === 'prospect')) {
+    bridge.dispatch({ type: 'removeRawGem', rawGemId: raw.id });
+    return;
+  }
+
   const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
   if (rock) {
     const center = cellCenter(cell);

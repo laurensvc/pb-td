@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
-import { CosmicBoardScene } from '../phaser/CosmicBoardScene';
+import { GemBoardScene } from '../phaser/GemBoardScene';
 import { clearBridge, installBridge, type PhaserBridge } from '../phaser/bridge';
 
 interface PhaserGameHostProps {
@@ -42,7 +42,7 @@ export function PhaserGameHost({ bridge }: PhaserGameHostProps) {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.NO_CENTER,
       },
-      scene: [CosmicBoardScene],
+      scene: [GemBoardScene],
     });
     gameRef.current = game;
 
@@ -53,5 +53,5 @@ export function PhaserGameHost({ bridge }: PhaserGameHostProps) {
     };
   }, []);
 
-  return <div ref={hostRef} className="game-canvas" aria-label="Cosmic Siege game board" />;
+  return <div ref={hostRef} className="game-canvas" aria-label="Gem TD game board" />;
 }

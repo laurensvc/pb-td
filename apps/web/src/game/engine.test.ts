@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOTAL_WAVES, areaTierKey } from './content';
+import { TOTAL_WAVES, areaTierKey, BOARD_HEIGHT, BOARD_WIDTH } from './content';
 import { hexWorldCenter } from './hexGrid';
 import { createDefaultSave } from './save';
 import type { GameState, GemFamilyId, GemLevel } from './types';
@@ -53,8 +53,8 @@ function skipBuildPhaseToReady(game: GameState): void {
 }
 
 function placeFiveRawGems(game: GameState): void {
-  for (let r = 0; r < 10 && game.rawGems.length < 5; r++) {
-    for (let q = 0; q < 16 && game.rawGems.length < 5; q++) {
+  for (let r = 0; r < BOARD_HEIGHT && game.rawGems.length < 5; r++) {
+    for (let q = 0; q < BOARD_WIDTH && game.rawGems.length < 5; q++) {
       const point = hexWorldCenter(q, r);
       if (canPlaceRawGemAt(game, point.x, point.y)) {
         dispatchGameAction(game, { type: 'placeRawGem', x: point.x, y: point.y });
@@ -70,13 +70,20 @@ function startWaveWhenReady(game: GameState): void {
   }
 }
 
-describe('cosmic gem siege simulation', () => {
-  it('has 50 waves per area tier', () => {
+describe('gem td simulation', () => {
+  it('has 24 waves per area tier', () => {
     const game = createGame();
     expect(game.waveIndex).toBe(0);
     const area = game.areaId;
     dispatchGameAction(game, { type: 'startArea', areaId: area, tierId: 'normal' });
-    expect(TOTAL_WAVES).toBe(50);
+    expect(TOTAL_WAVES).toBe(24);
+  });
+
+  it('reports 24 total waves in snapshot and preview', () => {
+    const game = createGame();
+    const snapshot = createSnapshot(game);
+    expect(snapshot.totalWaves).toBe(24);
+    expect(snapshot.wave).toBeLessThanOrEqual(24);
   });
 
   it('honors an injected run seed for deterministic offers', () => {
@@ -141,7 +148,7 @@ describe('cosmic gem siege simulation', () => {
     const game = createGame();
     game.buildStep = 'ready';
     addBoardGem(game, 2, 5, 'kinetic', 1);
-    addBoardGem(game, 3, 4, 'kinetic', 1);
+    addBoardGem(game, 3, 5, 'kinetic', 1);
     const [a, b] = game.gems;
     expect(canMergeGems(a!, b!, game.greatUnlocked)).toBe(true);
     dispatchGameAction(game, { type: 'selectMergeSource', gemId: a!.id });
@@ -188,7 +195,7 @@ describe('cosmic gem siege simulation', () => {
     expect(game.rocks).toHaveLength(1);
     dispatchGameAction(game, { type: 'placeRock', ...hexWorldCenter(1, 0) });
     expect(game.rocks).toHaveLength(1);
-    const offMaze = hexWorldCenter(15, 8);
+    const offMaze = hexWorldCenter(27, 10);
     expect(canPlaceRockAt(game, offMaze.x, offMaze.y)).toBe(false);
   });
 
@@ -244,15 +251,19 @@ describe('cosmic gem siege simulation', () => {
       revealedUntil: 0,
       poisonDps: 0,
       poisonUntil: 0,
+      slowDebuffs: [],
+      armorDebuffs: [],
       slowUntil: 0,
-      slowFactor: 1,
+      slowFactor: 0,
       armorReduction: 0,
     });
     const before = game.nextEnemyId;
     game.projectiles.push({
       id: 1,
       gemId: 0,
+      family: 'kinetic',
       targetId: 1,
+      effectLevel: 1,
       x: 2,
       y: 3,
       damage: 99,
@@ -284,9 +295,9 @@ describe('cosmic gem siege simulation', () => {
     const game = createGame();
     game.buildStep = 'ready';
     addBoardGem(game, 2, 5, 'kinetic', 1);
-    addBoardGem(game, 3, 4, 'kinetic', 1);
     addBoardGem(game, 3, 5, 'kinetic', 1);
-    addBoardGem(game, 2, 6, 'kinetic', 1);
+    addBoardGem(game, 3, 4, 'kinetic', 1);
+    addBoardGem(game, 2, 4, 'kinetic', 1);
     const [source, target] = game.gems;
 
     dispatchGameAction(game, { type: 'selectMergeSource', gemId: source!.id });
@@ -296,6 +307,16 @@ describe('cosmic gem siege simulation', () => {
     expect(game.gems[0]!.id).toBe(target!.id);
     expect(game.gems[0]!.level).toBe(3);
     expect(game.mergeUndoStack).toHaveLength(1);
+  });
+
+  it('removes a placed raw gem and reopens the placement phase from prospect', () => {
+    const game = createGame();
+    placeFiveRawGems(game);
+    expect(game.buildStep).toBe('prospect');
+    const removed = game.rawGems[0]!;
+    dispatchGameAction(game, { type: 'removeRawGem', rawGemId: removed.id });
+    expect(game.rawGems).toHaveLength(4);
+    expect(game.buildStep).toBe('rocks');
   });
 
   it('reverts quest progress and great unlock when undoing a merge', () => {
@@ -314,7 +335,7 @@ describe('cosmic gem siege simulation', () => {
       },
     ];
     addBoardGem(game, 2, 5, 'kinetic', 1);
-    addBoardGem(game, 3, 4, 'kinetic', 1);
+    addBoardGem(game, 3, 5, 'kinetic', 1);
     const [a, b] = game.gems;
     const goldBefore = game.gold;
     dispatchGameAction(game, { type: 'selectMergeSource', gemId: a!.id });

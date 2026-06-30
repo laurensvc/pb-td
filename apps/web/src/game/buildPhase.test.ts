@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { hexWorldCenter } from './hexGrid';
 import {
+  buildRitualHint,
+  buildRitualPhase,
   generateOffers,
   prospectRerollCost,
   rawGemBuildLevel,
@@ -35,6 +37,14 @@ describe('build phase helpers', () => {
     const game = createGame();
     expect(game.rocksPlacedThisPhase).toBe(0);
     expect(ROCKS_PER_PHASE).toBe(5);
+  });
+
+  it('maps build steps to the three-step GemTD ritual', () => {
+    expect(buildRitualPhase('rocks')).toBe('place');
+    expect(buildRitualPhase('prospect')).toBe('commit');
+    expect(buildRitualPhase('ready')).toBe('ready');
+    expect(buildRitualHint('rocks', 2)).toContain('5 raw gems');
+    expect(buildRitualHint('prospect', 5)).toContain('stone blocks');
   });
 });
 

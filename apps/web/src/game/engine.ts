@@ -39,6 +39,8 @@ export function dispatchGameAction(state: GameState, action: GameAction): UiFeed
       break;
     case 'placeRawGem':
       return placement.placeRawGem(state, action.x, action.y);
+    case 'removeRawGem':
+      return placement.removeRawGem(state, action.rawGemId);
     case 'placeRock':
       return placement.placeRock(state, action.x, action.y);
     case 'finishRocks':
@@ -90,6 +92,9 @@ export function dispatchGameAction(state: GameState, action: GameAction): UiFeed
       break;
     case 'cycleGemTargeting':
       placement.cycleGemTargeting(state, action.gemId);
+      break;
+    case 'setGemTargeting':
+      placement.setGemTargeting(state, action.gemId, action.mode);
       break;
     case 'setGameSpeed':
       state.gameSpeed = action.speed;

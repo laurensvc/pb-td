@@ -12,6 +12,18 @@ import type {
 } from './primitives';
 import type { GemOffer, PathNavData, SaveState } from './content';
 
+export interface SlowDebuffEntry {
+  level: GemLevel;
+  factor: number;
+  until: number;
+}
+
+export interface ArmorDebuffEntry {
+  level: GemLevel;
+  reduction: number;
+  until?: number;
+}
+
 export interface EnemyState {
   id: number;
   definitionId: EnemyId;
@@ -37,8 +49,13 @@ export interface EnemyState {
   revealedUntil: number;
   poisonDps: number;
   poisonUntil: number;
+  slowDebuffs: SlowDebuffEntry[];
+  armorDebuffs: ArmorDebuffEntry[];
+  /** Derived from active slow debuffs for render compatibility. */
   slowUntil: number;
+  /** Derived from active slow debuffs for render compatibility. */
   slowFactor: number;
+  /** Derived from active armor debuffs for render compatibility. */
   armorReduction: number;
 }
 
@@ -73,7 +90,9 @@ export interface MergeUndoEntry {
 export interface ProjectileState {
   id: number;
   gemId: number;
+  family: GemFamilyId;
   targetId: number;
+  effectLevel: GemLevel;
   x: number;
   y: number;
   damage: number;

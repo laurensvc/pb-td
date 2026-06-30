@@ -8,22 +8,22 @@ export function updateFxLabels(
   layout: BoardLayout,
   fxLabels: Map<number, Phaser.GameObjects.Text>,
   fxEvents: readonly FxEvent[],
+  viewportMask?: Phaser.Display.Masks.GeometryMask | null,
 ): void {
   const liveIds = new Set<number>();
   for (const fx of fxEvents) {
     liveIds.add(fx.id);
     const point = boardToScreen(layout, { x: fx.x, y: fx.y });
     const alpha = Math.min(1, fx.life);
-    const color =
-      fx.kind === 'merge' ? '#fff4a3' : fx.kind === 'quest' ? '#e9d5ff' : '#7fffb2';
-    const rise = (1 - alpha) * layout.hexRadius * 0.55;
+    const color = fx.kind === 'merge' ? '#fff4a3' : fx.kind === 'quest' ? '#e9d5ff' : '#7fffb2';
+    const rise = (1 - alpha) * layout.tileSize * 0.55;
 
     let label = fxLabels.get(fx.id);
     if (!label) {
       label = scene.add
         .text(0, 0, fx.text, {
           fontFamily: 'Chakra Petch, monospace',
-          fontSize: `${Math.max(12, Math.floor(layout.hexRadius * 0.58))}px`,
+          fontSize: `${Math.max(12, Math.floor(layout.tileSize * 0.58))}px`,
           color,
           fontStyle: 'bold',
           stroke: '#02050a',
@@ -31,6 +31,7 @@ export function updateFxLabels(
         })
         .setOrigin(0.5, 0.5)
         .setDepth(4.2);
+      if (viewportMask) label.setMask(viewportMask);
       fxLabels.set(fx.id, label);
     }
 
@@ -38,7 +39,7 @@ export function updateFxLabels(
       .setText(fx.text)
       .setColor(color)
       .setAlpha(alpha)
-      .setPosition(point.x, point.y - layout.hexRadius * 0.35 - rise)
+      .setPosition(point.x, point.y - layout.tileSize * 0.35 - rise)
       .setVisible(true);
   }
   pruneMissingSprites(fxLabels, liveIds);

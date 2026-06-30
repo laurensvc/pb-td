@@ -202,11 +202,16 @@ export function getGemCombatStats(
   };
 }
 
-export function gemDisplayName(family: GemFamilyId, level: GemLevel): string {
+export function gemFamilyBoardName(family: GemFamilyId): string {
   const def = gemDefinitions[family];
-  if (level === 7) return `Great ${def.name}`;
-  if (def.hybrid && level === 1) return def.name;
-  return `${qualityName(level)} ${def.name}`;
+  return def.boardName ?? def.name;
+}
+
+export function gemDisplayName(family: GemFamilyId, level: GemLevel): string {
+  const label = gemFamilyBoardName(family);
+  if (level === 7) return `Great ${label}`;
+  if (gemDefinitions[family].hybrid && level === 1) return label;
+  return `${qualityName(level)} ${label}`;
 }
 
 export function qualityName(level: GemLevel): string {

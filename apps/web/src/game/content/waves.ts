@@ -23,7 +23,7 @@ export function getWave(areaId: string, tierId: TierId, waveIndex: number): Wave
 }
 
 function buildWave(areaId: string, waveNumber: number, tier: TierId): WaveDefinition {
-  const isBoss = waveNumber % 10 === 0;
+  const isBoss = waveNumber === 6 || waveNumber === 12 || waveNumber === 24;
   const authored = authoredWaveSegments(areaId, waveNumber, tier);
   const segments = authored ?? composeWaveSegments(waveNumber, isBoss, tier);
   const spawnInterval = Math.max(0.06, 0.14 - waveNumber * 0.0015);
@@ -38,8 +38,8 @@ function buildWave(areaId: string, waveNumber: number, tier: TierId): WaveDefini
 
 function composeWaveSegments(waveNumber: number, isBoss: boolean, tier: TierId): WaveSegment[] {
   if (isBoss) {
-    const bossId = waveNumber >= 40 ? 'dreadnought' : 'colossus';
-    const escorts = waveNumber >= 30 ? 6 : 4;
+    const bossId = waveNumber >= 24 ? 'dreadnought' : 'colossus';
+    const escorts = waveNumber >= 12 ? 6 : 4;
     return [
       { enemyId: bossId, count: 1 },
       { enemyId: waveNumber >= 20 ? 'vanguard' : 'warden', count: escorts },

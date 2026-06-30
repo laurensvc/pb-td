@@ -440,6 +440,17 @@ button {
   margin-bottom: 10px;
 }
 
+.build-ritual-banner {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(125, 255, 178, 0.22);
+  background: rgba(10, 24, 20, 0.72);
+  color: #d8f5e8;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .build-step {
   padding: 4px 8px;
   border-radius: 999px;

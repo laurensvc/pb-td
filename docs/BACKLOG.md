@@ -16,8 +16,11 @@ Primary references:
 
 Last verified commands:
 
-- `pnpm --filter @facet/web test` — 14 files, 57 tests passed.
-- `pnpm --filter @facet/web build` — passed.
+- `pnpm --filter @facet/web test` — 18 files, 88 tests passed.
+- `pnpm --filter @facet/protocol test` — 1 file, 6 tests passed.
+- `pnpm --filter @facet/game-server test` — 1 file, 1 test passed.
+- `pnpm --filter @facet/web build` — passed (includes `build:game`).
+- `pnpm --filter @facet/game-server build` — passed.
 - `pnpm lint` — passed with one existing warning in `apps/admin/src/main.tsx` for `react-refresh/only-export-components`.
 
 Implemented and verified:
@@ -34,219 +37,161 @@ Implemented and verified:
 
 Known code-name debt:
 
-- Several internal files/components still use `Cosmic*` names, for example `CosmicBoardScene` and `useCosmicGame`. These are now mostly naming debt, not active Cosmic Siege mechanics.
+- Resolved: `CosmicBoardScene`, `useCosmicGame`, and `components/cosmic/` renamed to Gem TD naming.
 
 ---
 
 ## Remaining GemTD Parity Work
 
-### P0 — Debuff stacking by gem level
+### P0 — Debuff stacking by gem level ✅
 
 Guide requirement:
 
 - Attack speed, damage, minus armor, and slow debuffs stack when they come from different levels.
 - Duplicate same-level debuffs do not stack.
 
-Current state:
+Implemented:
 
-- `apps/web/src/game/combat.ts` stores slow and armor reduction as scalar max values on `EnemyState`.
-- This means duplicate and different-level debuffs are not distinguished.
+- `ProjectileState.effectLevel` set from `gem.level` in `makeProjectile`.
+- Per-level `slowDebuffs` and `armorDebuffs` arrays on `EnemyState`.
+- Helpers in `combat.ts`: `applySlowDebuff`, `effectiveSlowFactor`, `applyArmorDebuff`, `effectiveArmorReduction`, `syncDebuffScalars`.
+- Scalar `slowUntil` / `slowFactor` / `armorReduction` kept as derived compatibility fields for render.
+- Tests in `apps/web/src/game/combatDebuffs.test.ts`.
 
-Implementation notes:
+Remaining note:
 
-- Add projectile provenance, likely `effectLevel: GemLevel`, in `ProjectileState`.
-- Add per-level debuff state to `EnemyState`, for example:
-  - `slowDebuffs: { level: GemLevel; factor: number; until: number }[]`
-  - `armorDebuffs: { level: GemLevel; reduction: number; until?: number }[]`
-- Derive compatibility scalar fields (`slowFactor`, `slowUntil`, `armorReduction`) until render/tests are migrated.
-- Slow movement should sum active slow factors from distinct levels, clamp to a safe cap, and ignore duplicate same-level slow except refreshing duration or keeping the stronger same-level value.
-- Armor reduction should sum reductions from distinct levels, ignore duplicate same-level reductions except keeping the stronger same-level value.
+- Attack-speed debuff stacking is not yet modeled (no attack-speed debuff mechanic in combat).
 
-Acceptance tests:
-
-- L1 slow + L2 slow stacks into a stronger movement penalty than either alone.
-- L2 slow + L2 slow does not stack.
-- Expired slow no longer affects movement.
-- L1 armor reduction + L2 armor reduction stacks damage amplification.
-- L2 armor reduction + L2 armor reduction does not stack damage amplification.
-
-Suggested files:
-
-- `apps/web/src/game/types/runtime.ts`
-- `apps/web/src/game/combat.ts`
-- `apps/web/src/game/engine.test.ts` or a new focused `combatDebuffs.test.ts`
-
-### P0 — 24-wave GemTD content alignment
+### P0 — 24-wave GemTD content alignment ✅
 
 Guide/design requirement:
 
 - `docs/game-design.md` specifies 24 waves.
 
-Current state:
+Implemented:
 
-- Some source/tests still reference 50 waves, including `apps/web/src/game/engine.test.ts`.
-- `apps/web/src/game/content/constants.ts` should be checked for `TOTAL_WAVES`.
+- `TOTAL_WAVES` set to 24 in `apps/web/src/game/content/constants.ts`.
+- Boss milestones at waves 6, 12, and 24 in `waves.ts`.
+- Authored finale waves moved from wave 50 to wave 24 in `waveTables.ts`.
+- Tests updated for 24-wave totals and snapshot reporting.
 
-Implementation notes:
+### P0 — Remove or rename remaining Cosmic-facing UI labels ✅
 
-- Decide whether to immediately move the active web content to 24 waves or keep 50 until content JSON migration.
-- If moving now, update constants, wave tables, tests, UI copy, and any balancing assumptions.
-- Ensure the first playable vertical slice can still be tested without excessive runtime.
+Renamed in a behavior-neutral pass:
 
-Acceptance tests:
+- `CosmicBoardScene` → `GemBoardScene` (`apps/web/src/phaser/GemBoardScene.ts`)
+- `useCosmicGame` → `useGemGame` (`apps/web/src/hooks/useGemGame.ts`)
+- `components/cosmic/` → `components/gem/`
+- Phaser scene key `gem-board`, texture key `board-rock`
+- Canvas aria-label: "Gem TD game board"
+- Test suite describe block updated
 
-- `TOTAL_WAVES` matches the design target.
-- Start/clear/loss tests still run within normal test time.
-- Wave preview and result messages report the correct total.
+Acceptance: `rg "Cosmic|cosmic|Cosmic Siege" apps/web/src` returns no matches.
 
-### P0 — Remove or rename remaining Cosmic-facing UI labels
-
-Current state:
-
-- Runtime mechanics are GemTD-oriented, but some internal and accessibility names still say Cosmic.
-
-Known examples:
-
-- `apps/web/src/components/PhaserGameHost.tsx` aria-label.
-- `apps/web/src/phaser/CosmicBoardScene.ts`
-- `apps/web/src/hooks/useCosmicGame.ts`
-- `apps/web/src/components/cosmic/`
-- Some test descriptions, such as "cosmic gem siege simulation".
-
-Implementation notes:
-
-- Prefer a separate rename-only pass after mechanical parity work is stable.
-- Keep behavior unchanged during the rename pass.
-- Update imports in one commit/slice to reduce mixed semantic and rename diffs.
-
-Acceptance tests:
-
-- `rg "Cosmic|cosmic|Cosmic Siege" apps/web/src docs -n` returns only intentional historical notes or no runtime-facing references.
-- Web build/test/lint pass.
-
-### P1 — Raw recipe parity and formula UI
+### P1 — Raw recipe parity and formula UI ✅
 
 Guide requirement:
 
 - Different gems combine into upgrades, formulas should be visible in a tab at the left side.
 - If the 5 raw gems contain an upgrade formula, the player can build that upgrade directly.
-- Some third-part upgrade behavior may only become available once the round starts.
 
-Current state:
+Implemented:
 
-- Raw recipe commit exists for pair-based `hybridRecipes`.
-- Prospect panel shows detected raw recipe actions only when available.
-- There is not yet a full formula reference tab matching the guide.
+- Dedicated **Formulas** side tab (`FormulasTab` → `RecipePanel`) listing all `hybridRecipes` with inputs, output, and natural level constraints.
+- Shared helpers in `recipes.ts`: `listHybridRecipes`, `findRawRecipeMatches`, `describeRecipeInputs`.
+- Prospect panel still shows detected recipe commit buttons when five raw gems match a pair recipe.
+- Tests in `recipes.test.ts` for catalog completeness, raw match detection, and `commitRawRecipe` stone conversion.
 
-Implementation notes:
+Out of scope note:
 
-- Add a formula reference panel listing all `hybridRecipes`, required inputs, output, and natural level constraints.
-- Keep detected recipe commit buttons in Prospect.
-- Decide whether "third part of an upgrade only after round starts" applies to this project’s recipe system or is out of scope.
+- "Third part of an upgrade only after round starts" does not apply to the current pair-based `hybridRecipes` system.
 
-Acceptance tests:
-
-- Formula panel renders all recipes from `apps/web/src/game/recipes.ts`.
-- Direct raw recipe commit consumes the selected output raw cell and converts all other raw gems into stones.
-- No formula UI hardcodes recipe data outside content/helpers.
-
-### P1 — Maze legality and GemTD squeeze-gap parity
+### P1 — Maze legality and GemTD squeeze-gap parity ✅
 
 Guide requirement:
 
-- Creeps cannot travel through diagonally linked blocks.
-- Ground units travel from arrow to arrow; drawn path does not matter.
-- Ground units take the shortest path and do not prefer tower exposure.
+- Creeps cannot travel through diagonally linked blocks (hex: off-axis distance-2 blocker pinches).
+- Ground units travel checkpoint-to-checkpoint on shortest BFS distances.
 
-Current state:
+Implemented:
 
-- Ordered checkpoints and shortest-path BFS are implemented.
-- The project uses a hex board, so the square-grid "diagonal" rule needs a hex-equivalent acceptance rule.
+- `isSqueezeGapCell` and `isBlockedCell` in `maze.ts`.
+- Off-axis hex blockers at distance 2 pinch shared neighbor cells closed for pathfinding.
+- Collinear distance-2 pairs still allow a legal one-hex corridor.
+- `isWalkableCell` excludes squeeze gaps; checkpoint path validation and path nav inherit the rule.
+- Tests in `maze.test.ts` for pinch detection, corridor legality, path-nav exclusion, and post-raw-gem route validity.
 
-Implementation notes:
+### P1 — PixelLab asset production and integration (batch 1) ✅
 
-- Define and test the hex equivalent of "no ambiguous squeeze gaps".
-- Existing path validation lives in `apps/web/src/game/maze.ts`, `boardQueries.ts`, and path navigation helpers.
-- Use tests with blocker patterns that visually appear passable but should be rejected by the parity rule.
+Implemented this iteration:
 
-Acceptance tests:
+- Verified PixelLab MCP (`user-pixellab`) is available; generated checkpoint markers C-01…C-05 via `create_1_direction_object` (job `ed91107e-ce86-4a67-a1a4-b8f4e781222a`).
+- Exported to `public/assets/terrain/checkpoints/1.png` … `5.png`.
+- Wired `checkpointTextureKey` / `checkpointAssetPath` in `assetManifest.ts`, preload in `GemBoardScene`, and numbered markers in `boardSprites.ts`.
+- Added `assetManifest.test.ts` — verifies core object/gem/enemy/checkpoint paths exist and object PNGs retain alpha.
+- Added placeholder `ember`, `ember_lance`, and `solar_flare` gem folders (copied from existing hybrids) so preload covers all families.
 
-- Checkpoint-to-checkpoint route remains valid after legal raw gem/stone placement.
-- Illegal squeeze-gap blocker patterns are rejected.
-- Ground path remains shortest-to-next-checkpoint, independent of tower exposure.
+Already in repo before this slice:
 
-### P1 — PixelLab asset production and integration
+- Spawn/end gates, rock, terrain floors, 12 enemy walk sheets, and 13 gem families with L1–L7 PNGs.
 
-User requirement:
+Remaining for full tracker completion:
 
-- Use PixelLab MCP first to generate assets.
-- Enemies, gems, rocks, towers, and gates require transparent backgrounds/background removal.
-- Need distinct monsters, ground variations, main spawn gate, end gate, and five special checkpoint tiles.
+- PixelLab replacements for ember-family gems, ground tileset variants (T-02), projectiles/FX, and UI polish assets per `PIXELLAB-ASSET-TRACKER.md`.
 
-Current state:
+### P1 — Warcraft 3 GemTD feel pass ✅
 
-- `docs/PIXELLAB-ASSET-TRACKER.md` has prompts, batches, and acceptance checks.
-- PixelLab MCP was not exposed in the previous session; do not silently switch generators unless the user approves.
+Implemented:
 
-Implementation notes:
+- Base gem `boardName` labels (Amethyst, Emerald, Sapphire, Ruby, Opal, Topaz) used in shop, formulas, and `gemDisplayName`.
+- Build ritual UI: three-step stepper (Place five → Commit one → Ready) with contextual banner hints.
+- Prospect tab renamed from "Raw gem roll"; clearer ritual copy.
+- Larger spawn/end gate and numbered checkpoint sprites on the board (no text labels required).
 
-- First check for `user-pixellab` or PixelLab tools with tool discovery.
-- Generate in this order:
-  1. Spawn/end gates and checkpoint tiles.
-  2. Ground variations and stone blocks.
-  3. Raw/tower gems and recipe towers.
-  4. Distinct enemies and walk animations.
-  5. Projectiles and UI icons.
-- Verify transparent alpha for all object sprites.
-- Integrate under `public/assets/` and update Phaser preload/manifest.
+### P2 — Multiplayer protocol + engine bridge ✅
 
-Acceptance tests:
+Implemented:
 
-- Asset files exist at the tracker paths.
-- Object PNGs have alpha and no opaque square backgrounds.
-- Phaser scene renders the new gates/checkpoints/monsters.
-- Visual screenshot confirms readability at board scale.
+- GemTD-aligned command types in `packages/protocol/src/commands.ts`: `PLACE_RAW_GEM`, `COMMIT_RAW_GEM`, `COMMIT_RAW_RECIPE`, `MERGE_GEMS`, `FINISH_ROCKS`, `REROLL_OFFERS`, plus shared tile/gem payload schemas.
+- `parseCommandEnvelope()` validates envelope + payload together (board bounds 28×20, offer index 0–4, positive gem ids).
+- `protocolBridge.ts` maps validated commands to `GameAction` sequences (including two-step merges).
+- `FacetRoom` retired `@facet/sim`; uses `createGame`, `applyProtocolCommand`, and `createSnapshot` from `@facet/web/game`.
+- Per-player `GameState` with shared `sharedOfferSeed` for deterministic offer rolls across clients.
+- `setGemTargeting` action added for `SET_TARGETING` command parity.
+- `MERGE_GEMS` payload includes `sourceGemId` + `targetGemId`.
+- Web game library emit via `pnpm --filter @facet/web build:game` → `dist-game/` for server consumption.
+- Tests in `commands.test.ts`, `protocolBridge.test.ts`, and `FacetRoom.test.ts`.
 
-### P1 — Warcraft 3 GemTD feel pass
+Remaining for full multiplayer parity:
 
-Current state:
+- Room tick loop, pause votes, and combat sync still run client-side only; server stores authoritative build-phase state per player.
 
-- Mechanics are moving toward GemTD, but names, panel hierarchy, and art still read as a hybrid.
+### P1 — PixelLab asset production (batch 2) ✅
 
-Implementation notes:
+Implemented:
 
-- Rename visible gem family labels toward GemTD analogs or a deliberate legally distinct fantasy crystal set.
-- Make spawn/end gates and checkpoint arrows strong first-viewport board signals.
-- Keep the UI functional and dense; do not add a marketing/landing layer.
-- Avoid overdecorated cards; the player should understand the build ritual at a glance.
+- PixelLab jobs for ember-family gems (`3877995f…`, `62e9f8c0…`, `5cde4518…`) exported to `gems/ember/`, `gems/ember_lance/`, `gems/solar_flare/` (L1–L7).
+- T-02 ground variation tileset (`a7d38ad9…`) exported to `terrain/floor-variants.png`.
+- `assetManifest.ts`: `terrainFloorVariants`, `terrainVariantIndex`, `floorVariantFrame`.
+- `boardSprites.ts`: rock-floor cells use `floor-variants` spritesheet frames when loaded.
+- `GemBoardScene` preloads `floor-variants` as 32×32 spritesheet.
+- `scripts/export-pixellab-batch2.mjs` for re-exporting batch assets.
+- Tests extended in `assetManifest.test.ts` (variant index + ember distinctiveness).
 
-Acceptance tests:
+Remaining per full tracker:
 
-- First build phase visibly communicates: five raw gems, place all five, commit one, other four become stones.
-- Checkpoints are visually numbered or color-coded 1-5.
-- Start/end are visible on the board without relying on text.
+- UI polish assets per `PIXELLAB-ASSET-TRACKER.md`.
 
-### P2 — Multiplayer protocol follow-up
+### P1 — PixelLab asset production (batch 3) ✅
 
-Current state:
+Implemented:
 
-- Solo web engine is authoritative for current parity work.
-- Protocol docs still reference older command names such as `PLACE_ROCK`, `CLAIM_OFFER`, and `CREATE_COMBINATION`.
-
-Implementation notes:
-
-- Add or update protocol commands for:
-  - place raw gem,
-  - commit raw gem,
-  - commit raw recipe,
-  - merge two,
-  - merge four.
-- Ensure multiplayer keeps shared seed/shared raw offers while boards remain independent.
-
-Acceptance tests:
-
-- Zod schemas cover the new commands.
-- Server-side command validation mirrors solo engine constraints.
+- PixelLab jobs: five base-family projectiles (`af3349ff…`), merge burst (`14590726…`), hit spark (`f56058e0…`).
+- Exported to `public/assets/fx/projectiles/{kinetic,verdant,arcane,nova,prism}.png`, `fx/merge-burst.png`, `fx/hit-spark.png`.
+- `ProjectileState.family` added; `projectileVisualBranch()` maps hybrids to base projectile art.
+- `FxSpriteLayer` renders rotated projectile sprites and merge-burst FX (replaces colored circles when assets load).
+- `GemBoardScene` preloads FX textures; circle fallback retained when sprites missing.
+- Tests in `projectileManifest.test.ts` and extended `assetManifest.test.ts`.
 
 ---
 
@@ -266,7 +211,7 @@ Recent important implementation points:
 
 - Raw quality odds live in `apps/web/src/game/buildPhase.ts`.
 - Raw odds are exposed in `Snapshot` via `rawGemBuildLevel` and `rawGemQualityOdds`.
-- Prospect UI is `apps/web/src/components/cosmic/panels/shop.tsx`.
+- Prospect UI is `apps/web/src/components/gem/panels/shop.tsx`.
 - Four-identical merge is implemented in `apps/web/src/game/placement.ts` using `identicalClusterIds` from `apps/web/src/game/gems.ts`.
 - Active combat debuff scalar logic is still in `apps/web/src/game/combat.ts`; this is the next high-priority parity gap.
 - Enemy render tint still depends on scalar `slowUntil`; preserve or deliberately migrate this when adding per-level slow stacks.
@@ -280,23 +225,7 @@ Process constraints from the previous session:
 
 Recommended next implementation slice after approval:
 
-**GemTD debuff stacking by level**
-
-- Different levels stack.
-- Duplicate same-level debuffs do not stack.
-- Expired slow effects stop affecting movement.
-- Tests should prove L1+L2 stacking, L2+L2 non-stacking, and expiration.
-
-Suggested design:
-
-- Add `effectLevel` to `ProjectileState`, set from `gem.level` in `makeProjectile`.
-- Add per-level debuff arrays/maps to `EnemyState`.
-- Implement helpers in `combat.ts`:
-  - `applySlowDebuff(enemy, level, factor, until)`
-  - `effectiveSlowFactor(enemy, now)`
-  - `applyArmorDebuff(enemy, level, reduction, until?)`
-  - `effectiveArmorReduction(enemy, now?)`
-- Keep existing scalar fields as derived compatibility values until the render layer is migrated.
+**Multiplayer combat tick sync** for full MP parity, or **PixelLab UI polish batch** per `PIXELLAB-ASSET-TRACKER.md`.
 
 ---
 

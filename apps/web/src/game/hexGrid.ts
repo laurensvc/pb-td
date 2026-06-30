@@ -1,18 +1,16 @@
 import type { Vec2 } from './types';
 
-/** Flat-top hex grid in axial coordinates (q, r) stored as Vec2.x / Vec2.y. */
-export const HEX_SQRT3 = Math.sqrt(3);
+/** Orthogonal square grid in integer cell coordinates (q, r) stored as Vec2.x / Vec2.y. */
+export const HEX_SQRT3 = 1;
 
-/** World-space distance between centers of adjacent hexes (used for ranges). */
+/** World-space distance between centers of adjacent cells (used for ranges). */
 export const HEX_NEIGHBOR_DIST = 1;
 
-const AXIAL_NEIGHBORS: readonly Vec2[] = [
-  { x: 1, y: 0 },
-  { x: -1, y: 0 },
-  { x: 0, y: 1 },
+const ORTHO_NEIGHBORS: readonly Vec2[] = [
   { x: 0, y: -1 },
-  { x: 1, y: -1 },
-  { x: -1, y: 1 },
+  { x: 1, y: 0 },
+  { x: 0, y: 1 },
+  { x: -1, y: 0 },
 ];
 
 export function hexKey(q: number, r: number): string {
@@ -29,7 +27,7 @@ export function isOnBoard(q: number, r: number, boardW: number, boardH: number):
 }
 
 export function hexNeighbors(q: number, r: number): Vec2[] {
-  return AXIAL_NEIGHBORS.map((d) => ({ x: q + d.x, y: r + d.y }));
+  return ORTHO_NEIGHBORS.map((d) => ({ x: q + d.x, y: r + d.y }));
 }
 
 export function hexAreAdjacent(a: Vec2, b: Vec2): boolean {
@@ -37,31 +35,20 @@ export function hexAreAdjacent(a: Vec2, b: Vec2): boolean {
 }
 
 export function hexDistance(q0: number, r0: number, q1: number, r1: number): number {
-  return (Math.abs(q0 - q1) + Math.abs(q0 + r0 - q1 - r1) + Math.abs(r0 - r1)) / 2;
+  return Math.abs(q0 - q1) + Math.abs(r0 - r1);
 }
 
-/** Continuous world position of a hex center (adjacent centers are 1 unit apart). */
+/** Continuous world position of a cell center (adjacent centers are 1 unit apart). */
 export function hexWorldCenter(q: number, r: number): Vec2 {
-  return { x: q + r * 0.5, y: (r * HEX_SQRT3) / 2 };
+  return { x: q + 0.5, y: r + 0.5 };
 }
 
 export function worldToHex(x: number, y: number): Vec2 {
-  const r = (2 * y) / HEX_SQRT3;
-  const q = x - r / 2;
-  return hexRound(q, r);
+  return { x: Math.floor(x), y: Math.floor(y) };
 }
 
 export function hexRound(q: number, r: number): Vec2 {
-  const s = -q - r;
-  let rq = Math.round(q);
-  let rr = Math.round(r);
-  const rs = Math.round(s);
-  const dq = Math.abs(rq - q);
-  const dr = Math.abs(rr - r);
-  const ds = Math.abs(rs - s);
-  if (dq > dr && dq > ds) rq = -rr - rs;
-  else if (dr > ds) rr = -rq - rs;
-  return { x: rq, y: rr };
+  return { x: Math.round(q), y: Math.round(r) };
 }
 
 export function allBoardCells(boardW: number, boardH: number): Vec2[] {
@@ -74,16 +61,31 @@ export function allBoardCells(boardW: number, boardH: number): Vec2[] {
   return cells;
 }
 
-/** Hex cells along a straight line in axial space (for spawn/goal corridors). */
+/** Grid cells along a straight line between endpoints (Bresenham). */
 export function hexLine(a: Vec2, b: Vec2): Vec2[] {
-  const n = hexDistance(a.x, a.y, b.x, b.y);
-  if (n === 0) return [{ x: a.x, y: a.y }];
+  let x0 = a.x;
+  let y0 = a.y;
+  const x1 = b.x;
+  const y1 = b.y;
   const results: Vec2[] = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const q = a.x + (b.x - a.x) * t;
-    const r = a.y + (b.y - a.y) * t;
-    results.push(hexRound(q, r));
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+
+  while (true) {
+    results.push({ x: x0, y: y0 });
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y0 += sy;
+    }
   }
   return results;
 }
@@ -92,62 +94,47 @@ export function hexLineKeys(a: Vec2, b: Vec2): Set<string> {
   return new Set(hexLine(a, b).map((c) => hexKey(c.x, c.y)));
 }
 
-/** Pixel center for flat-top hex with given outer radius (center to vertex). */
-export function hexPixelCenter(q: number, r: number, radius: number): Vec2 {
+/** Pixel center for a square tile. */
+export function hexPixelCenter(q: number, r: number, tileSize: number): Vec2 {
   return {
-    x: radius * HEX_SQRT3 * (q + r / 2),
-    y: radius * 1.5 * r,
+    x: (q + 0.5) * tileSize,
+    y: (r + 0.5) * tileSize,
   };
 }
 
-/** Pixel outline vertices for a flat-top hex (6 points, closed loop). */
-export function hexPixelCorners(q: number, r: number, radius: number): Vec2[] {
-  const center = hexPixelCenter(q, r, radius);
-  const corners: Vec2[] = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i);
-    corners.push({
-      x: center.x + radius * Math.cos(angle),
-      y: center.y + radius * Math.sin(angle),
-    });
-  }
-  return corners;
+/** Pixel outline corners for a square tile (4 points, closed loop). */
+export function hexPixelCorners(q: number, r: number, tileSize: number): Vec2[] {
+  const x0 = q * tileSize;
+  const y0 = r * tileSize;
+  return [
+    { x: x0, y: y0 },
+    { x: x0 + tileSize, y: y0 },
+    { x: x0 + tileSize, y: y0 + tileSize },
+    { x: x0, y: y0 + tileSize },
+  ];
 }
 
-export function pixelToHex(px: number, py: number, radius: number): Vec2 {
-  const q = ((HEX_SQRT3 / 3) * px - (1 / 3) * py) / radius;
-  const r = ((2 / 3) * py) / radius;
-  return hexRound(q, r);
+export function pixelToHex(px: number, py: number, tileSize: number): Vec2 {
+  return {
+    x: Math.floor(px / tileSize),
+    y: Math.floor(py / tileSize),
+  };
 }
 
 export function boardPixelBounds(
   boardW: number,
   boardH: number,
-  radius: number,
+  tileSize: number,
 ): { width: number; height: number; padX: number; padY: number } {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (let r = 0; r < boardH; r++) {
-    for (let q = 0; q < boardW; q++) {
-      for (const corner of hexPixelCorners(q, r, radius)) {
-        minX = Math.min(minX, corner.x);
-        minY = Math.min(minY, corner.y);
-        maxX = Math.max(maxX, corner.x);
-        maxY = Math.max(maxY, corner.y);
-      }
-    }
-  }
   return {
-    width: maxX - minX,
-    height: maxY - minY,
-    padX: -minX,
-    padY: -minY,
+    width: boardW * tileSize,
+    height: boardH * tileSize,
+    padX: 0,
+    padY: 0,
   };
 }
 
-/** World units per pixel at a given hex radius. */
-export function worldPerPixel(radius: number): number {
-  return 1 / (radius * HEX_SQRT3);
+/** World units per pixel at a given tile size. */
+export function worldPerPixel(tileSize: number): number {
+  return 1 / tileSize;
 }

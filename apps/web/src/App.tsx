@@ -2,23 +2,26 @@ import { useEffect, useState, lazy, Suspense } from 'react';
 import { isPlanningPhase } from './game/buildPhase';
 import type { GameAction, Snapshot } from './game/types';
 import { PhaserGameHost } from './components/PhaserGameHost';
-import { ResourcePill, ResultPanel } from './components/cosmic/panels/hud';
-import { useCosmicGame } from './hooks/useCosmicGame';
+import { ResourcePill, ResultPanel } from './components/gem/panels/hud';
+import { useGemGame } from './hooks/useGemGame';
 
 const BuildTab = lazy(() =>
-  import('./components/cosmic/panels/BuildTab').then((m) => ({ default: m.BuildTab })),
+  import('./components/gem/panels/BuildTab').then((m) => ({ default: m.BuildTab })),
 );
 const ShopTab = lazy(() =>
-  import('./components/cosmic/panels/ShopTab').then((m) => ({ default: m.ShopTab })),
+  import('./components/gem/panels/ShopTab').then((m) => ({ default: m.ShopTab })),
+);
+const FormulasTab = lazy(() =>
+  import('./components/gem/panels/FormulasTab').then((m) => ({ default: m.FormulasTab })),
 );
 const ProgressTab = lazy(() =>
-  import('./components/cosmic/panels/ProgressTab').then((m) => ({ default: m.ProgressTab })),
+  import('./components/gem/panels/ProgressTab').then((m) => ({ default: m.ProgressTab })),
 );
 
-type SideTab = 'build' | 'prospect' | 'run';
+type SideTab = 'build' | 'prospect' | 'formulas' | 'run';
 
 export default function App() {
-  const { snapshot, dispatch, bridge } = useCosmicGame();
+  const { snapshot, dispatch, bridge } = useGemGame();
   const save = snapshot.save;
   const planning = isPlanningPhase(snapshot.status);
   const [tab, setTab] = useState<SideTab>('build');
@@ -62,6 +65,7 @@ export default function App() {
             [
               ['build', 'Build'],
               ['prospect', 'Prospect'],
+              ['formulas', 'Formulas'],
               ['run', 'Run'],
             ] as const
           ).map(([id, label]) => (
@@ -85,6 +89,7 @@ export default function App() {
             {tab === 'prospect' && (
               <ShopTab snapshot={snapshot} planning={planning} dispatch={dispatch} save={save} />
             )}
+            {tab === 'formulas' && <FormulasTab save={save} />}
             {tab === 'run' && <ProgressTab snapshot={snapshot} dispatch={dispatch} />}
           </Suspense>
         </div>

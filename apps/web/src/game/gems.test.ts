@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { canMergeGems, gemSellValue, getGemCombatStats, mergedLevel } from './gems';
+import {
+  canMergeGems,
+  gemDisplayName,
+  gemFamilyBoardName,
+  gemSellValue,
+  getGemCombatStats,
+  mergedLevel,
+} from './gems';
 import { createDefaultSave } from './save';
 
 describe('gems', () => {
@@ -39,5 +46,12 @@ describe('gems', () => {
 
   it('sell value scales with level', () => {
     expect(gemSellValue('kinetic', 1)).toBeLessThan(gemSellValue('kinetic', 5));
+  });
+
+  it('uses GemTD-style board names for base crystal families', () => {
+    expect(gemFamilyBoardName('kinetic')).toBe('Amethyst');
+    expect(gemFamilyBoardName('verdant')).toBe('Emerald');
+    expect(gemFamilyBoardName('arcane')).toBe('Sapphire');
+    expect(gemDisplayName('nova', 1)).toBe('Chipped Ruby');
   });
 });

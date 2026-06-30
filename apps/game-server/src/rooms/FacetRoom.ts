@@ -1,41 +1,56 @@
 import { Room, type Client } from 'colyseus';
-import { createFacetState, dispatchFacet, facetSnapshot } from '@facet/sim';
-import { commandEnvelopeSchema } from '@facet/protocol';
-import type { FacetState } from '@facet/sim';
+import { parseCommandEnvelope } from '@facet/protocol';
+import { applyProtocolCommand, createGame, createSnapshot, type GameState } from '@facet/web/game';
 
 export class FacetRoom extends Room {
-  private states = new Map<string, FacetState>();
+  private states = new Map<string, GameState>();
+  private clientPlayers = new Map<string, string>();
+  private sharedOfferSeed = Date.now();
 
-  onCreate() {
+  onCreate(options?: { seed?: number }) {
     this.setPatchRate(100);
     this.maxClients = 4;
+    if (options?.seed !== undefined) {
+      this.sharedOfferSeed = options.seed;
+    }
 
     this.onMessage('command', (client: Client, raw: unknown) => {
-      const parsed = commandEnvelopeSchema.safeParse(raw);
-      if (!parsed.success) return;
-      const { playerId, commandType, payload } = parsed.data;
-      const state = this.states.get(playerId);
-      if (!state) return;
-
-      switch (commandType) {
-        case 'PLACE_ROCK':
-          dispatchFacet(state, { type: 'PLACE_ROCK', x: Number(payload.x), y: Number(payload.y) });
-          break;
-        case 'READY_FOR_WAVE':
-          dispatchFacet(state, { type: 'READY' });
-          break;
-        default:
-          break;
+      const parsed = parseCommandEnvelope(raw);
+      if (!parsed.success) {
+        client.send('commandRejected', { reason: 'invalid_command' });
+        return;
       }
 
-      client.send('snapshot', facetSnapshot(state));
+      const { playerId } = parsed.command;
+      const state = this.states.get(playerId);
+      if (!state) {
+        client.send('commandRejected', { reason: 'unknown_player' });
+        return;
+      }
+
+      const feedback = applyProtocolCommand(state, parsed.command);
+      client.send('snapshot', {
+        snapshot: createSnapshot(state),
+        feedback,
+        clientSequence: parsed.command.clientSequence,
+      });
     });
   }
 
   onJoin(client: Client, options: { playerId?: string; seed?: number }) {
-    const seed = options.seed ?? Date.now();
+    const seed = options.seed ?? this.sharedOfferSeed;
     const playerId = options.playerId ?? client.sessionId;
-    this.states.set(playerId, createFacetState(seed));
-    client.send('welcome', { playerId, seed, sharedOfferSeed: seed });
+    this.clientPlayers.set(client.sessionId, playerId);
+    this.states.set(playerId, createGame(undefined, { runSeed: seed }));
+    client.send('welcome', { playerId, seed, sharedOfferSeed: this.sharedOfferSeed });
+    client.send('snapshot', { snapshot: createSnapshot(this.states.get(playerId)!) });
+  }
+
+  onLeave(client: Client) {
+    const playerId = this.clientPlayers.get(client.sessionId);
+    if (playerId) {
+      this.states.delete(playerId);
+    }
+    this.clientPlayers.delete(client.sessionId);
   }
 }

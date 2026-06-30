@@ -39,6 +39,8 @@ export interface EnemyDefinition {
 export interface GemDefinition {
   id: GemFamilyId;
   name: string;
+  /** Player-facing crystal name on board/UI (GemTD-inspired analog). */
+  boardName?: string;
   role: string;
   branch?: BaseGemFamilyId;
   hybrid?: boolean;

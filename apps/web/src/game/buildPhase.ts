@@ -100,14 +100,36 @@ export function generateOffers(
 export function buildStepLabel(step: BuildStep): string {
   switch (step) {
     case 'rocks':
-      return 'Place raw gems';
+      return 'Place five raw gems';
     case 'prospect':
-      return 'Commit gem';
+      return 'Commit one gem';
     case 'upgrade':
-      return 'Upgrade rock';
+      return 'Commit one gem';
     case 'ready':
-      return 'Ready';
+      return 'Ready to defend';
   }
+}
+
+export function buildRitualHint(step: BuildStep, rawGemsPlaced: number): string {
+  switch (step) {
+    case 'rocks':
+      return rawGemsPlaced < ROCKS_PER_PHASE
+        ? `Place all ${ROCKS_PER_PHASE} raw gems on the board (${rawGemsPlaced}/${ROCKS_PER_PHASE}).`
+        : 'All raw gems placed. Switch to Prospect to commit one.';
+    case 'prospect':
+    case 'upgrade':
+      return 'Commit one raw gem or build a detected recipe. The other four become stone blocks.';
+    case 'ready':
+      return 'Unused raw gems are now stones. Merge towers, then Start Wave.';
+  }
+}
+
+export type BuildRitualPhase = 'place' | 'commit' | 'ready';
+
+export function buildRitualPhase(step: BuildStep): BuildRitualPhase {
+  if (step === 'rocks') return 'place';
+  if (step === 'prospect' || step === 'upgrade') return 'commit';
+  return 'ready';
 }
 
 export function isPlanningPhase(status: string): boolean {

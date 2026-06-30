@@ -1,14 +1,10 @@
-import type {
-  BaseGemFamilyId,
-  GemDefinition,
-  GemFamilyId,
-  HybridGemFamilyId,
-} from '../types';
+import type { BaseGemFamilyId, GemDefinition, GemFamilyId, HybridGemFamilyId } from '../types';
 
 export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
   kinetic: {
     id: 'kinetic',
     name: 'Kinetic Crystal',
+    boardName: 'Amethyst',
     role: 'Rapid fire with crit bursts.',
     branch: 'kinetic',
     damageType: 'physical',
@@ -23,6 +19,7 @@ export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
   verdant: {
     id: 'verdant',
     name: 'Verdant Spore',
+    boardName: 'Emerald',
     role: 'Stacking poison damage over time.',
     branch: 'verdant',
     damageType: 'magic',
@@ -38,6 +35,7 @@ export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
   arcane: {
     id: 'arcane',
     name: 'Arcane Lens',
+    boardName: 'Sapphire',
     role: 'Shield-breaking precision beams.',
     branch: 'arcane',
     damageType: 'magic',
@@ -52,6 +50,7 @@ export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
   nova: {
     id: 'nova',
     name: 'Nova Mortar',
+    boardName: 'Ruby',
     role: 'Slowing splash artillery.',
     branch: 'nova',
     damageType: 'pure',
@@ -68,6 +67,7 @@ export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
   prism: {
     id: 'prism',
     name: 'Prism Shard',
+    boardName: 'Opal',
     role: 'Armor shred and bonus vs tanks.',
     branch: 'prism',
     damageType: 'physical',
@@ -83,6 +83,7 @@ export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
   ember: {
     id: 'ember',
     name: 'Ember Core',
+    boardName: 'Topaz',
     role: 'Burn damage that stacks on repeated hits.',
     branch: 'ember',
     damageType: 'magic',

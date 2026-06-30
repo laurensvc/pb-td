@@ -49,8 +49,7 @@ export function normalizeSave(partial: Partial<SaveState> & Record<string, unkno
 
   return {
     version: 1,
-    unlockedGemFamilies:
-      unlocked.length > 0 ? unlocked : [...defaultSaveState.unlockedGemFamilies],
+    unlockedGemFamilies: unlocked.length > 0 ? unlocked : [...defaultSaveState.unlockedGemFamilies],
     clearedAreaTiers: uniqueStrings(partial.clearedAreaTiers ?? []).filter((key) =>
       areaDefinitions.some((area) =>
         (Object.keys(area.tiers) as string[]).some(
@@ -71,5 +70,8 @@ function uniqueFamilies(values: readonly string[]): GemFamilyId[] {
 }
 
 function getStorage(): Storage | undefined {
-  return typeof window === 'undefined' ? undefined : window.localStorage;
+  if (typeof globalThis !== 'object' || !('localStorage' in globalThis)) {
+    return undefined;
+  }
+  return (globalThis as { localStorage?: Storage }).localStorage;
 }

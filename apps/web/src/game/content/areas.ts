@@ -2,27 +2,34 @@ import type { AreaDefinition, TierId } from '../types';
 import { buildPathNav } from '../pathNav';
 
 const areaOnePath = [
-  { x: 0, y: 5 },
-  { x: 4, y: 2 },
-  { x: 12, y: 2 },
-  { x: 12, y: 5 },
+  { x: 0, y: 10 },
+  { x: 4, y: 10 },
   { x: 4, y: 5 },
-  { x: 4, y: 8 },
-  { x: 15, y: 8 },
+  { x: 12, y: 5 },
+  { x: 12, y: 10 },
+  { x: 18, y: 10 },
+  { x: 18, y: 15 },
+  { x: 24, y: 15 },
+  { x: 24, y: 10 },
+  { x: 27, y: 10 },
 ];
 
 const areaTwoPath = [
-  { x: 0, y: 4 },
-  { x: 9, y: 4 },
-  { x: 9, y: 7 },
-  { x: 15, y: 7 },
+  { x: 0, y: 8 },
+  { x: 10, y: 8 },
+  { x: 10, y: 12 },
+  { x: 20, y: 12 },
+  { x: 20, y: 8 },
+  { x: 27, y: 8 },
 ];
 
 const areaThreePath = [
-  { x: 0, y: 3 },
-  { x: 11, y: 3 },
-  { x: 11, y: 6 },
-  { x: 15, y: 6 },
+  { x: 0, y: 6 },
+  { x: 8, y: 6 },
+  { x: 8, y: 14 },
+  { x: 18, y: 14 },
+  { x: 18, y: 6 },
+  { x: 27, y: 6 },
 ];
 
 export const areaDefinitions: AreaDefinition[] = [

@@ -1,0 +1,13 @@
+import type { BuildStep, GemFamilyId, GemOffer, RawGemQualityOdds, TargetingMode } from './types';
+export type { BuildStep, GemOffer, RawGemQualityOdds };
+export declare const ROCKS_PER_PHASE = 5;
+export declare function prospectRerollCost(rerollsThisPhase: number): number;
+export declare function rawGemBuildLevel(waveIndex: number): number;
+export declare function rawGemQualityOdds(waveIndex: number): RawGemQualityOdds[];
+export declare function generateOffers(runSeed: number, waveIndex: number, rerollsThisPhase: number, unlockedFamilies: readonly GemFamilyId[]): GemOffer[];
+export declare function buildStepLabel(step: BuildStep): string;
+export declare function buildRitualHint(step: BuildStep, rawGemsPlaced: number): string;
+export type BuildRitualPhase = 'place' | 'commit' | 'ready';
+export declare function buildRitualPhase(step: BuildStep): BuildRitualPhase;
+export declare function isPlanningPhase(status: string): boolean;
+export declare function defaultGemTargeting(): TargetingMode;

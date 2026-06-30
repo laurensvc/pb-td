@@ -67,6 +67,20 @@ export function placeRawGem(state: GameState, x: number, y: number): UiFeedback 
   return {};
 }
 
+export function removeRawGem(state: GameState, rawGemId: number): UiFeedback {
+  if (!isPlanningPhase(state.status)) return {};
+  if (state.buildStep !== 'rocks' && state.buildStep !== 'prospect') return {};
+  const index = state.rawGems.findIndex((raw) => raw.id === rawGemId);
+  if (index < 0) return {};
+  state.rawGems.splice(index, 1);
+  state.rocksPlacedThisPhase = state.rawGems.length;
+  if (state.buildStep === 'prospect' && state.rawGems.length < ROCKS_PER_PHASE) {
+    state.buildStep = 'rocks';
+  }
+  rebuildPathNav(state);
+  return {};
+}
+
 function commitRawOutput(
   state: GameState,
   output: { family: GemFamilyId; level: GemLevel },
@@ -443,6 +457,13 @@ export function cycleGemTargeting(state: GameState, gemId: number): void {
   const order: TargetingMode[] = ['first', 'last', 'strong', 'weak'];
   const idx = order.indexOf(gem.targeting);
   gem.targeting = order[(idx + 1) % order.length]!;
+}
+
+export function setGemTargeting(state: GameState, gemId: number, mode: TargetingMode): void {
+  if (!isPlanningPhase(state.status)) return;
+  const gem = state.gems.find((g) => g.id === gemId);
+  if (!gem) return;
+  gem.targeting = mode;
 }
 
 export function rerollQuestAction(state: GameState, questId: string): void {

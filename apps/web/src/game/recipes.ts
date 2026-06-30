@@ -119,10 +119,7 @@ export const hybridRecipes: Recipe[] = [
   },
 ];
 
-export function findMatchingRecipe(
-  a: RecipeInput,
-  b: RecipeInput,
-): Recipe | undefined {
+export function findMatchingRecipe(a: RecipeInput, b: RecipeInput): Recipe | undefined {
   for (const recipe of hybridRecipes) {
     const [i0, i1] = recipe.inputs;
     if (inputsMatch(i0, i1, a, b)) return recipe;
@@ -130,28 +127,36 @@ export function findMatchingRecipe(
   return undefined;
 }
 
-function inputsMatch(
-  i0: RecipeInput,
-  i1: RecipeInput,
-  a: RecipeInput,
-  b: RecipeInput,
-): boolean {
-  return (
-    (match(i0, a) && match(i1, b)) ||
-    (match(i0, b) && match(i1, a))
-  );
+export function listHybridRecipes(): readonly Recipe[] {
+  return hybridRecipes;
+}
+
+export function describeRecipeInputs(recipe: Recipe): string {
+  const [a, b] = recipe.inputs;
+  return `${a.family} L${a.level} + ${b.family} L${b.level}`;
+}
+
+export function findRawRecipeMatches(rawGems: readonly RecipeInput[]): Recipe[] {
+  if (rawGems.length < 5) return [];
+  const matches = new Map<string, Recipe>();
+  for (let i = 0; i < rawGems.length; i++) {
+    for (let j = i + 1; j < rawGems.length; j++) {
+      const recipe = findMatchingRecipe(rawGems[i]!, rawGems[j]!);
+      if (recipe) matches.set(recipe.id, recipe);
+    }
+  }
+  return [...matches.values()];
+}
+
+function inputsMatch(i0: RecipeInput, i1: RecipeInput, a: RecipeInput, b: RecipeInput): boolean {
+  return (match(i0, a) && match(i1, b)) || (match(i0, b) && match(i1, a));
 }
 
 function match(expected: RecipeInput, actual: RecipeInput): boolean {
   return expected.family === actual.family && expected.level === actual.level;
 }
 
-export function areAdjacentGems(
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-): boolean {
+export function areAdjacentGems(ax: number, ay: number, bx: number, by: number): boolean {
   const a = worldToHex(ax, ay);
   const b = worldToHex(bx, by);
   return hexAreAdjacent(a, b);

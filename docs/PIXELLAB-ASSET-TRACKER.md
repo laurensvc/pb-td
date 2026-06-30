@@ -45,11 +45,11 @@ Ground tiles are the only assets that may include a full tile background.
 | ID        | Asset                           | Tool                        | Status  | Job ID | Export path                                |
 | --------- | ------------------------------- | --------------------------- | ------- | ------ | ------------------------------------------ |
 | T-01      | Crystal floor base tileset      | `create_topdown_tileset`    | planned | —      | `public/assets/terrain/floor-base.png`     |
-| T-02      | Ground variation tileset        | `create_topdown_tileset`    | planned | —      | `public/assets/terrain/floor-variants.png` |
+| T-02      | Ground variation tileset        | `create_topdown_tileset`    | in-game | a7d38ad9… | `public/assets/terrain/floor-variants.png` |
 | O-01      | Stone block from unused raw gem | `create_1_direction_object` | planned | —      | `public/assets/objects/rock.png`           |
 | O-02      | Main spawn gate (`S`)           | `create_map_object`         | planned | —      | `public/assets/objects/spawn-portal.png`   |
 | O-03      | End gate (`F`)                  | `create_map_object`         | planned | —      | `public/assets/objects/goal-nexus.png`     |
-| C-01…C-05 | Ordered checkpoint ground tiles | `create_topdown_tileset`    | planned | —      | `public/assets/terrain/checkpoints/`       |
+| C-01…C-05 | Ordered checkpoint ground tiles | `create_1_direction_object` | in-game | ed91107e… | `public/assets/terrain/checkpoints/` |
 | FX-01     | Path preview sparkle            | `create_tiles_pro`          | planned | —      | `public/assets/fx/path-sparkle.png`        |
 
 ### T-01 prompt
@@ -90,8 +90,8 @@ Five families × 7 tiers (L1–L6 + GREAT). Generate one family per session for 
 | G-ARC-L1 … G-ARC-GREAT | Arcane gems        | `create_1_direction_object` | planned | `public/assets/gems/arcane/`       |
 | G-NOV-L1 … G-NOV-GREAT | Nova gems          | `create_1_direction_object` | planned | `public/assets/gems/nova/`         |
 | G-PRI-L1 … G-PRI-GREAT | Prism gems         | `create_1_direction_object` | planned | `public/assets/gems/prism/`        |
-| FX-02                  | Merge burst        | `create_1_direction_object` | planned | `public/assets/fx/merge-burst.png` |
-| P-01 … P-05            | Family projectiles | `create_1_direction_object` | planned | `public/assets/fx/projectiles/`    |
+| FX-02                  | Merge burst        | `create_1_direction_object` | in-game | 14590726… | `public/assets/fx/merge-burst.png` |
+| P-01 … P-05            | Family projectiles | `create_1_direction_object` | in-game | af3349ff… | `public/assets/fx/projectiles/`    |
 
 ### L1–L6 batch template (per family)
 
@@ -171,7 +171,7 @@ top-down Warcraft 3 Gem TD inspired monster sprite, distinct silhouette, readabl
 | ----- | ---------------- | --------------------------- | ------- | ------------------------------------ |
 | UI-05 | Quest card frame | `create_map_object`         | planned | `public/assets/ui/quest-card.png`    |
 | UI-06 | Quest icons ×8   | `create_1_direction_object` | planned | `public/assets/ui/quest-icons/`      |
-| FX-03 | Hit sparks ×3    | `create_1_direction_object` | planned | `public/assets/fx/hit-spark.png`     |
+| FX-03 | Hit sparks ×3    | `create_1_direction_object` | exported | f56058e0… | `public/assets/fx/hit-spark.png`     |
 | FX-04 | Leak warning     | `create_1_direction_object` | planned | `public/assets/fx/leak-skull.png`    |
 | UI-07 | Tutorial pointer | `create_1_direction_object` | planned | `public/assets/ui/tutorial-hand.png` |
 
@@ -185,7 +185,7 @@ top-down Warcraft 3 Gem TD inspired monster sprite, distinct silhouette, readabl
 - [ ] Transparent alpha verified; no opaque square or baked background
 - [ ] Silhouette readable at 32×32 in a Phaser board screenshot
 - [ ] Atlas JSON or frame coords documented
-- [ ] `CosmicBoardScene` preload updated
+- [x] `GemBoardScene` preload updated
 - [ ] Legacy atlas reference removed or deprecated
 - [ ] Visual pass in dev server (`pnpm dev`)
 

@@ -1,4 +1,4 @@
-import type { GameSpeed, PlacementMode, TierId } from './primitives';
+import type { GameSpeed, PlacementMode, TargetingMode, TierId } from './primitives';
 
 export interface UiFeedback {
   toast?: string;
@@ -11,6 +11,7 @@ export type GameAction =
   | { type: 'selectInventoryGem'; gemId: number | null }
   | { type: 'placeGem'; x: number; y: number }
   | { type: 'placeRawGem'; x: number; y: number }
+  | { type: 'removeRawGem'; rawGemId: number }
   | { type: 'placeRock'; x: number; y: number }
   | { type: 'finishRocks' }
   | { type: 'claimOffer'; index: number }
@@ -29,6 +30,7 @@ export type GameAction =
   | { type: 'clearHold' }
   | { type: 'undoMerge' }
   | { type: 'cycleGemTargeting'; gemId: number }
+  | { type: 'setGemTargeting'; gemId: number; mode: TargetingMode }
   | { type: 'setGameSpeed'; speed: GameSpeed }
   | { type: 'rerollQuest'; questId: string }
   | { type: 'retry' }

@@ -21,17 +21,7 @@ const AREA_WAVE_OVERRIDES: Record<string, Partial<Record<number, WaveSegment[]>>
       { enemyId: 'mystic', count: 6 },
       { enemyId: 'brute', count: 5 },
     ],
-    30: [
-      { enemyId: 'dreadnought', count: 1 },
-      { enemyId: 'vanguard', count: 6 },
-      { enemyId: 'striker', count: 10 },
-    ],
-    40: [
-      { enemyId: 'dreadnought', count: 1 },
-      { enemyId: 'warden', count: 8 },
-      { enemyId: 'mystic', count: 8 },
-    ],
-    50: [
+    24: [
       { enemyId: 'dreadnought', count: 1 },
       { enemyId: 'vanguard', count: 10 },
       { enemyId: 'warden', count: 8 },
@@ -48,12 +38,12 @@ const AREA_WAVE_OVERRIDES: Record<string, Partial<Record<number, WaveSegment[]>>
       { enemyId: 'runner', count: 10 },
       { enemyId: 'shifter', count: 4 },
     ],
-    25: [
+    12: [
       { enemyId: 'colossus', count: 1 },
       { enemyId: 'mystic', count: 8 },
       { enemyId: 'shifter', count: 6 },
     ],
-    50: [
+    24: [
       { enemyId: 'dreadnought', count: 1 },
       { enemyId: 'vanguard', count: 8 },
       { enemyId: 'mystic', count: 10 },
@@ -69,12 +59,7 @@ const AREA_WAVE_OVERRIDES: Record<string, Partial<Record<number, WaveSegment[]>>
       { enemyId: 'brute', count: 6 },
       { enemyId: 'striker', count: 8 },
     ],
-    35: [
-      { enemyId: 'dreadnought', count: 1 },
-      { enemyId: 'warden', count: 10 },
-      { enemyId: 'mystic', count: 8 },
-    ],
-    50: [
+    24: [
       { enemyId: 'dreadnought', count: 1 },
       { enemyId: 'vanguard', count: 12 },
       { enemyId: 'warden', count: 10 },
@@ -150,8 +135,6 @@ export function buildWaveSpawnTracker(
     remaining,
     alive: aliveEnemies,
     killed: killedThisWave,
-    currentSegment: segment
-      ? { enemyId: segment.enemyId, name: enemyName(segment.enemyId) }
-      : null,
+    currentSegment: segment ? { enemyId: segment.enemyId, name: enemyName(segment.enemyId) } : null,
   };
 }

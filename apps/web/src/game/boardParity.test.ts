@@ -6,8 +6,8 @@ describe('boardParity hex', () => {
   it('splits hex cells into rock and gem parity', () => {
     const rock = parityCells(BOARD_WIDTH, BOARD_HEIGHT, 'rock');
     const gem = parityCells(BOARD_WIDTH, BOARD_HEIGHT, 'gem');
-    expect(rock).toHaveLength(80);
-    expect(gem).toHaveLength(80);
+    expect(rock).toHaveLength(280);
+    expect(gem).toHaveLength(280);
     expect(rock.length + gem.length).toBe(BOARD_WIDTH * BOARD_HEIGHT);
   });
 

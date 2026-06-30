@@ -32,13 +32,49 @@ export function createMazeLayout(
   };
 }
 
+export function isBlockedCell(layout: MazeLayout, q: number, r: number): boolean {
+  const key = cellKey(q, r);
+  return layout.rocks.has(key) || layout.blockedTowerCells.has(key);
+}
+
+/**
+ * GemTD diagonal squeeze rule: two diagonally opposed blockers pinch the shared
+ * orthogonal neighbor cells closed even though no rock sits on those cells.
+ */
+export function isSqueezeGapCell(layout: MazeLayout, q: number, r: number): boolean {
+  if (!hexIsOnBoard(q, r, layout.boardW, layout.boardH)) return false;
+  const selfKey = cellKey(q, r);
+  if (selfKey === cellKey(layout.spawnCell.x, layout.spawnCell.y)) return false;
+  if (selfKey === cellKey(layout.goalCell.x, layout.goalCell.y)) return false;
+  for (const cp of layout.checkpoints) {
+    if (selfKey === cellKey(cp.x, cp.y)) return false;
+  }
+  if (isBlockedCell(layout, q, r)) return false;
+
+  const blockedNeighbors: Vec2[] = [];
+  for (const neighbor of hexNeighbors(q, r)) {
+    if (isBlockedCell(layout, neighbor.x, neighbor.y)) {
+      blockedNeighbors.push(neighbor);
+    }
+  }
+
+  for (let i = 0; i < blockedNeighbors.length; i++) {
+    for (let j = i + 1; j < blockedNeighbors.length; j++) {
+      const a = blockedNeighbors[i]!;
+      const b = blockedNeighbors[j]!;
+      if (Math.abs(a.x - b.x) === 1 && Math.abs(a.y - b.y) === 1) return true;
+    }
+  }
+  return false;
+}
+
 export function isWalkableCell(layout: MazeLayout, q: number, r: number): boolean {
   if (!hexIsOnBoard(q, r, layout.boardW, layout.boardH)) return false;
   const key = cellKey(q, r);
   if (key === cellKey(layout.spawnCell.x, layout.spawnCell.y)) return true;
   if (key === cellKey(layout.goalCell.x, layout.goalCell.y)) return true;
-  if (layout.rocks.has(key)) return false;
-  if (layout.blockedTowerCells.has(key)) return false;
+  if (isBlockedCell(layout, q, r)) return false;
+  if (isSqueezeGapCell(layout, q, r)) return false;
   return true;
 }
 

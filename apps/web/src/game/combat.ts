@@ -14,11 +14,74 @@ import type {
   EnemyState,
   GameState,
   GemFamilyId,
+  GemLevel,
   GemState,
   ProjectileState,
   TierId,
   WaveSegment,
 } from './types';
+
+const MAX_SLOW_FACTOR = 0.75;
+
+export function applySlowDebuff(
+  enemy: EnemyState,
+  level: GemLevel,
+  factor: number,
+  until: number,
+): void {
+  const existing = enemy.slowDebuffs.find((debuff) => debuff.level === level);
+  if (existing) {
+    existing.factor = Math.max(existing.factor, factor);
+    existing.until = Math.max(existing.until, until);
+  } else {
+    enemy.slowDebuffs.push({ level, factor, until });
+  }
+}
+
+export function effectiveSlowFactor(enemy: EnemyState, now: number): number {
+  const active = enemy.slowDebuffs.filter((debuff) => debuff.until > now);
+  if (active.length === 0) return 0;
+  const total = active.reduce((sum, debuff) => sum + debuff.factor, 0);
+  return Math.min(MAX_SLOW_FACTOR, total);
+}
+
+export function applyArmorDebuff(
+  enemy: EnemyState,
+  level: GemLevel,
+  reduction: number,
+  until?: number,
+): void {
+  const existing = enemy.armorDebuffs.find((debuff) => debuff.level === level);
+  if (existing) {
+    existing.reduction = Math.max(existing.reduction, reduction);
+    if (until !== undefined) {
+      existing.until = Math.max(existing.until ?? 0, until);
+    }
+  } else {
+    enemy.armorDebuffs.push({ level, reduction, until });
+  }
+}
+
+export function effectiveArmorReduction(enemy: EnemyState, now = Infinity): number {
+  const active = enemy.armorDebuffs.filter(
+    (debuff) => debuff.until === undefined || debuff.until > now,
+  );
+  return active.reduce((sum, debuff) => sum + debuff.reduction, 0);
+}
+
+export function syncDebuffScalars(enemy: EnemyState, now: number): void {
+  const slow = effectiveSlowFactor(enemy, now);
+  if (slow > 0) {
+    enemy.slowFactor = slow;
+    enemy.slowUntil = Math.max(
+      ...enemy.slowDebuffs.filter((debuff) => debuff.until > now).map((debuff) => debuff.until),
+    );
+  } else {
+    enemy.slowFactor = 0;
+    enemy.slowUntil = 0;
+  }
+  enemy.armorReduction = effectiveArmorReduction(enemy, now);
+}
 
 export const MAX_DT = 0.05;
 export const PROJECTILE_HIT_DISTANCE = 0.12;
@@ -86,8 +149,10 @@ export function spawnEnemy(
     revealedUntil: 0,
     poisonDps: 0,
     poisonUntil: 0,
+    slowDebuffs: [],
+    armorDebuffs: [],
     slowUntil: 0,
-    slowFactor: 1,
+    slowFactor: 0,
     armorReduction: 0,
   });
 }
@@ -95,13 +160,15 @@ export function spawnEnemy(
 export function tickEnemies(state: GameState, dt: number): void {
   for (const enemy of state.enemies) {
     if (!enemy.alive) continue;
+    syncDebuffScalars(enemy, state.time);
     if (enemy.poisonUntil > state.time && enemy.poisonDps > 0) {
       applyDamage(state, enemy, enemy.poisonDps * dt, null, {
         bypassShield: false,
         damageType: 'magic',
       });
     }
-    const speedMult = enemy.slowUntil > state.time ? 1 - enemy.slowFactor : 1;
+    const slowAmount = effectiveSlowFactor(enemy, state.time);
+    const speedMult = slowAmount > 0 ? 1 - slowAmount : 1;
     const result = enemy.flying
       ? stepFlyingEnemy(enemy, state.pathNav, dt * speedMult)
       : stepEnemyOnPath(enemy, state.pathNav, dt * speedMult);
@@ -214,9 +281,11 @@ export function hitWithProjectile(
   if (projectile.bonusVsHighHp && target.maxHp > 150) {
     damage *= 1 + projectile.bonusVsHighHp;
   }
-  if (projectile.armorReduction) {
-    target.armorReduction = Math.max(target.armorReduction, projectile.armorReduction);
-    damage *= 1 + target.armorReduction;
+  if (projectile.armorReduction && projectile.effectLevel) {
+    applyArmorDebuff(target, projectile.effectLevel, projectile.armorReduction);
+    syncDebuffScalars(target, state.time);
+    const armorRed = effectiveArmorReduction(target, state.time);
+    if (armorRed > 0) damage *= 1 + armorRed;
   }
   if (projectile.critChance && nextCombatRoll(state) < projectile.critChance) {
     damage *= 2;
@@ -232,9 +301,14 @@ export function hitWithProjectile(
     target.poisonDps = Math.max(target.poisonDps, projectile.poisonDps);
     target.poisonUntil = Math.max(target.poisonUntil, state.time + projectile.poisonDuration);
   }
-  if (projectile.slowFactor && projectile.slowDuration) {
-    target.slowFactor = Math.max(target.slowFactor, projectile.slowFactor);
-    target.slowUntil = Math.max(target.slowUntil, state.time + projectile.slowDuration);
+  if (projectile.slowFactor && projectile.slowDuration && projectile.effectLevel) {
+    applySlowDebuff(
+      target,
+      projectile.effectLevel,
+      projectile.slowFactor,
+      state.time + projectile.slowDuration,
+    );
+    syncDebuffScalars(target, state.time);
   }
   if (projectile.splashRadius && projectile.splashRadius > 0) {
     for (const enemy of state.enemies) {
@@ -296,8 +370,10 @@ export function spawnSplitEnemy(
     revealedUntil: 0,
     poisonDps: 0,
     poisonUntil: 0,
+    slowDebuffs: [],
+    armorDebuffs: [],
     slowUntil: 0,
-    slowFactor: 1,
+    slowFactor: 0,
     armorReduction: 0,
   });
 }
@@ -358,7 +434,9 @@ export function makeProjectile(
   return {
     id: state.nextProjectileId++,
     gemId: gem.id,
+    family: gem.family,
     targetId: target.id,
+    effectLevel: gem.level,
     x: gem.x,
     y: gem.y,
     damage: stats.damage,
@@ -445,7 +523,13 @@ export function completeWaveOrAttempt(state: GameState): void {
   if (income > 0)
     pushFx(state, 'gold', state.pathNav.goalCell.x, state.pathNav.goalCell.y, `+${income}g`);
   if (interest > 0)
-    pushFx(state, 'gold', state.pathNav.spawnCell.x, state.pathNav.spawnCell.y, `+${interest} interest`);
+    pushFx(
+      state,
+      'gold',
+      state.pathNav.spawnCell.x,
+      state.pathNav.spawnCell.y,
+      `+${interest} interest`,
+    );
 
   if (!state.waveLeaked) trackQuestProgress(state, 'leakless', 1);
   trackQuestProgress(state, 'gold', state.gold);

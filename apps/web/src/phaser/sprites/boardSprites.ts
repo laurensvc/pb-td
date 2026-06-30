@@ -12,7 +12,14 @@ import type {
   GemState,
   RawGemState,
 } from '../../game/types';
-import { BOSS_ENEMY_IDS, enemyWalkTextureKey, gemTextureKey } from '../assetManifest';
+import {
+  BOSS_ENEMY_IDS,
+  checkpointTextureKey,
+  enemyWalkTextureKey,
+  floorVariantFrame,
+  gemTextureKey,
+  terrainVariantIndex,
+} from '../assetManifest';
 import { boardToScreen, cellToScreen, type BoardLayout } from '../boardCoords';
 import { COLORS, hideMissingSprites, pruneMissingSprites } from '../render/boardGraphics';
 
@@ -20,12 +27,18 @@ export class BoardSpriteLayer {
   private layout: BoardLayout = {
     left: 0,
     top: 0,
-    hexRadius: 22,
+    tileSize: 48,
     padX: 0,
     padY: 0,
     width: 640,
     height: 400,
+    mapWidth: 1344,
+    mapHeight: 960,
+    scrollX: 0,
+    scrollY: 0,
+    zoom: 1,
   };
+  private viewportMask: Phaser.Display.Masks.GeometryMask | null = null;
   private terrainSprites = new Map<string, Phaser.GameObjects.Image>();
   private rockSprites = new Map<string, Phaser.GameObjects.Image>();
   private rawGemSprites = new Map<number, Phaser.GameObjects.Image>();
@@ -37,6 +50,25 @@ export class BoardSpriteLayer {
 
   setLayout(layout: BoardLayout): void {
     this.layout = layout;
+  }
+
+  setViewportMask(mask: Phaser.Display.Masks.GeometryMask | null): void {
+    this.viewportMask = mask;
+    for (const sprite of this.terrainSprites.values()) sprite.setMask(mask);
+    for (const sprite of this.rockSprites.values()) sprite.setMask(mask);
+    for (const sprite of this.rawGemSprites.values()) sprite.setMask(mask);
+    for (const sprite of this.gemSprites.values()) sprite.setMask(mask);
+    for (const sprite of this.enemySprites.values()) sprite.setMask(mask);
+    for (const marker of this.waypointMarkers.values()) marker.setMask(mask);
+  }
+
+  private applyMask(sprite: Phaser.GameObjects.GameObject): void {
+    if (this.viewportMask) sprite.setMask(this.viewportMask);
+  }
+
+  private trackSprite<T extends Phaser.GameObjects.GameObject>(sprite: T): T {
+    this.applyMask(sprite);
+    return sprite;
   }
 
   sync(state: GameState, overlay: Phaser.GameObjects.Graphics): void {
@@ -63,25 +95,37 @@ export class BoardSpriteLayer {
 
   private updateHexTerrain(pathCells: ReadonlySet<string>): void {
     const liveKeys = new Set<string>();
-    const tileW = this.layout.hexRadius * Math.sqrt(3);
-    const tileH = this.layout.hexRadius * 2;
+    const tileW = this.layout.tileSize;
+    const tileH = this.layout.tileSize;
     for (let r = 0; r < BOARD_HEIGHT; r++) {
       for (let q = 0; q < BOARD_WIDTH; q++) {
         const key = `${q},${r}`;
         liveKeys.add(key);
         const onPath = pathCells.has(key);
         const isGemCell = cellParity(q, r) === 'gem';
-        const texture = onPath ? 'hex-path-floor' : isGemCell ? 'hex-gem-floor' : 'hex-rock-floor';
+        const variant = terrainVariantIndex(q, r);
+        const useVariants = this.scene.textures.exists('floor-variants');
+        const texture = onPath
+          ? 'hex-path-floor'
+          : isGemCell
+            ? 'hex-gem-floor'
+            : useVariants
+              ? 'floor-variants'
+              : 'hex-rock-floor';
+        const frame = !onPath && !isGemCell && useVariants ? floorVariantFrame(variant) : undefined;
         const point = cellToScreen(this.layout, { x: q, y: r });
         const sprite =
           this.terrainSprites.get(key) ??
-          this.scene.add.image(0, 0, texture).setOrigin(0.5, 0.5).setDepth(0.8);
+          this.trackSprite(
+            this.scene.add.image(0, 0, texture, frame).setOrigin(0.5, 0.5).setDepth(0.8),
+          );
         this.terrainSprites.set(key, sprite);
-        sprite
-          .setTexture(texture)
-          .setPosition(point.x, point.y)
-          .setDisplaySize(tileW, tileH)
-          .setVisible(true);
+        if (frame !== undefined) {
+          sprite.setTexture(texture, frame);
+        } else {
+          sprite.setTexture(texture);
+        }
+        sprite.setPosition(point.x, point.y).setDisplaySize(tileW, tileH).setVisible(true);
       }
     }
     hideMissingSprites(this.terrainSprites, liveKeys);
@@ -90,7 +134,8 @@ export class BoardSpriteLayer {
   private updateWaypointMarkers(pathNav: GameState['pathNav']): void {
     const liveKeys = new Set<string>();
     const lastIndex = pathNav.checkpoints.length - 1;
-    const size = this.layout.hexRadius * 0.78;
+    const markerDepth = 1.85;
+    const size = this.layout.tileSize * 0.78;
 
     for (let i = 0; i < pathNav.checkpoints.length; i++) {
       const cp = pathNav.checkpoints[i]!;
@@ -102,7 +147,7 @@ export class BoardSpriteLayer {
 
       let container = this.waypointMarkers.get(key);
       if (!container) {
-        container = this.scene.add.container(0, 0).setDepth(1.55);
+        container = this.trackSprite(this.scene.add.container(0, 0).setDepth(markerDepth));
         this.waypointMarkers.set(key, container);
       }
 
@@ -112,29 +157,20 @@ export class BoardSpriteLayer {
         const portal = this.scene.add
           .image(0, 0, 'spawn-portal')
           .setOrigin(0.5, 0.72)
-          .setDisplaySize(size * 1.35, size * 1.35);
+          .setDisplaySize(size * 1.75, size * 1.75);
         container.add(portal);
       } else if (isFinish) {
         const nexus = this.scene.add
           .image(0, 0, 'goal-nexus')
           .setOrigin(0.5, 0.72)
-          .setDisplaySize(size * 1.35, size * 1.35);
+          .setDisplaySize(size * 1.75, size * 1.75);
         container.add(nexus);
       } else {
-        const ring = this.scene.add.graphics();
-        ring.fillStyle(0xffd166, 0.18);
-        ring.lineStyle(2, 0xffd166, 0.95);
-        ring.fillCircle(0, 0, size * 0.42);
-        ring.strokeCircle(0, 0, size * 0.42);
-        const label = this.scene.add
-          .text(0, 0, String(i), {
-            fontFamily: 'Chakra Petch, monospace',
-            fontSize: `${Math.max(11, Math.floor(this.layout.hexRadius * 0.55))}px`,
-            color: '#fff1c2',
-            fontStyle: 'bold',
-          })
-          .setOrigin(0.5);
-        container.add([ring, label]);
+        const marker = this.scene.add
+          .image(0, 0, checkpointTextureKey(i as 1 | 2 | 3 | 4 | 5))
+          .setOrigin(0.5, 0.72)
+          .setDisplaySize(size * 1.45, size * 1.45);
+        container.add(marker);
       }
 
       container.setPosition(point.x, point.y).setVisible(true);
@@ -153,11 +189,13 @@ export class BoardSpriteLayer {
       const point = cellToScreen(this.layout, rock);
       const sprite =
         this.rockSprites.get(key) ??
-        this.scene.add.image(0, 0, 'cosmic-rock').setOrigin(0.5, 0.72).setDepth(2.05);
+        this.trackSprite(
+          this.scene.add.image(0, 0, 'board-rock').setOrigin(0.5, 0.72).setDepth(2.05),
+        );
       this.rockSprites.set(key, sprite);
       sprite
-        .setPosition(point.x, point.y + this.layout.hexRadius * 0.12)
-        .setDisplaySize(this.layout.hexRadius * 1.7, this.layout.hexRadius * 1.7)
+        .setPosition(point.x, point.y + this.layout.tileSize * 0.12)
+        .setDisplaySize(this.layout.tileSize * 1.7, this.layout.tileSize * 1.7)
         .setVisible(true);
     }
     pruneMissingSprites(this.rockSprites, liveKeys);
@@ -176,13 +214,13 @@ export class BoardSpriteLayer {
       const texKey = gemTextureKey(gem.family, gem.level);
       const sprite =
         this.gemSprites.get(gem.id) ??
-        this.scene.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.12);
+        this.trackSprite(this.scene.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.12));
       this.gemSprites.set(gem.id, sprite);
-      const size = this.layout.hexRadius * (1.35 + gem.level * 0.05);
+      const size = this.layout.tileSize * (1.35 + gem.level * 0.05);
       const pulse = 1 + Math.sin(this.scene.time.now / 180) * 0.04;
       sprite
         .setTexture(texKey)
-        .setPosition(point.x, point.y + this.layout.hexRadius * 0.08)
+        .setPosition(point.x, point.y + this.layout.tileSize * 0.08)
         .setDisplaySize(size * pulse, size * pulse)
         .setVisible(true);
       if (gem.id === mergeSourceId) {
@@ -208,12 +246,12 @@ export class BoardSpriteLayer {
       const texKey = gemTextureKey(raw.family, raw.level);
       const sprite =
         this.rawGemSprites.get(raw.id) ??
-        this.scene.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.1);
+        this.trackSprite(this.scene.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.1));
       this.rawGemSprites.set(raw.id, sprite);
-      const size = this.layout.hexRadius * (1.2 + raw.level * 0.04);
+      const size = this.layout.tileSize * (1.2 + raw.level * 0.04);
       sprite
         .setTexture(texKey)
-        .setPosition(point.x, point.y + this.layout.hexRadius * 0.08)
+        .setPosition(point.x, point.y + this.layout.tileSize * 0.08)
         .setDisplaySize(size, size)
         .setAlpha(0.72)
         .setTint(0xdbeafe)
@@ -235,11 +273,13 @@ export class BoardSpriteLayer {
       const isBoss = BOSS_ENEMY_IDS.includes(enemy.definitionId);
       const sprite =
         this.enemySprites.get(enemy.id) ??
-        this.scene.add.sprite(0, 0, texKey, 0).setOrigin(0.5, 0.82).setDepth(2.18);
+        this.trackSprite(
+          this.scene.add.sprite(0, 0, texKey, 0).setOrigin(0.5, 0.82).setDepth(2.18),
+        );
       this.enemySprites.set(enemy.id, sprite);
-      const size = this.layout.hexRadius * (isBoss ? 2.5 : 1.75);
+      const size = this.layout.tileSize * (isBoss ? 2.5 : 1.75);
       sprite
-        .setPosition(point.x, point.y + this.layout.hexRadius * 0.15)
+        .setPosition(point.x, point.y + this.layout.tileSize * 0.15)
         .setDisplaySize(size, size)
         .setVisible(true);
       if (this.scene.anims.exists(animKey)) {
@@ -269,13 +309,13 @@ export class BoardSpriteLayer {
       if (!enemy.alive) continue;
       const point = boardToScreen(this.layout, enemy);
       const isBoss = BOSS_ENEMY_IDS.includes(enemy.definitionId);
-      const barW = this.layout.hexRadius * (isBoss ? 1.2 : 0.85);
+      const barW = this.layout.tileSize * (isBoss ? 1.2 : 0.85);
       overlay.fillStyle(0x02050a, 0.7);
-      overlay.fillRect(point.x - barW / 2, point.y - this.layout.hexRadius * 0.75, barW, 4);
+      overlay.fillRect(point.x - barW / 2, point.y - this.layout.tileSize * 0.75, barW, 4);
       overlay.fillStyle(COLORS.green, 0.95);
       overlay.fillRect(
         point.x - barW / 2,
-        point.y - this.layout.hexRadius * 0.75,
+        point.y - this.layout.tileSize * 0.75,
         barW * Math.max(0, enemy.hp / enemy.maxHp),
         4,
       );
@@ -283,7 +323,7 @@ export class BoardSpriteLayer {
         overlay.fillStyle(COLORS.shield, 0.92);
         overlay.fillRect(
           point.x - barW / 2,
-          point.y - this.layout.hexRadius * 0.62,
+          point.y - this.layout.tileSize * 0.62,
           barW * Math.max(0, enemy.shield / enemy.maxShield),
           3,
         );
