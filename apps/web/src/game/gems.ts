@@ -1,5 +1,7 @@
-import { gemDefinitions, upgrades } from './content';
+import { gemDefinitions, BASE_GEM_FAMILIES } from './content';
+import { hexAreAdjacent, worldToHex } from './hexGrid';
 import { findMatchingRecipe } from './recipes';
+import { purchasedUpgrades } from './upgrades';
 import type {
   BaseGemFamilyId,
   GemCombatStats,
@@ -8,7 +10,6 @@ import type {
   GemLevel,
   GemState,
   SaveState,
-  UpgradeDefinition,
 } from './types';
 
 const LEVEL_MULTIPLIERS: Record<GemLevel, number> = {
@@ -41,14 +42,12 @@ const LEVEL_COOLDOWN_MULT: Record<GemLevel, number> = {
   7: 0.62,
 };
 
-const BASE_FAMILIES: BaseGemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism'];
-
 export function isHybridFamily(family: GemFamilyId): boolean {
   return Boolean(gemDefinitions[family].hybrid);
 }
 
 export function isBaseFamily(family: GemFamilyId): family is BaseGemFamilyId {
-  return BASE_FAMILIES.includes(family as BaseGemFamilyId);
+  return BASE_GEM_FAMILIES.includes(family as BaseGemFamilyId);
 }
 
 export function getGemDefinition(family: GemFamilyId): GemDefinition {
@@ -64,9 +63,15 @@ export interface MergeResult {
 export function resolveMerge(
   a: Pick<GemState, 'family' | 'level'>,
   b: Pick<GemState, 'family' | 'level'>,
+  identicalClusterSize = 2,
 ): MergeResult | null {
   if (a.family === b.family && a.level === b.level && a.level < 7) {
-    return { family: a.family, level: mergedLevel(a.level), hybrid: isHybridFamily(a.family) };
+    const gain = identicalClusterSize >= 4 ? 2 : 1;
+    return {
+      family: a.family,
+      level: mergedLevelBy(a.level, gain),
+      hybrid: isHybridFamily(a.family),
+    };
   }
   const recipe = findMatchingRecipe(
     { family: a.family, level: a.level },
@@ -80,6 +85,31 @@ export function resolveMerge(
     };
   }
   return null;
+}
+
+export function countIdenticalCluster(
+  gems: readonly Pick<GemState, 'id' | 'family' | 'level' | 'x' | 'y'>[],
+  seed: Pick<GemState, 'id' | 'family' | 'level' | 'x' | 'y'>,
+): number {
+  const matching = gems.filter((g) => g.family === seed.family && g.level === seed.level);
+  const visited = new Set<number>();
+  const queue = [seed.id];
+  let count = 0;
+
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    const gem = matching.find((g) => g.id === id);
+    if (!gem) continue;
+    visited.add(id);
+    count += 1;
+    const cell = worldToHex(gem.x, gem.y);
+    for (const other of matching) {
+      if (visited.has(other.id)) continue;
+      if (hexAreAdjacent(cell, worldToHex(other.x, other.y))) queue.push(other.id);
+    }
+  }
+  return count;
 }
 
 export function canMergeGems(
@@ -103,7 +133,11 @@ export function canCraftGreat(
 }
 
 export function mergedLevel(level: GemLevel): GemLevel {
-  return Math.min(7, level + 1) as GemLevel;
+  return mergedLevelBy(level, 1);
+}
+
+export function mergedLevelBy(level: GemLevel, gain: number): GemLevel {
+  return Math.min(7, level + gain) as GemLevel;
 }
 
 export function gemSellValue(family: GemFamilyId, level: GemLevel): number {
@@ -180,8 +214,3 @@ function metaMultipliers(
   return { damage, range, cooldown };
 }
 
-function purchasedUpgrades(save: SaveState): UpgradeDefinition[] {
-  return save.purchasedUpgradeIds
-    .map((id) => upgrades.find((u) => u.id === id))
-    .filter((u): u is UpgradeDefinition => Boolean(u));
-}

@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "test": "pnpm -r run test",
     "assets:generate": "node scripts/generate-pixel-art.mjs",
-    "assets:pixellab": "node scripts/pixellab-sync.mjs"
+    "assets:pixellab": "node scripts/pixellab-sync.mjs",
+    "gemtd:next-phase": "node scripts/gemtd-phase-status.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

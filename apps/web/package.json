@@ -12,15 +12,11 @@
   "dependencies": {
     "@facet/content": "workspace:*",
     "@facet/protocol": "workspace:*",
-    "@facet/sim": "workspace:*",
     "@vitejs/plugin-react": "^6.0.1",
-    "firebase": "^11.6.0",
-    "lucide-react": "^1.12.0",
     "phaser": "v4.1.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "vite": "^8.0.10",
-    "zustand": "^5.0.12"
+    "vite": "^8.0.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",

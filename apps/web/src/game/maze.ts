@@ -1,22 +1,14 @@
 import { cellKey } from './pathBuild';
-import { isOnBoard } from './boardParity';
+import { hexKey, hexNeighbors, isOnBoard as hexIsOnBoard } from './hexGrid';
 import type { PathNavData, Vec2 } from './types';
-
-const NEIGHBORS: readonly [number, number][] = [
-  [0, 1],
-  [0, -1],
-  [1, 0],
-  [-1, 0],
-];
 
 export interface MazeLayout {
   boardW: number;
   boardH: number;
   spawnCell: Vec2;
   goalCell: Vec2;
-  /** Integer cell coords of placed rocks. */
+  checkpoints: readonly Vec2[];
   rocks: ReadonlySet<string>;
-  /** Integer cell coords occupied by towers/gems. */
   blockedTowerCells: ReadonlySet<string>;
 }
 
@@ -27,20 +19,22 @@ export function createMazeLayout(
   goalCell: Vec2,
   rocks: Iterable<Vec2> = [],
   blockedTowerCells: Iterable<Vec2> = [],
+  checkpoints: readonly Vec2[] = [spawnCell, goalCell],
 ): MazeLayout {
   return {
     boardW,
     boardH,
     spawnCell: { ...spawnCell },
     goalCell: { ...goalCell },
+    checkpoints: checkpoints.map((cp) => ({ ...cp })),
     rocks: new Set([...rocks].map((c) => cellKey(c.x, c.y))),
     blockedTowerCells: new Set([...blockedTowerCells].map((c) => cellKey(c.x, c.y))),
   };
 }
 
-export function isWalkableCell(layout: MazeLayout, x: number, y: number): boolean {
-  if (!isOnBoard(x, y, layout.boardW, layout.boardH)) return false;
-  const key = cellKey(x, y);
+export function isWalkableCell(layout: MazeLayout, q: number, r: number): boolean {
+  if (!hexIsOnBoard(q, r, layout.boardW, layout.boardH)) return false;
+  const key = cellKey(q, r);
   if (key === cellKey(layout.spawnCell.x, layout.spawnCell.y)) return true;
   if (key === cellKey(layout.goalCell.x, layout.goalCell.y)) return true;
   if (layout.rocks.has(key)) return false;
@@ -48,18 +42,34 @@ export function isWalkableCell(layout: MazeLayout, x: number, y: number): boolea
   return true;
 }
 
-/** True when spawn can reach goal without crossing rocks or towers. */
 export function hasValidPath(layout: MazeLayout): boolean {
-  return buildMazePathNav(layout).pathCells.size > 0;
+  return hasValidCheckpointPath(layout);
 }
 
-/** BFS reachability from goal backward — cells enemies may traverse toward the goal. */
+export function hasValidCheckpointPath(layout: MazeLayout): boolean {
+  if (layout.checkpoints.length < 2) return false;
+  for (let i = 0; i < layout.checkpoints.length - 1; i++) {
+    const from = layout.checkpoints[i]!;
+    const to = layout.checkpoints[i + 1]!;
+    if (!canReachCheckpoint(layout, from, to)) return false;
+  }
+  return true;
+}
+
 export function buildMazePathNav(layout: MazeLayout): PathNavData {
   const pathCells = new Set<string>();
   const distanceToGoal = bfsDistanceToGoal(layout);
   for (const key of distanceToGoal.keys()) {
     pathCells.add(key);
   }
+
+  const checkpointDistances = layout.checkpoints.map((cp) => {
+    const distances = bfsDistanceFromWalkable(layout, cp);
+    for (const key of distances.keys()) {
+      pathCells.add(key);
+    }
+    return distances;
+  });
 
   let maxProgress = 0;
   for (const dist of distanceToGoal.values()) {
@@ -69,27 +79,31 @@ export function buildMazePathNav(layout: MazeLayout): PathNavData {
   return {
     pathCells,
     distanceToGoal,
+    checkpointDistances,
     maxProgress,
     goalCell: { ...layout.goalCell },
     spawnCell: { ...layout.spawnCell },
+    checkpoints: layout.checkpoints.map((cp) => ({ ...cp })),
   };
 }
 
-export function canPlaceRock(layout: MazeLayout, x: number, y: number): boolean {
-  const key = cellKey(x, y);
+export function canPlaceRock(layout: MazeLayout, q: number, r: number): boolean {
+  const key = cellKey(q, r);
   if (layout.rocks.has(key)) return false;
-  if (key === cellKey(layout.spawnCell.x, layout.spawnCell.y)) return false;
-  if (key === cellKey(layout.goalCell.x, layout.goalCell.y)) return false;
+  for (const cp of layout.checkpoints) {
+    if (key === cellKey(cp.x, cp.y)) return false;
+  }
 
   const trial = createMazeLayout(
     layout.boardW,
     layout.boardH,
     layout.spawnCell,
     layout.goalCell,
-    [...keysToVec2(layout.rocks), { x, y }],
+    [...keysToVec2(layout.rocks), { x: q, y: r }],
     keysToVec2(layout.blockedTowerCells),
+    layout.checkpoints,
   );
-  return hasValidPath(trial);
+  return hasValidCheckpointPath(trial);
 }
 
 export function rockRefundPercent(rocksPlaced: number): number {
@@ -98,39 +112,45 @@ export function rockRefundPercent(rocksPlaced: number): number {
   return 0.25;
 }
 
-function bfsDistanceToGoal(layout: MazeLayout): Map<string, number> {
-  const distances = new Map<string, number>();
-  const goalKey = cellKey(layout.goalCell.x, layout.goalCell.y);
-  if (!isWalkableCell(layout, layout.goalCell.x, layout.goalCell.y)) return distances;
+function canReachCheckpoint(layout: MazeLayout, from: Vec2, to: Vec2): boolean {
+  const distances = bfsDistanceFromWalkable(layout, from);
+  return distances.has(cellKey(to.x, to.y));
+}
 
-  const queue: Vec2[] = [{ ...layout.goalCell }];
-  distances.set(goalKey, 0);
+function bfsDistanceFromWalkable(layout: MazeLayout, origin: Vec2): Map<string, number> {
+  const distances = new Map<string, number>();
+  const originKey = cellKey(origin.x, origin.y);
+  if (!isWalkableCell(layout, origin.x, origin.y)) return distances;
+
+  const queue: Vec2[] = [{ ...origin }];
+  distances.set(originKey, 0);
 
   while (queue.length > 0) {
     const current = queue.shift()!;
     const currentKey = cellKey(current.x, current.y);
     const currentDist = distances.get(currentKey) ?? 0;
 
-    for (const [dx, dy] of NEIGHBORS) {
-      const nx = current.x + dx;
-      const ny = current.y + dy;
-      if (!isWalkableCell(layout, nx, ny)) continue;
-      const neighborKey = cellKey(nx, ny);
+    for (const neighbor of hexNeighbors(current.x, current.y)) {
+      const nq = neighbor.x;
+      const nr = neighbor.y;
+      if (!isWalkableCell(layout, nq, nr)) continue;
+      const neighborKey = hexKey(nq, nr);
       if (distances.has(neighborKey)) continue;
       distances.set(neighborKey, currentDist + 1);
-      queue.push({ x: nx, y: ny });
+      queue.push({ x: nq, y: nr });
     }
   }
-
-  const spawnKey = cellKey(layout.spawnCell.x, layout.spawnCell.y);
-  if (!distances.has(spawnKey)) return new Map();
 
   return distances;
 }
 
+function bfsDistanceToGoal(layout: MazeLayout): Map<string, number> {
+  return bfsDistanceFromWalkable(layout, layout.goalCell);
+}
+
 function keysToVec2(keys: ReadonlySet<string>): Vec2[] {
   return [...keys].map((key) => {
-    const [x, y] = key.split(',').map(Number);
-    return { x, y };
+    const [q, r] = key.split(',').map(Number);
+    return { x: q, y: r };
   });
 }

@@ -1,3 +1,4 @@
+import { hexAreAdjacent, worldToHex } from './hexGrid';
 import type { GemFamilyId, GemLevel } from './types';
 
 export type RecipeKind = 'pure' | 'hybrid' | 'great';
@@ -96,6 +97,26 @@ export const hybridRecipes: Recipe[] = [
     output: { family: 'executioner', level: 4 },
     label: 'Executioner',
   },
+  {
+    id: 'hybrid-ember-lance',
+    kind: 'hybrid',
+    inputs: [
+      { family: 'ember', level: 1 },
+      { family: 'kinetic', level: 1 },
+    ],
+    output: { family: 'ember_lance', level: 1 },
+    label: 'Ember Lance',
+  },
+  {
+    id: 'hybrid-solar-flare',
+    kind: 'hybrid',
+    inputs: [
+      { family: 'ember', level: 2 },
+      { family: 'nova', level: 2 },
+    ],
+    output: { family: 'solar_flare', level: 2 },
+    label: 'Solar Flare',
+  },
 ];
 
 export function findMatchingRecipe(
@@ -131,7 +152,7 @@ export function areAdjacentGems(
   bx: number,
   by: number,
 ): boolean {
-  const dx = Math.abs(Math.floor(ax) - Math.floor(bx));
-  const dy = Math.abs(Math.floor(ay) - Math.floor(by));
-  return dx <= 1 && dy <= 1 && (dx > 0 || dy > 0);
+  const a = worldToHex(ax, ay);
+  const b = worldToHex(bx, by);
+  return hexAreAdjacent(a, b);
 }

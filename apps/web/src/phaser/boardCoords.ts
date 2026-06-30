@@ -1,31 +1,51 @@
 import { BOARD_HEIGHT, BOARD_WIDTH } from '../game/content';
+import {
+  boardPixelBounds,
+  hexPixelCenter,
+  hexWorldCenter,
+  pixelToHex,
+  worldPerPixel,
+  worldToHex,
+} from '../game/hexGrid';
 import type { Vec2 } from '../game/types';
 
 export interface BoardLayout {
   left: number;
   top: number;
-  cell: number;
+  hexRadius: number;
+  padX: number;
+  padY: number;
   width: number;
   height: number;
 }
 
-/** Right sidebar width + margin (matches .control-panel in styles.css). */
-export const PANEL_RESERVE = 434;
-/** Top HUD height + margin (matches .top-hud overlay). */
-export const HUD_RESERVE = 76;
+/** Right sidebar width + margin (matches .game-panel in styles.css). */
+export const PANEL_RESERVE = 392;
+/** Top HUD height + margin (matches .game-hud overlay). */
+export const HUD_RESERVE = 72;
 
 export function computeLayout(width: number, height: number): BoardLayout {
   const reservedTop = width >= 980 ? HUD_RESERVE : 56;
   const reservedRight = width >= 980 ? PANEL_RESERVE : 0;
   const availableWidth = Math.max(320, width - reservedRight - 32);
   const availableHeight = Math.max(280, height - reservedTop - reservedBottom(width));
-  const cell = Math.floor(Math.min(availableWidth / BOARD_WIDTH, availableHeight / BOARD_HEIGHT));
+
+  let hexRadius = 22;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const bounds = boardPixelBounds(BOARD_WIDTH, BOARD_HEIGHT, hexRadius);
+    if (bounds.width <= availableWidth && bounds.height <= availableHeight) break;
+    hexRadius = Math.floor(hexRadius * 0.92);
+  }
+
+  const bounds = boardPixelBounds(BOARD_WIDTH, BOARD_HEIGHT, hexRadius);
   return {
-    left: Math.max(16, Math.floor((availableWidth - cell * BOARD_WIDTH) / 2)),
-    top: reservedTop + Math.max(0, Math.floor((availableHeight - cell * BOARD_HEIGHT) / 2)),
-    cell,
-    width: cell * BOARD_WIDTH,
-    height: cell * BOARD_HEIGHT,
+    left: Math.max(16, Math.floor((availableWidth - bounds.width) / 2)),
+    top: reservedTop + Math.max(0, Math.floor((availableHeight - bounds.height) / 2)),
+    hexRadius,
+    padX: bounds.padX,
+    padY: bounds.padY,
+    width: bounds.width,
+    height: bounds.height,
   };
 }
 
@@ -33,66 +53,48 @@ function reservedBottom(width: number): number {
   return width >= 980 ? 24 : 18;
 }
 
-/** Map canvas pixel position to integer board cell. */
+/** Map canvas pixel position to axial hex cell. */
 export function screenToCell(layout: BoardLayout, px: number, py: number): Vec2 | null {
-  if (
-    px < layout.left ||
-    py < layout.top ||
-    px >= layout.left + layout.width ||
-    py >= layout.top + layout.height
-  ) {
-    return null;
-  }
-  const x = Math.floor((px - layout.left) / layout.cell);
-  const y = Math.floor((py - layout.top) / layout.cell);
-  if (x < 0 || y < 0 || x >= BOARD_WIDTH || y >= BOARD_HEIGHT) return null;
-  return { x, y };
+  const localX = px - layout.left - layout.padX;
+  const localY = py - layout.top - layout.padY;
+  const cell = pixelToHex(localX, localY, layout.hexRadius);
+  if (cell.x < 0 || cell.y < 0 || cell.x >= BOARD_WIDTH || cell.y >= BOARD_HEIGHT) return null;
+  return cell;
 }
 
-/** Map canvas pixels to continuous board coordinates (cell units, origin top-left). */
+/** Map canvas pixels to continuous world coordinates. */
 export function screenToBoard(layout: BoardLayout, px: number, py: number): Vec2 | null {
-  if (
-    px < layout.left ||
-    py < layout.top ||
-    px >= layout.left + layout.width ||
-    py >= layout.top + layout.height
-  ) {
-    return null;
-  }
-  return {
-    x: (px - layout.left) / layout.cell,
-    y: (py - layout.top) / layout.cell,
-  };
+  const cell = screenToCell(layout, px, py);
+  if (!cell) return null;
+  return hexWorldCenter(cell.x, cell.y);
 }
 
-/** Integer cell index -> canvas pixel center. */
+/** Axial cell -> canvas pixel center. */
 export function cellToScreen(layout: BoardLayout, cell: Vec2): Vec2 {
+  const local = hexPixelCenter(cell.x, cell.y, layout.hexRadius);
   return {
-    x: layout.left + (cell.x + 0.5) * layout.cell,
-    y: layout.top + (cell.y + 0.5) * layout.cell,
+    x: layout.left + layout.padX + local.x,
+    y: layout.top + layout.padY + local.y,
   };
 }
 
-/** Continuous board position (e.g. 2.5 = cell center) -> canvas pixels. */
+/** Continuous world position -> canvas pixels. */
 export function boardToScreen(layout: BoardLayout, point: Vec2): Vec2 {
+  const scale = layout.hexRadius * Math.sqrt(3);
   return {
-    x: layout.left + point.x * layout.cell,
-    y: layout.top + point.y * layout.cell,
+    x: layout.left + layout.padX + point.x * scale,
+    y: layout.top + layout.padY + point.y * scale,
   };
 }
-
-export function cellTopLeft(layout: BoardLayout, cell: Vec2): Vec2 {
-  return {
-    x: layout.left + cell.x * layout.cell,
-    y: layout.top + cell.y * layout.cell,
-  };
-}
-
 export function cellCenter(cell: Vec2): Vec2 {
-  return { x: cell.x + 0.5, y: cell.y + 0.5 };
+  return hexWorldCenter(cell.x, cell.y);
 }
 
-/** Convert Phaser pointer to canvas pixel coordinates (handles CSS scaling). */
+/** World-space range (hex steps) -> pixel radius for overlays. */
+export function rangeToPixels(layout: BoardLayout, range: number): number {
+  return range * layout.hexRadius * Math.sqrt(3);
+}
+
 export function pointerToCanvas(
   pointer: Phaser.Input.Pointer,
   canvas: HTMLCanvasElement,
@@ -120,3 +122,5 @@ export function pointerToCanvas(
 
   return { x: pointer.x, y: pointer.y };
 }
+
+export { worldPerPixel, worldToHex };

@@ -1,34 +1,32 @@
+import { allBoardCells } from './hexGrid';
 import type { Vec2 } from './types';
 
-/** GemTD-style checkerboard: rocks on dark cells, gems on light cells. */
+/** GemTD-style coloring: rocks on one hex parity, gems on the other. */
 export type CellParity = 'rock' | 'gem';
 
-export function cellParity(x: number, y: number): CellParity {
-  return (x + y) % 2 === 0 ? 'rock' : 'gem';
+export function cellParity(q: number, r: number): CellParity {
+  return (q + r) % 2 === 0 ? 'rock' : 'gem';
 }
 
-export function acceptsRock(x: number, y: number): boolean {
-  return cellParity(x, y) === 'rock';
+export function acceptsRock(q: number, r: number): boolean {
+  return cellParity(q, r) === 'rock';
 }
 
-export function acceptsGem(x: number, y: number): boolean {
-  return cellParity(x, y) === 'gem';
+export function acceptsGem(q: number, r: number): boolean {
+  return cellParity(q, r) === 'gem';
 }
 
-export function isOnBoard(x: number, y: number, boardW: number, boardH: number): boolean {
-  return x >= 0 && y >= 0 && x < boardW && y < boardH;
+export function isOnBoard(q: number, r: number, boardW: number, boardH: number): boolean {
+  return q >= 0 && r >= 0 && q < boardW && r < boardH;
 }
 
-export function parityMatchesPlacement(x: number, y: number, kind: 'rock' | 'gem'): boolean {
-  return kind === 'rock' ? acceptsRock(x, y) : acceptsGem(x, y);
+export function parityMatchesPlacement(q: number, r: number, kind: 'rock' | 'gem'): boolean {
+  return kind === 'rock' ? acceptsRock(q, r) : acceptsGem(q, r);
 }
 
-export function checkerboardCells(boardW: number, boardH: number, parity: CellParity): Vec2[] {
-  const cells: Vec2[] = [];
-  for (let y = 0; y < boardH; y++) {
-    for (let x = 0; x < boardW; x++) {
-      if (cellParity(x, y) === parity) cells.push({ x, y });
-    }
-  }
-  return cells;
+export function parityCells(boardW: number, boardH: number, parity: CellParity): Vec2[] {
+  return allBoardCells(boardW, boardH).filter((cell) => cellParity(cell.x, cell.y) === parity);
 }
+
+/** @deprecated Use parityCells */
+export const checkerboardCells = parityCells;

@@ -33,8 +33,9 @@ export class FacetRoom extends Room {
   }
 
   onJoin(client: Client, options: { playerId?: string; seed?: number }) {
+    const seed = options.seed ?? Date.now();
     const playerId = options.playerId ?? client.sessionId;
-    this.states.set(playerId, createFacetState(options.seed ?? Date.now()));
-    client.send('welcome', { playerId, seed: options.seed });
+    this.states.set(playerId, createFacetState(seed));
+    client.send('welcome', { playerId, seed, sharedOfferSeed: seed });
   }
 }
