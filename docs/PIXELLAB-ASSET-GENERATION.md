@@ -10,6 +10,8 @@ For board layout, grass terrain, and landmark placement, see [`BOARD-AND-MAZE-SP
 
 For gem types, tower stats, and recipes, see [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md).
 
+For per-asset generation status and checklists, see [`ASSET-GENERATION-TRACKER.md`](./ASSET-GENERATION-TRACKER.md).
+
 ## 1. Pipeline Goals
 
 - Preserve GemTD readability: every monster, tower, projectile, and tile must be identifiable at gameplay scale.
