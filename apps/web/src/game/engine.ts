@@ -29,8 +29,9 @@ import {
   getGemCombatStats,
   resolveMerge,
 } from './gems';
+import { cellsAlongPath } from './pathBuild';
 import { buildMazePathNav, canPlaceRock, createMazeLayout, rockRefundPercent } from './maze';
-import { pathProgressAt, stepEnemyOnPath } from './pathNav';
+import { LEAK_EPSILON, pathProgressAt, resolveCheckpoints, stepEnemyOnPath } from './pathNav';
 import {
   applyQuestRewards,
   createRunQuests,
@@ -574,6 +575,7 @@ function spawnEnemy(
     x: spawnCenter.x,
     y: spawnCenter.y,
     pathProgress: pathProgressAt(state.pathNav, spawnCenter.x, spawnCenter.y),
+    checkpointIndex: 1,
     hp,
     maxHp: hp,
     shield,
@@ -627,21 +629,29 @@ function stepFlyingEnemy(
   nav: GameState['pathNav'],
   dt: number,
 ): 'moving' | 'leaked' {
-  const goal = nav.goalCell;
-  const goalCenter = hexWorldCenter(goal.x, goal.y);
-  const dx = goalCenter.x - enemy.x;
-  const dy = goalCenter.y - enemy.y;
+  const targetIdx = Math.min(enemy.checkpointIndex, nav.checkpoints.length - 1);
+  const target = nav.checkpoints[targetIdx]!;
+  const targetCenter = hexWorldCenter(target.x, target.y);
+  const dx = targetCenter.x - enemy.x;
+  const dy = targetCenter.y - enemy.y;
   const dist = Math.hypot(dx, dy);
-  if (dist < 0.15) return 'leaked';
   const travel = enemy.speed * dt;
-  if (travel >= dist) {
-    enemy.x = goalCenter.x;
-    enemy.y = goalCenter.y;
-    enemy.pathProgress = nav.maxProgress;
-    return 'leaked';
+
+  if (dist <= LEAK_EPSILON) {
+    if (targetIdx >= nav.checkpoints.length - 1) {
+      return 'leaked';
+    }
+    enemy.checkpointIndex = targetIdx + 1;
+    return 'moving';
   }
-  enemy.x += (dx / dist) * travel;
-  enemy.y += (dy / dist) * travel;
+
+  if (travel >= dist) {
+    enemy.x = targetCenter.x;
+    enemy.y = targetCenter.y;
+  } else {
+    enemy.x += (dx / dist) * travel;
+    enemy.y += (dy / dist) * travel;
+  }
   enemy.pathProgress = pathProgressAt(nav, enemy.x, enemy.y);
   return 'moving';
 }
@@ -840,12 +850,18 @@ function handleEnemyDeath(state: GameState, enemy: EnemyState): void {
   const definition = getEnemy(enemy.definitionId);
   if (definition.splitInto && definition.splitCount) {
     for (let i = 0; i < definition.splitCount; i++) {
-      spawnSplitEnemy(state, definition.splitInto, enemy.x, enemy.y);
+      spawnSplitEnemy(state, definition.splitInto, enemy.x, enemy.y, enemy.checkpointIndex);
     }
   }
 }
 
-function spawnSplitEnemy(state: GameState, enemyId: string, x: number, y: number): void {
+function spawnSplitEnemy(
+  state: GameState,
+  enemyId: string,
+  x: number,
+  y: number,
+  checkpointIndex: number,
+): void {
   const area = getArea(state.areaId);
   const tier = area.tiers[state.tierId];
   const definition = getEnemy(enemyId);
@@ -857,6 +873,7 @@ function spawnSplitEnemy(state: GameState, enemyId: string, x: number, y: number
     x,
     y,
     pathProgress: pathProgressAt(state.pathNav, x, y),
+    checkpointIndex,
     hp,
     maxHp: hp,
     shield: 0,
@@ -1036,13 +1053,19 @@ function gemAtCell(state: GameState, q: number, r: number): boolean {
 
 function mazeLayoutFromState(state: GameState): ReturnType<typeof createMazeLayout> {
   const area = getArea(state.areaId);
+  const corridorCells = cellsAlongPath(area.path);
+  const checkpoints =
+    area.pathNav.checkpoints.length > 0
+      ? area.pathNav.checkpoints
+      : resolveCheckpoints(area.path, corridorCells);
   return createMazeLayout(
     BOARD_WIDTH,
     BOARD_HEIGHT,
-    area.pathNav.spawnCell,
-    area.pathNav.goalCell,
+    checkpoints[0]!,
+    checkpoints[checkpoints.length - 1]!,
     state.rocks,
     state.gems.map((gem) => toCell(gem.x, gem.y)),
+    checkpoints,
   );
 }
 

@@ -54,10 +54,7 @@ export class CosmicBoardScene extends Phaser.Scene {
   private rockSprites = new Map<string, Phaser.GameObjects.Image>();
   private gemSprites = new Map<number, Phaser.GameObjects.Image>();
   private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
-  private markerSprites: {
-    spawn?: Phaser.GameObjects.Image;
-    goal?: Phaser.GameObjects.Image;
-  } = {};
+  private waypointMarkers = new Map<string, Phaser.GameObjects.Container>();
   private hoverCell: Vec2 | null = null;
   private layout: BoardLayout = {
     left: 0,
@@ -210,6 +207,7 @@ export class CosmicBoardScene extends Phaser.Scene {
 
     if (this.assetsReady) {
       this.updateHexTerrain(state.pathNav.pathCells);
+      drawCheckpointRoute(overlay, this.layout, state.pathNav.checkpoints);
       drawPathOverlay(overlay, this.layout, state.pathNav);
       drawPlacementPreview(overlay, this.layout, state, this.hoverCell);
     }
@@ -243,7 +241,7 @@ export class CosmicBoardScene extends Phaser.Scene {
 
   private drawSprites(state: GameState): void {
     if (!this.assetsReady) return;
-    this.updateMarkers(state.pathNav);
+    this.updateWaypointMarkers(state.pathNav);
     this.updateRockSprites(state.rocks);
     this.updateGemSprites(state.gems, state.mergeSourceGemId);
     this.updateEnemySprites(state.enemies);
@@ -283,22 +281,54 @@ export class CosmicBoardScene extends Phaser.Scene {
     for (const fx of state.fxEvents) drawFxPopup(g, this.layout, fx);
   }
 
-  private updateMarkers(pathNav: GameState['pathNav']): void {
-    const spawnPoint = cellToScreen(this.layout, pathNav.spawnCell);
-    const goalPoint = cellToScreen(this.layout, pathNav.goalCell);
-    this.markerSprites.spawn ??= this.add
-      .image(spawnPoint.x, spawnPoint.y, 'spawn-portal')
-      .setDepth(1.5);
-    this.markerSprites.goal ??= this.add.image(goalPoint.x, goalPoint.y, 'goal-nexus').setDepth(1.5);
-    const markerSize = this.layout.hexRadius * 1.1;
-    this.markerSprites.spawn
-      .setPosition(spawnPoint.x, spawnPoint.y)
-      .setDisplaySize(markerSize, markerSize)
-      .setVisible(true);
-    this.markerSprites.goal
-      .setPosition(goalPoint.x, goalPoint.y)
-      .setDisplaySize(markerSize, markerSize)
-      .setVisible(true);
+  private updateWaypointMarkers(pathNav: GameState['pathNav']): void {
+    const liveKeys = new Set<string>();
+    const lastIndex = pathNav.checkpoints.length - 1;
+    const size = this.layout.hexRadius * 0.78;
+
+    for (let i = 0; i < pathNav.checkpoints.length; i++) {
+      const cp = pathNav.checkpoints[i]!;
+      const key = `${cp.x},${cp.y}`;
+      liveKeys.add(key);
+      const point = cellToScreen(this.layout, cp);
+
+      let container = this.waypointMarkers.get(key);
+      if (!container) {
+        const ring = this.add.graphics();
+        const label = this.add
+          .text(0, 0, '', {
+            fontFamily: 'Chakra Petch, monospace',
+            fontSize: `${Math.max(11, Math.floor(this.layout.hexRadius * 0.55))}px`,
+            color: '#ffffff',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5);
+        container = this.add.container(0, 0, [ring, label]).setDepth(1.55);
+        this.waypointMarkers.set(key, container);
+      }
+
+      const isStart = i === 0;
+      const isFinish = i === lastIndex;
+      const labelText = isStart ? 'S' : isFinish ? 'F' : String(i);
+      const color = isFinish ? COLORS.red : isStart ? COLORS.green : 0xffd166;
+
+      const ring = container.list[0] as Phaser.GameObjects.Graphics;
+      ring.clear();
+      ring.fillStyle(color, isStart || isFinish ? 0.28 : 0.18);
+      ring.lineStyle(2, color, 0.95);
+      ring.fillCircle(0, 0, size * 0.42);
+      ring.strokeCircle(0, 0, size * 0.42);
+
+      const text = container.list[1] as Phaser.GameObjects.Text;
+      text.setText(labelText);
+      text.setColor(isFinish ? '#ffd0da' : isStart ? '#d7ffe8' : '#fff1c2');
+
+      container.setPosition(point.x, point.y).setVisible(true);
+    }
+
+    for (const [key, marker] of this.waypointMarkers) {
+      if (!liveKeys.has(key)) marker.setVisible(false);
+    }
   }
 
   private updateRockSprites(rocks: GameState['rocks']): void {
@@ -473,6 +503,28 @@ function drawHexShape(
   }
 }
 
+
+function drawCheckpointRoute(
+  g: Phaser.GameObjects.Graphics,
+  layout: BoardLayout,
+  checkpoints: readonly Vec2[],
+): void {
+  if (checkpoints.length < 2) return;
+  g.lineStyle(3, COLORS.path, 0.28);
+  for (let i = 0; i < checkpoints.length - 1; i++) {
+    const a = cellToScreen(layout, checkpoints[i]!);
+    const b = cellToScreen(layout, checkpoints[i + 1]!);
+    g.beginPath();
+    g.moveTo(a.x, a.y);
+    g.lineTo(b.x, b.y);
+    g.strokePath();
+  }
+  for (const cp of checkpoints) {
+    const point = cellToScreen(layout, cp);
+    g.fillStyle(COLORS.path, 0.55);
+    g.fillCircle(point.x, point.y, Math.max(4, layout.hexRadius * 0.08));
+  }
+}
 
 function drawPathOverlay(
   g: Phaser.GameObjects.Graphics,

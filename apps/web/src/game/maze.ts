@@ -7,6 +7,7 @@ export interface MazeLayout {
   boardH: number;
   spawnCell: Vec2;
   goalCell: Vec2;
+  checkpoints: readonly Vec2[];
   rocks: ReadonlySet<string>;
   blockedTowerCells: ReadonlySet<string>;
 }
@@ -18,12 +19,14 @@ export function createMazeLayout(
   goalCell: Vec2,
   rocks: Iterable<Vec2> = [],
   blockedTowerCells: Iterable<Vec2> = [],
+  checkpoints: readonly Vec2[] = [spawnCell, goalCell],
 ): MazeLayout {
   return {
     boardW,
     boardH,
     spawnCell: { ...spawnCell },
     goalCell: { ...goalCell },
+    checkpoints: checkpoints.map((cp) => ({ ...cp })),
     rocks: new Set([...rocks].map((c) => cellKey(c.x, c.y))),
     blockedTowerCells: new Set([...blockedTowerCells].map((c) => cellKey(c.x, c.y))),
   };
@@ -40,7 +43,17 @@ export function isWalkableCell(layout: MazeLayout, q: number, r: number): boolea
 }
 
 export function hasValidPath(layout: MazeLayout): boolean {
-  return buildMazePathNav(layout).pathCells.size > 0;
+  return hasValidCheckpointPath(layout);
+}
+
+export function hasValidCheckpointPath(layout: MazeLayout): boolean {
+  if (layout.checkpoints.length < 2) return false;
+  for (let i = 0; i < layout.checkpoints.length - 1; i++) {
+    const from = layout.checkpoints[i]!;
+    const to = layout.checkpoints[i + 1]!;
+    if (!canReachCheckpoint(layout, from, to)) return false;
+  }
+  return true;
 }
 
 export function buildMazePathNav(layout: MazeLayout): PathNavData {
@@ -50,6 +63,14 @@ export function buildMazePathNav(layout: MazeLayout): PathNavData {
     pathCells.add(key);
   }
 
+  const checkpointDistances = layout.checkpoints.map((cp) => {
+    const distances = bfsDistanceFromWalkable(layout, cp);
+    for (const key of distances.keys()) {
+      pathCells.add(key);
+    }
+    return distances;
+  });
+
   let maxProgress = 0;
   for (const dist of distanceToGoal.values()) {
     maxProgress = Math.max(maxProgress, dist);
@@ -58,17 +79,20 @@ export function buildMazePathNav(layout: MazeLayout): PathNavData {
   return {
     pathCells,
     distanceToGoal,
+    checkpointDistances,
     maxProgress,
     goalCell: { ...layout.goalCell },
     spawnCell: { ...layout.spawnCell },
+    checkpoints: layout.checkpoints.map((cp) => ({ ...cp })),
   };
 }
 
 export function canPlaceRock(layout: MazeLayout, q: number, r: number): boolean {
   const key = cellKey(q, r);
   if (layout.rocks.has(key)) return false;
-  if (key === cellKey(layout.spawnCell.x, layout.spawnCell.y)) return false;
-  if (key === cellKey(layout.goalCell.x, layout.goalCell.y)) return false;
+  for (const cp of layout.checkpoints) {
+    if (key === cellKey(cp.x, cp.y)) return false;
+  }
 
   const trial = createMazeLayout(
     layout.boardW,
@@ -77,8 +101,9 @@ export function canPlaceRock(layout: MazeLayout, q: number, r: number): boolean 
     layout.goalCell,
     [...keysToVec2(layout.rocks), { x: q, y: r }],
     keysToVec2(layout.blockedTowerCells),
+    layout.checkpoints,
   );
-  return hasValidPath(trial);
+  return hasValidCheckpointPath(trial);
 }
 
 export function rockRefundPercent(rocksPlaced: number): number {
@@ -87,13 +112,18 @@ export function rockRefundPercent(rocksPlaced: number): number {
   return 0.25;
 }
 
-function bfsDistanceToGoal(layout: MazeLayout): Map<string, number> {
-  const distances = new Map<string, number>();
-  const goalKey = cellKey(layout.goalCell.x, layout.goalCell.y);
-  if (!isWalkableCell(layout, layout.goalCell.x, layout.goalCell.y)) return distances;
+function canReachCheckpoint(layout: MazeLayout, from: Vec2, to: Vec2): boolean {
+  const distances = bfsDistanceFromWalkable(layout, from);
+  return distances.has(cellKey(to.x, to.y));
+}
 
-  const queue: Vec2[] = [{ ...layout.goalCell }];
-  distances.set(goalKey, 0);
+function bfsDistanceFromWalkable(layout: MazeLayout, origin: Vec2): Map<string, number> {
+  const distances = new Map<string, number>();
+  const originKey = cellKey(origin.x, origin.y);
+  if (!isWalkableCell(layout, origin.x, origin.y)) return distances;
+
+  const queue: Vec2[] = [{ ...origin }];
+  distances.set(originKey, 0);
 
   while (queue.length > 0) {
     const current = queue.shift()!;
@@ -111,10 +141,11 @@ function bfsDistanceToGoal(layout: MazeLayout): Map<string, number> {
     }
   }
 
-  const spawnKey = cellKey(layout.spawnCell.x, layout.spawnCell.y);
-  if (!distances.has(spawnKey)) return new Map();
-
   return distances;
+}
+
+function bfsDistanceToGoal(layout: MazeLayout): Map<string, number> {
+  return bfsDistanceFromWalkable(layout, layout.goalCell);
 }
 
 function keysToVec2(keys: ReadonlySet<string>): Vec2[] {

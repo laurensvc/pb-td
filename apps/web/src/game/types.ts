@@ -126,9 +126,13 @@ export interface AreaTierDefinition {
 export interface PathNavData {
   pathCells: ReadonlySet<string>;
   distanceToGoal: ReadonlyMap<string, number>;
+  /** BFS distance fields from each checkpoint (same index as checkpoints). */
+  checkpointDistances: readonly ReadonlyMap<string, number>[];
   maxProgress: number;
   goalCell: Vec2;
   spawnCell: Vec2;
+  /** Ordered route vertices monsters must visit (GemTD checkpoints). */
+  checkpoints: readonly Vec2[];
 }
 
 export interface AreaDefinition {
@@ -172,6 +176,8 @@ export interface EnemyState {
   x: number;
   y: number;
   pathProgress: number;
+  /** Index into pathNav.checkpoints for the next checkpoint to reach. */
+  checkpointIndex: number;
   hp: number;
   maxHp: number;
   shield: number;
