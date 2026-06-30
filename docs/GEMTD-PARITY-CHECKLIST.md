@@ -185,8 +185,8 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 - [x] React: stable Phaser bridge ref, throttled publish, save fingerprint persistence
 - [x] Phaser: sprite pruning, input cleanup, rock preview without dispatch storm
 - [x] Engine: split-spawn fix, claim-without-rocks guard, missile wave-end gating, crown respec refund
-- [x] Pure `createSnapshot`; transient toast/path delta consumed in publish hook
-- [x] Regression tests (57 web tests passing)
+- [x] Pure `createSnapshot`; client-only toast/path delta in `useCosmicGame` (not on `GameState`)
+- [x] Regression tests (59 web tests passing)
 - [x] FX popups render text; spawn/goal portal assets on board
 - [x] Undo merge reverts quest progress, great unlocks, and gold
 - [x] HUD panels extracted + memoized; snapshot carries save clone
@@ -198,6 +198,7 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 - [x] Split `types.ts` into primitives/content/runtime/snapshot/actions
 - [x] Split Phaser draw/input into `phaser/render/*` and `phaser/input/*`
 - [x] Lazy-load shop/progress panel tabs; `createGame({ runSeed })` for races
+- [x] Extract `BoardSpriteLayer` (`phaser/sprites/boardSprites.ts`); `UiFeedback` from dispatch
 
 **Done when:** Test/lint/build green; no file > ~600 lines without a split plan; ready for protocol adapter (Phase 13).
 
