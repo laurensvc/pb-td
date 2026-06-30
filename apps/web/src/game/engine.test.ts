@@ -43,13 +43,19 @@ function addBoardGem(
 }
 
 function skipBuildPhaseToReady(game: GameState): void {
+  if (game.rocks.length === 0) {
+    const probe = hexWorldCenter(0, 0);
+    if (canPlaceRockAt(game, probe.x, probe.y)) {
+      dispatchGameAction(game, { type: 'placeRock', x: probe.x, y: probe.y });
+    }
+  }
   dispatchGameAction(game, { type: 'finishRocks' });
   dispatchGameAction(game, { type: 'claimOffer', index: 0 });
-  if (game.rocks.length > 0) {
+  if (game.rocks.length > 0 && game.claimedOffer) {
     const rock = game.rocks[0]!;
     const center = hexWorldCenter(rock.x, rock.y);
     dispatchGameAction(game, { type: 'upgradeRock', x: center.x, y: center.y });
-  } else {
+  } else if (game.buildStep !== 'ready') {
     game.buildStep = 'ready';
   }
 }
@@ -124,13 +130,15 @@ describe('cosmic gem siege simulation', () => {
 
   it('fires placed gems during a running wave', () => {
     const game = createGame();
-    skipBuildPhaseToReady(game);
+    game.buildStep = 'ready';
     addBoardGem(game, 2, 5);
     dispatchGameAction(game, { type: 'startWave' });
     runFor(4, (dt) => tickGame(game, dt));
 
     expect(game.gems.length).toBeGreaterThan(0);
-    expect(game.projectiles.length + game.gems[0]!.damageDone).toBeGreaterThan(0);
+    const combat =
+      game.projectiles.length + game.gems.reduce((total, gem) => total + gem.damageDone, 0);
+    expect(combat).toBeGreaterThan(0);
   });
 
   it('places rocks for free during the rock build step', () => {
@@ -248,5 +256,74 @@ describe('cosmic gem siege simulation', () => {
     const snapshot = createSnapshot(game);
     expect(snapshot.nextWavePreview.length).toBeGreaterThan(0);
     expect(snapshot.buildStep).toBe('rocks');
+  });
+
+  it('does not double-spawn split enemies on projectile kill', () => {
+    const game = createGame();
+    game.status = 'running';
+    game.enemies.push({
+      id: 1,
+      definitionId: 'shifter',
+      name: 'Phase Shifter',
+      x: 2,
+      y: 3,
+      pathProgress: 0.5,
+      checkpointIndex: 1,
+      hp: 1,
+      maxHp: 88,
+      shield: 0,
+      maxShield: 0,
+      speed: 1,
+      rewardStars: 1,
+      rewardGold: 1,
+      color: '#fff',
+      alive: true,
+      leaked: false,
+      flying: false,
+      invisible: true,
+      magicImmune: false,
+      physicalImmune: false,
+      revealedUntil: 0,
+      poisonDps: 0,
+      poisonUntil: 0,
+      slowUntil: 0,
+      slowFactor: 1,
+      armorReduction: 0,
+    });
+    const before = game.nextEnemyId;
+    game.projectiles.push({
+      id: 1,
+      gemId: 0,
+      targetId: 1,
+      x: 2,
+      y: 3,
+      damage: 99,
+      speed: 10,
+      color: '#fff',
+      active: true,
+    });
+    tickGame(game, 0.05);
+    const spawned = game.enemies.filter((e) => e.definitionId === 'scout').length;
+    expect(spawned).toBe(2);
+    expect(game.nextEnemyId).toBe(before + 2);
+  });
+
+  it('blocks claiming an offer without any rocks', () => {
+    const game = createGame();
+    dispatchGameAction(game, { type: 'finishRocks' });
+    dispatchGameAction(game, { type: 'claimOffer', index: 0 });
+    expect(game.claimedOffer).toBeNull();
+    expect(game.buildStep).toBe('prospect');
+  });
+
+  it('refunds crowns on respec', () => {
+    const game = createGame({ ...createDefaultSave(), stars: 300, crowns: 2 });
+    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
+    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-verdant' });
+    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-arcane' });
+    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-nova' });
+    expect(game.save.crowns).toBe(1);
+    dispatchGameAction(game, { type: 'respecUpgrades' });
+    expect(game.save.crowns).toBe(2);
   });
 });

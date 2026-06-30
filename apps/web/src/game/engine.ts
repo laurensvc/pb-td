@@ -22,7 +22,7 @@ import {
   isPlanningPhase,
   prospectRerollCost,
 } from './buildPhase';
-import { hexWorldCenter, worldToHex } from './hexGrid';
+import { hexWorldCenter, isOnBoard, worldToHex } from './hexGrid';
 import {
   effectiveDamageMultiplier,
   gemDamageType,
@@ -153,7 +153,7 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       state.gameSpeed = action.speed;
       break;
     case 'previewRockPath':
-      previewRockPath(state, action.x, action.y);
+      previewRockPathAction(state, action.x, action.y);
       break;
     case 'rerollQuest':
       rerollQuestAction(state, action.questId);
@@ -188,7 +188,14 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
 export function tickGame(state: GameState, dt: number): void {
   const step = Math.min(MAX_DT, Math.max(0, dt));
   tickTransientFx(state, step);
-  if (state.status !== 'running') return;
+  const pendingMissiles = state.missiles.some((missile) => missile.active && missile.impactIn > 0);
+  if (state.status !== 'running') {
+    if (pendingMissiles) {
+      tickMissiles(state, step);
+      clearInactive(state);
+    }
+    return;
+  }
 
   state.time += step;
   state.missileCooldownLeft = Math.max(0, state.missileCooldownLeft - step);
@@ -280,9 +287,12 @@ export function createSnapshot(state: GameState): Snapshot {
             : 'All 50 waves cleared. Mastery held.'
           : null,
   };
+  return snapshot;
+}
+
+export function consumeTransientUi(state: GameState): void {
   state.toast = null;
   state.rockPathDelta = null;
-  return snapshot;
 }
 
 export function getMissileStats(state: GameState): {
@@ -328,6 +338,7 @@ export function canPlaceRockAt(state: GameState, x: number, y: number): boolean 
   if (state.buildStep !== 'rocks') return false;
   if (state.rocksPlacedThisPhase >= ROCKS_PER_PHASE) return false;
   const cell = toCell(x, y);
+  if (!isOnBoard(cell.x, cell.y, BOARD_WIDTH, BOARD_HEIGHT)) return false;
   if (!acceptsRock(cell.x, cell.y) || rockAtCell(state, cell.x, cell.y)) return false;
   return canPlaceRock(mazeLayoutFromState(state), cell.x, cell.y);
 }
@@ -335,6 +346,7 @@ export function canPlaceRockAt(state: GameState, x: number, y: number): boolean 
 export function canPlaceHoldGemAt(state: GameState, x: number, y: number): boolean {
   if (!isPlanningPhase(state.status) || !state.holdGem) return false;
   const cell = toCell(x, y);
+  if (!isOnBoard(cell.x, cell.y, BOARD_WIDTH, BOARD_HEIGHT)) return false;
   return (
     parityMatchesPlacement(cell.x, cell.y, 'gem') &&
     !rockAtCell(state, cell.x, cell.y) &&
@@ -370,8 +382,16 @@ export function rockPathLengthDelta(state: GameState, x: number, y: number): num
   return after - before;
 }
 
-function previewRockPath(state: GameState, x: number, y: number): void {
+export function previewRockPath(state: GameState, x: number, y: number): void {
   state.rockPathDelta = rockPathLengthDelta(state, x, y);
+}
+
+export function clearRockPathPreview(state: GameState): void {
+  state.rockPathDelta = null;
+}
+
+function previewRockPathAction(state: GameState, x: number, y: number): void {
+  previewRockPath(state, x, y);
 }
 
 function buildCurrentWaveSpawnTracker(state: GameState): Snapshot['waveSpawnTracker'] {
@@ -421,7 +441,9 @@ function gemCanTargetAir(family: GemFamilyId): boolean {
 }
 
 export function canPlaceGemAt(state: GameState, x: number, y: number): boolean {
+  if (!isPlanningPhase(state.status)) return false;
   const cell = toCell(x, y);
+  if (!isOnBoard(cell.x, cell.y, BOARD_WIDTH, BOARD_HEIGHT)) return false;
   return (
     parityMatchesPlacement(cell.x, cell.y, 'gem') &&
     !rockAtCell(state, cell.x, cell.y) &&
@@ -523,6 +545,10 @@ function claimOffer(state: GameState, index: number): void {
   if (state.buildStep !== 'prospect' && state.buildStep !== 'upgrade') return;
   const offer = state.offers[index];
   if (!offer) return;
+  if (state.rocks.length === 0) {
+    state.toast = 'Place at least one rock before claiming a gem offer.';
+    return;
+  }
   state.claimedOffer = { ...offer };
   state.buildStep = 'upgrade';
   state.placementMode = 'rock';
@@ -637,6 +663,15 @@ function sellRock(state: GameState, x: number, y: number): void {
   const cell = toCell(x, y);
   const index = state.rocks.findIndex((rock) => rock.x === cell.x && rock.y === cell.y);
   if (index < 0) return;
+  if (
+    isPlanningPhase(state.status) &&
+    state.buildStep === 'upgrade' &&
+    state.claimedOffer &&
+    state.rocks.length <= 1
+  ) {
+    state.toast = 'Keep a rock to apply your claimed upgrade.';
+    return;
+  }
   const rock = state.rocks[index];
   const refund = Math.floor(rock.costPaid * rockRefundPercent(state.rocksPlaced));
   state.gold += refund;
@@ -689,6 +724,7 @@ function undoMerge(state: GameState): void {
   if (!entry) return;
   state.gems = entry.gems.map((g) => ({ ...g }));
   state.mergeSourceGemId = null;
+  state.mergeCount = Math.max(0, state.mergeCount - 1);
   rebuildPathNav(state);
 }
 
@@ -882,8 +918,10 @@ function respecUpgrades(state: GameState): void {
   const cost = getRespecCost(state.save);
   if (state.save.stars < cost) return;
   const purchased = purchasedUpgrades(state.save);
-  const refund = purchased.reduce((total, upgrade) => total + upgrade.costStars, 0) - cost;
-  state.save.stars += Math.max(0, refund);
+  const starRefund = purchased.reduce((total, upgrade) => total + upgrade.costStars, 0) - cost;
+  const crownRefund = purchased.reduce((total, upgrade) => total + (upgrade.costCrowns ?? 0), 0);
+  state.save.stars += Math.max(0, starRefund);
+  state.save.crowns += crownRefund;
   state.save.spentStars = 0;
   state.save.purchasedUpgradeIds = [];
   state.save.unlockedGemFamilies = ['kinetic', 'verdant'];
@@ -1120,6 +1158,7 @@ function completeWaveOrAttempt(state: GameState): void {
   if (state.enemiesToSpawn > 0) return;
   if (state.enemies.some((enemy) => enemy.alive)) return;
   if (state.projectiles.some((projectile) => projectile.active)) return;
+  if (state.missiles.some((missile) => missile.active && missile.impactIn > 0)) return;
 
   const area = getArea(state.areaId);
   const tier = area.tiers[state.tierId];
@@ -1140,6 +1179,7 @@ function completeWaveOrAttempt(state: GameState): void {
   if (state.waveIndex < tier.waves.length - 1) {
     state.waveIndex += 1;
     state.status = 'betweenWaves';
+    state.enemies = state.enemies.filter((enemy) => enemy.alive);
     beginBuildPhase(state);
     return;
   }
@@ -1203,9 +1243,7 @@ function hitWithProjectile(
     }
   }
 
-  if (!target.alive) {
-    handleEnemyDeath(state, target);
-  }
+  projectile.active = false;
 }
 
 function handleEnemyDeath(state: GameState, enemy: EnemyState): void {
@@ -1227,7 +1265,8 @@ function spawnSplitEnemy(
   const area = getArea(state.areaId);
   const tier = area.tiers[state.tierId];
   const definition = getEnemy(enemyId);
-  const hp = Math.round(definition.hp * tier.enemyHpMultiplier * 0.5);
+  const waveScale = 1 + state.waveIndex * 0.04;
+  const hp = Math.round(definition.hp * tier.enemyHpMultiplier * waveScale * 0.5);
   state.enemies.push({
     id: state.nextEnemyId++,
     definitionId: definition.id,
@@ -1267,7 +1306,6 @@ function damageInRadius(state: GameState, missile: MissileState): void {
         shieldPierce: 0.75,
         damageType: 'pure',
       });
-      if (!enemy.alive) handleEnemyDeath(state, enemy);
     }
   }
 }
@@ -1323,7 +1361,7 @@ function applyDamage(
 }
 
 function clearInactive(state: GameState): void {
-  state.enemies = state.enemies.filter((enemy) => enemy.alive || enemy.leaked);
+  state.enemies = state.enemies.filter((enemy) => enemy.alive);
   state.projectiles = state.projectiles.filter((projectile) => projectile.active);
   state.missiles = state.missiles.filter((missile) => missile.active || missile.life > 0);
 }

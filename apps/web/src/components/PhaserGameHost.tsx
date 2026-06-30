@@ -10,12 +10,25 @@ interface PhaserGameHostProps {
 export function PhaserGameHost({ bridge }: PhaserGameHostProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
+  const bridgeRef = useRef(bridge);
+
+  useEffect(() => {
+    bridgeRef.current = bridge;
+  }, [bridge]);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host || gameRef.current) return;
 
-    installBridge(bridge);
+    const stableBridge: PhaserBridge = {
+      getState: () => bridgeRef.current.getState(),
+      dispatch: (action) => bridgeRef.current.dispatch(action),
+      previewRockPath: (x, y) => bridgeRef.current.previewRockPath(x, y),
+      clearRockPathPreview: () => bridgeRef.current.clearRockPathPreview(),
+      step: (dt) => bridgeRef.current.step(dt),
+    };
+
+    installBridge(stableBridge);
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: host,
@@ -36,9 +49,9 @@ export function PhaserGameHost({ bridge }: PhaserGameHostProps) {
     return () => {
       game.destroy(true);
       gameRef.current = null;
-      clearBridge(bridge);
+      clearBridge(stableBridge);
     };
-  }, [bridge]);
+  }, []);
 
   return <div ref={hostRef} className="game-canvas" aria-label="Cosmic Siege game board" />;
 }

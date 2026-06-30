@@ -3,6 +3,8 @@ import { BOARD_HEIGHT, BOARD_WIDTH, gemDefinitions } from '../game/content';
 import { cellParity } from '../game/boardParity';
 import { canMergeGems } from '../game/gems';
 import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/engine';
+import { isEnemyVisible } from '../game/damage';
+import { getGemCombatStats } from '../game/gems';
 import { areAdjacentGems } from '../game/recipes';
 import { hexPixelCorners, worldToHex } from '../game/hexGrid';
 import type {
@@ -27,7 +29,7 @@ import {
   gemAssetPath,
   gemTextureKey,
 } from './assetManifest';
-import { getBridge } from './bridge';
+import { tryGetBridge, type PhaserBridge } from './bridge';
 import {
   boardToScreen,
   cellCenter,
@@ -69,6 +71,9 @@ export class CosmicBoardScene extends Phaser.Scene {
     height: 400,
   };
   private assetsReady = false;
+  private lastPreviewCellKey: string | null = null;
+  private lastLayoutWidth = 0;
+  private lastLayoutHeight = 0;
 
   constructor() {
     super('cosmic-board');
@@ -107,13 +112,37 @@ export class CosmicBoardScene extends Phaser.Scene {
     this.input.on('pointerdown', this.handlePointerDown, this);
     this.input.on('pointermove', this.handlePointerMove, this);
     this.input.on('gameout', this.clearHover, this);
+    this.input.on('pointerout', this.clearHover, this);
+    this.game.canvas.addEventListener('contextmenu', this.preventContextMenu);
   }
 
+  shutdown(): void {
+    this.input.off('pointerdown', this.handlePointerDown, this);
+    this.input.off('pointermove', this.handlePointerMove, this);
+    this.input.off('gameout', this.clearHover, this);
+    this.input.off('pointerout', this.clearHover, this);
+    this.game.canvas.removeEventListener('contextmenu', this.preventContextMenu);
+    this.pruneHiddenSprites();
+  }
+
+  private preventContextMenu = (event: Event): void => {
+    event.preventDefault();
+  };
+
   update(_time: number, delta: number): void {
-    const bridge = getBridge();
+    const bridge = tryGetBridge();
+    if (!bridge) return;
     bridge.step(delta / 1000);
     const state = bridge.getState();
-    this.layout = computeLayout(this.scale.width, this.scale.height);
+    const nextLayout = computeLayout(this.scale.width, this.scale.height);
+    const layoutChanged =
+      nextLayout.width !== this.lastLayoutWidth || nextLayout.height !== this.lastLayoutHeight;
+    this.layout = nextLayout;
+    this.lastLayoutWidth = nextLayout.width;
+    this.lastLayoutHeight = nextLayout.height;
+    if (layoutChanged) {
+      this.pruneHiddenSprites();
+    }
     this.drawBoard(state);
     this.drawSprites(state);
     this.drawFx(state);
@@ -138,7 +167,8 @@ export class CosmicBoardScene extends Phaser.Scene {
   }
 
   private handlePointerMove(pointer: Phaser.Input.Pointer): void {
-    const bridge = getBridge();
+    const bridge = tryGetBridge();
+    if (!bridge) return;
     const state = bridge.getState();
     const planning = state.status === 'idle' || state.status === 'betweenWaves';
     const canvasPoint = this.pointerCanvasPoint(pointer);
@@ -152,18 +182,25 @@ export class CosmicBoardScene extends Phaser.Scene {
         : state.placementMode === 'hold'
           ? canPlaceHoldGemAt(state, boardPoint.x, boardPoint.y)
           : state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y));
-    if (planning && state.buildStep === 'rocks' && this.hoverCell && boardPoint) {
-      bridge.dispatch({
-        type: 'previewRockPath',
-        x: boardPoint.x,
-        y: boardPoint.y,
-      });
+    if (
+      planning &&
+      state.buildStep === 'rocks' &&
+      state.placementMode === 'rock' &&
+      this.hoverCell &&
+      boardPoint
+    ) {
+      const cellKey = `${this.hoverCell.x},${this.hoverCell.y}`;
+      if (cellKey !== this.lastPreviewCellKey) {
+        this.lastPreviewCellKey = cellKey;
+        bridge.previewRockPath(boardPoint.x, boardPoint.y);
+      }
     }
     this.input.manager.canvas.style.cursor = canPlace ? 'pointer' : 'crosshair';
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
-    const bridge = getBridge();
+    const bridge = tryGetBridge();
+    if (!bridge) return;
     const state = bridge.getState();
     const canvasPoint = this.pointerCanvasPoint(pointer);
     const cell = screenToCell(this.layout, canvasPoint.x, canvasPoint.y);
@@ -197,7 +234,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       return;
     }
     if (planning && state.placementMode === 'hold') {
-      if (state.holdGem) {
+      if (state.holdGem && canPlaceHoldGemAt(state, boardPoint.x, boardPoint.y)) {
         bridge.dispatch({ type: 'placeHoldGem', x: boardPoint.x, y: boardPoint.y });
       }
       return;
@@ -213,14 +250,18 @@ export class CosmicBoardScene extends Phaser.Scene {
       }
       return;
     }
-    const missilePoint = screenToBoard(this.layout, canvasPoint.x, canvasPoint.y);
-    if (missilePoint) {
-      bridge.dispatch({ type: 'fireMissile', x: missilePoint.x, y: missilePoint.y });
+    if (state.status === 'running') {
+      const missilePoint = screenToBoard(this.layout, canvasPoint.x, canvasPoint.y);
+      if (missilePoint) {
+        bridge.dispatch({ type: 'fireMissile', x: missilePoint.x, y: missilePoint.y });
+      }
     }
   }
 
   private clearHover(): void {
     this.hoverCell = null;
+    this.lastPreviewCellKey = null;
+    tryGetBridge()?.clearRockPathPreview();
     this.input.manager.canvas.style.cursor = 'default';
   }
 
@@ -273,7 +314,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     this.updateWaypointMarkers(state.pathNav);
     this.updateRockSprites(state.rocks);
     this.updateGemSprites(state.gems, state.mergeSourceGemId, state.greatUnlocked);
-    this.updateEnemySprites(state.enemies);
+    this.updateEnemySprites(state);
     this.drawEnemyBars(state.enemies);
   }
 
@@ -375,7 +416,7 @@ export class CosmicBoardScene extends Phaser.Scene {
         .setDisplaySize(this.layout.hexRadius * 1.7, this.layout.hexRadius * 1.7)
         .setVisible(true);
     }
-    hideMissingSprites(this.rockSprites, liveKeys);
+    pruneMissingSprites(this.rockSprites, liveKeys);
   }
 
   private updateGemSprites(
@@ -412,10 +453,16 @@ export class CosmicBoardScene extends Phaser.Scene {
         sprite.clearTint();
       }
     }
-    hideMissingSprites(this.gemSprites, liveIds);
+    pruneMissingSprites(this.gemSprites, liveIds);
   }
 
-  private updateEnemySprites(enemies: readonly EnemyState[]): void {
+  private updateEnemySprites(state: GameState): void {
+    const enemies = state.enemies;
+    const detectionGems = state.gems.map((gem) => ({
+      x: gem.x,
+      y: gem.y,
+      range: getGemCombatStats(state.save, gem.family, gem.level).range,
+    }));
     const liveIds = new Set<number>();
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
@@ -438,15 +485,28 @@ export class CosmicBoardScene extends Phaser.Scene {
           sprite.play(animKey);
         }
       }
-      if (enemy.slowUntil > 0) sprite.setTint(0x88ccff);
-      else if (enemy.invisible) sprite.setAlpha(0.35);
+
+      sprite.clearTint();
+      sprite.setAlpha(1);
+      const slowed = enemy.slowUntil > state.time;
+      const stealthed =
+        enemy.invisible &&
+        !isEnemyVisible(enemy.revealedUntil, state.time, 0.5, enemy, detectionGems, true);
+      if (slowed) sprite.setTint(0x88ccff);
       else if (enemy.flying) sprite.setTint(0xc4f0ff);
-      else {
-        sprite.clearTint();
-        sprite.setAlpha(1);
-      }
+      if (stealthed) sprite.setAlpha(0.35);
     }
-    hideMissingSprites(this.enemySprites, liveIds);
+    pruneMissingSprites(this.enemySprites, liveIds);
+  }
+
+  private pruneHiddenSprites(): void {
+    pruneMissingSprites(this.gemSprites, new Set());
+    pruneMissingSprites(this.enemySprites, new Set());
+    pruneMissingSprites(this.rockSprites, new Set());
+    for (const [key, marker] of this.waypointMarkers) {
+      marker.destroy();
+      this.waypointMarkers.delete(key);
+    }
   }
 
   private drawEnemyBars(enemies: readonly EnemyState[]): void {
@@ -480,7 +540,7 @@ export class CosmicBoardScene extends Phaser.Scene {
 
 
 function handleRightClick(
-  bridge: ReturnType<typeof getBridge>,
+  bridge: PhaserBridge,
   state: GameState,
   cell: Vec2,
 ): void {
@@ -514,6 +574,18 @@ function hideMissingSprites<T extends string | number>(
 ): void {
   for (const [id, sprite] of sprites) {
     if (!liveIds.has(id)) sprite.setVisible(false);
+  }
+}
+
+function pruneMissingSprites<T extends string | number>(
+  sprites: Map<T, Phaser.GameObjects.Image | Phaser.GameObjects.Sprite>,
+  liveIds: ReadonlySet<T>,
+): void {
+  for (const [id, sprite] of sprites) {
+    if (!liveIds.has(id)) {
+      sprite.destroy();
+      sprites.delete(id);
+    }
   }
 }
 
