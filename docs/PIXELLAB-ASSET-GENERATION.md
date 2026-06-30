@@ -6,6 +6,8 @@ This project is starting from scratch, so the goal is not one-off pretty sprites
 
 For Codex cloud MCP wiring, see [`CODEX-PIXELLAB-MCP.md`](./CODEX-PIXELLAB-MCP.md).
 
+For per-asset generation status and checklists, see [`ASSET-GENERATION-TRACKER.md`](./ASSET-GENERATION-TRACKER.md).
+
 ## 1. Pipeline Goals
 
 - Preserve GemTD readability: every monster, tower, projectile, and tile must be identifiable at gameplay scale.
