@@ -6,6 +6,8 @@ This project is starting from scratch, so the goal is not one-off pretty sprites
 
 For Codex cloud MCP wiring, see [`CODEX-PIXELLAB-MCP.md`](./CODEX-PIXELLAB-MCP.md).
 
+For board layout, grass terrain, and landmark placement, see [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md).
+
 ## 1. Pipeline Goals
 
 - Preserve GemTD readability: every monster, tower, projectile, and tile must be identifiable at gameplay scale.
@@ -424,8 +426,8 @@ Environment art defines the board but must never obscure pathing.
 
 | ID | Type | Purpose |
 | --- | --- | --- |
-| `default-floor` | Terrain tile | Buildable ground |
-| `path-floor` | Terrain tile | Enemy route readability |
+| `grass-floor` | Terrain tile | Buildable meadow (primary v1 terrain) |
+| `path-floor` | Terrain tile | **Debug/editor only** — creep path is not visible in-game |
 | `blocked-floor` | Terrain tile | Unbuildable board cells |
 | `rock` | Object | Converted unused gems / maze walls |
 | `spawn-gate` | Object | Enemy start |
@@ -437,13 +439,13 @@ Environment art defines the board but must never obscure pathing.
 ### 9.2 Terrain Prompt Template
 
 ```text
-top-down seamless 32x32 pixel art terrain tile for a GemTD-inspired fantasy crystal maze, <terrain description>, gameplay-readable stone floor, subtle detail only, no tall objects, no text, crisp pixel edges
+top-down seamless 32x32 pixel art terrain tile for a GemTD-inspired fantasy crystal maze, <terrain description>, gameplay-readable grass meadow floor, subtle detail only, no tall objects, no path lane paint, no text, crisp pixel edges
 ```
 
 Example:
 
 ```text
-top-down seamless 32x32 pixel art terrain tile for a GemTD-inspired fantasy crystal maze, dark carved stone floor with faint blue crystal dust in cracks, gameplay-readable stone floor, subtle detail only, no tall objects, no text, crisp pixel edges
+top-down seamless 32x32 pixel art terrain tile for a GemTD-inspired fantasy crystal maze, soft green grass meadow with tiny wildflower specks and subtle shade variation, gameplay-readable grass floor, subtle detail only, no tall objects, no path lane paint, no text, crisp pixel edges
 ```
 
 ### 9.3 Environment Object Prompt Template
@@ -464,9 +466,9 @@ Create one complete default board first. Only then branch into biomes.
 
 Default board order:
 
-1. Buildable floor tile.
-2. Path floor variant.
-3. Blocked floor variant.
+1. Grass floor tile (`grass-floor`).
+2. Optional grass variant / edge tiles.
+3. Blocked floor variant (editor/debug).
 4. Rock object.
 5. Spawn gate.
 6. Goal nexus.
@@ -595,9 +597,8 @@ The first playable slice should use a deliberately small art set:
 
 ### Environment
 
-- `default-floor`
-- `path-floor`
-- `blocked-floor`
+- `grass-floor`
+- `blocked-floor` (debug/editor)
 - `rock`
 - `spawn-gate`
 - `goal-nexus`

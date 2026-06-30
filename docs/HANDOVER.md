@@ -34,7 +34,8 @@ Players can combine specific gems to create powerful Special Towers.
 Unlike standard TDs with a single Start and End, Gem TD uses waypoints. 
 *   Enemies spawn at **Start**, must walk to **Waypoint 1** (usually center), then **Waypoint 2** (top right), back to **Waypoint 1**, and finally to the **End**.
 *   This forces players to build a complex, winding maze that hits multiple checkpoints.
-*   **Flying Waves:** Every few waves, flying creeps spawn. They ignore the maze (Rocks/Gems) and fly in a straight line from Start to End.
+*   **Flying Waves:** Every few waves, flying creeps spawn. They ignore the maze (Rocks/Gems) and follow a fixed aerial route through the checkpoints (not drawn on the ground).
+*   **Full board spec:** Map size, camera pan, grass terrain, hidden path, landmark placement, and route legs — see [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md).
 
 ---
 
@@ -77,6 +78,8 @@ tower.setDepth(tower.y);   // Sort based on Y coordinate so front towers hide ba
 ---
 
 ## 5. Grid Math & Pathfinding
+
+Board dimensions, 2×2 footprints, camera pan, and grid visibility rules are defined in [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md).
 
 ### 5.1 Grid Snapping
 When the player hovers their mouse to place a gem, use this formula to snap the "Ghost" sprite to the grid:
