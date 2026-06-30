@@ -719,6 +719,7 @@ See [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) §9 and ass
 | Document | Relevance |
 | --- | --- |
 | [`HANDOVER.md`](./HANDOVER.md) | Core loop, pathfinding pitfalls, grid snapping |
+| [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md) | Gem/tower footprints, rocks, combat range conventions |
 | [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) | Environment asset prompts and paths |
 | [`MONSTER-SYSTEMS-DEEP-DIVE.md`](./MONSTER-SYSTEMS-DEEP-DIVE.md) | Creep path following, flying vs ground |
 

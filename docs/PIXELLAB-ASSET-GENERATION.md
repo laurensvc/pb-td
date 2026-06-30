@@ -8,6 +8,8 @@ For Codex cloud MCP wiring, see [`CODEX-PIXELLAB-MCP.md`](./CODEX-PIXELLAB-MCP.m
 
 For board layout, grass terrain, and landmark placement, see [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md).
 
+For gem types, tower stats, and recipes, see [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md).
+
 ## 1. Pipeline Goals
 
 - Preserve GemTD readability: every monster, tower, projectile, and tile must be identifiable at gameplay scale.
@@ -280,7 +282,7 @@ Towers are GemTD gems first and fantasy weapons second. The board must remain re
 
 ### 7.1 Tower Families
 
-Start with five readable families:
+Art batches use five visual families. Canonical gameplay gem types (Amethyst, Ruby, etc.) map to these families — see [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md) §16.
 
 | Family | Color | Combat identity | Visual motif |
 | --- | --- | --- | --- |

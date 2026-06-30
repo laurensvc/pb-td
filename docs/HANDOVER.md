@@ -24,11 +24,13 @@ This project aims to recreate the iconic custom map **Gem Tower Defense** from *
 Gems are defined by their **Type** (which dictates damage type/effects) and their **Quality** (tier level).
 *   **8 Base Types:** Amethyst (Anti-Air), Aquamarine (Attack Speed), Diamond (High Damage), Emerald (Poison), Opal (Aura/Support), Ruby (Splash Damage), Sapphire (Slow), Topaz (Multi-target).
 *   **6 Qualities (Tiers):** Chipped -> Flawed -> Normal -> Flawless -> Perfect -> Great.
+*   **Full tower/gem spec:** Stats, abilities, recipes, MVP, auras, and content schemas — see [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md).
 
 ### 2.2 The Recipe System (Special Towers)
 Players can combine specific gems to create powerful Special Towers.
 *   **Mechanic:** If a player has the required base gems on the board, they can select one and "Combine". The other component gems are consumed, and the selected gem transforms into a Special Tower.
 *   *Example:* Silver Knight = Chipped Sapphire + Chipped Topaz + Chipped Diamond.
+*   **Recipe catalog and combine rules:** [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md) §7.
 
 ### 2.3 Waypoint Mazing
 Unlike standard TDs with a single Start and End, Gem TD uses waypoints. 
@@ -100,6 +102,8 @@ Players **cannot** be allowed to trap enemies completely.
 ---
 
 ## 6. Combat & Targeting
+
+Tower combat, abilities, damage types, and targeting modes are specified in [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md). Summary below for quick reference.
 
 ### 6.1 Target Prioritization
 Towers need to know *who* to shoot. Implement a targeting array:
