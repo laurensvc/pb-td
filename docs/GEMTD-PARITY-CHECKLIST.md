@@ -178,9 +178,23 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 
 ---
 
+## Phase 12b — Robustness (pre-multiplayer)
+
+**Status:** `done`
+
+- [x] React: stable Phaser bridge ref, throttled publish, save fingerprint persistence
+- [x] Phaser: sprite pruning, input cleanup, rock preview without dispatch storm
+- [x] Engine: split-spawn fix, claim-without-rocks guard, missile wave-end gating, crown respec refund
+- [x] Pure `createSnapshot`; transient toast/path delta consumed in publish hook
+- [x] Regression tests (57 web tests passing)
+
+**Done when:** Test/lint/build green; no known soft-locks before Colyseus work.
+
+---
+
 ## Phase 13 — Multiplayer (Facet)
 
-**Status:** `in_progress`
+**Status:** `pending` _(deferred until Phase 12b robustness — complete)_
 
 - [x] Shared offer seed
 - [ ] Colyseus rooms + Firebase auth
