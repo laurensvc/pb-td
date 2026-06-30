@@ -72,7 +72,6 @@ export function createSnapshot(state: GameState): Snapshot {
     holdGem: state.holdGem ? { ...state.holdGem } : null,
     mergeUndoCount: state.mergeUndoStack.length,
     prospectRerollCost: prospectRerollCost(state.rerollsThisPhase),
-    rockPathDelta: state.rockPathDelta,
     nextWavePreview: buildWavePreview(state),
     waveSpawnTracker: buildCurrentWaveSpawnTracker(state),
     runSeed: state.runSeed,
@@ -91,7 +90,8 @@ export function createSnapshot(state: GameState): Snapshot {
       y: g.y,
       targeting: g.targeting,
     })),
-    toast: state.toast,
+    toast: null,
+    rockPathDelta: null,
     unlockedGemFamilies: [...state.save.unlockedGemFamilies],
     canStartWave: isPlanningPhase(state.status) && state.buildStep === 'ready',
     canRetry: state.status === 'lost' || state.status === 'cleared',
@@ -118,9 +118,4 @@ export function createSnapshot(state: GameState): Snapshot {
           : null,
     save: cloneSave(state.save),
   };
-}
-
-export function consumeTransientUi(state: GameState): void {
-  state.toast = null;
-  state.rockPathDelta = null;
 }

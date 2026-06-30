@@ -40,6 +40,7 @@ import type {
   HoldGem,
   MergeUndoEntry,
   TargetingMode,
+  UiFeedback,
 } from './types';
 
 export function finishRocks(state: GameState): void {
@@ -48,19 +49,19 @@ export function finishRocks(state: GameState): void {
   state.buildStep = 'prospect';
 }
 
-export function claimOffer(state: GameState, index: number): void {
-  if (!isPlanningPhase(state.status)) return;
+export function claimOffer(state: GameState, index: number): UiFeedback {
+  if (!isPlanningPhase(state.status)) return {};
   if (state.buildStep === 'rocks') finishRocks(state);
-  if (state.buildStep !== 'prospect' && state.buildStep !== 'upgrade') return;
+  if (state.buildStep !== 'prospect' && state.buildStep !== 'upgrade') return {};
   const offer = state.offers[index];
-  if (!offer) return;
+  if (!offer) return {};
   if (state.rocks.length === 0) {
-    state.toast = 'Place at least one rock before claiming a gem offer.';
-    return;
+    return { toast: 'Place at least one rock before claiming a gem offer.' };
   }
   state.claimedOffer = { ...offer };
   state.buildStep = 'upgrade';
   state.placementMode = 'rock';
+  return {};
 }
 
 export function rerollOffers(state: GameState): void {
@@ -147,15 +148,15 @@ export function placeGem(state: GameState, x: number, y: number): void {
   rebuildPathNav(state);
 }
 
-export function placeRock(state: GameState, x: number, y: number): void {
-  if (!isPlanningPhase(state.status)) return;
-  if (state.buildStep !== 'rocks') return;
+export function placeRock(state: GameState, x: number, y: number): UiFeedback {
+  if (!isPlanningPhase(state.status)) return {};
+  if (state.buildStep !== 'rocks') return {};
   const cell = toCell(x, y);
   if (!canPlaceRockAt(state, x, y)) {
     if (acceptsRock(cell.x, cell.y) && !rockAtCell(state, cell.x, cell.y)) {
-      state.toast = 'That rock would break the route through checkpoints.';
+      return { toast: 'That rock would break the route through checkpoints.' };
     }
-    return;
+    return {};
   }
   state.rocks.push({ x: cell.x, y: cell.y, costPaid: 0 });
   state.rocksPlaced += 1;
@@ -164,21 +165,21 @@ export function placeRock(state: GameState, x: number, y: number): void {
     state.buildStep = 'prospect';
   }
   rebuildPathNav(state);
+  return {};
 }
 
-export function sellRock(state: GameState, x: number, y: number): void {
-  if (state.status === 'running') return;
+export function sellRock(state: GameState, x: number, y: number): UiFeedback {
+  if (state.status === 'running') return {};
   const cell = toCell(x, y);
   const index = state.rocks.findIndex((rock) => rock.x === cell.x && rock.y === cell.y);
-  if (index < 0) return;
+  if (index < 0) return {};
   if (
     isPlanningPhase(state.status) &&
     state.buildStep === 'upgrade' &&
     state.claimedOffer &&
     state.rocks.length <= 1
   ) {
-    state.toast = 'Keep a rock to apply your claimed upgrade.';
-    return;
+    return { toast: 'Keep a rock to apply your claimed upgrade.' };
   }
   const rock = state.rocks[index];
   const refund = Math.floor(rock.costPaid * rockRefundPercent(state.rocksPlaced));
@@ -186,6 +187,7 @@ export function sellRock(state: GameState, x: number, y: number): void {
   state.rocks.splice(index, 1);
   state.rocksPlaced = Math.max(0, state.rocksPlaced - 1);
   rebuildPathNav(state);
+  return {};
 }
 
 export function sellGem(state: GameState, gemId: number): void {

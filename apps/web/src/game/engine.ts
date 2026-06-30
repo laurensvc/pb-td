@@ -1,11 +1,10 @@
 import { TOTAL_WAVES } from './content';
 import { createDefaultSave } from './save';
 import { createAttempt, replaceState } from './attempt';
-import { previewRockPath } from './boardQueries';
 import * as placement from './placement';
 import { MAX_DT, buyUpgrade, fireMissile, respecUpgrades, tickCombatStep, tickMissilesOnly } from './combat';
 import { tickTransientFx } from './runProgress';
-import type { GameAction, GameState } from './types';
+import type { GameAction, GameState, UiFeedback } from './types';
 
 export { TOTAL_WAVES };
 export { createGame } from './attempt';
@@ -13,13 +12,12 @@ export {
   canPlaceGemAt,
   canPlaceHoldGemAt,
   canPlaceRockAt,
-  clearRockPathPreview,
   previewRockPath,
 } from './boardQueries';
 export { canBuyUpgrade, getMissileStats, isTierUnlocked } from './upgrades';
-export { createSnapshot, consumeTransientUi } from './snapshot';
+export { createSnapshot } from './snapshot';
 
-export function dispatchGameAction(state: GameState, action: GameAction): void {
+export function dispatchGameAction(state: GameState, action: GameAction): UiFeedback {
   switch (action.type) {
     case 'startArea':
       replaceState(state, createAttempt(state.save, action.areaId, action.tierId));
@@ -39,14 +37,12 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       placement.placeGem(state, action.x, action.y);
       break;
     case 'placeRock':
-      placement.placeRock(state, action.x, action.y);
-      break;
+      return placement.placeRock(state, action.x, action.y);
     case 'finishRocks':
       placement.finishRocks(state);
       break;
     case 'claimOffer':
-      placement.claimOffer(state, action.index);
-      break;
+      return placement.claimOffer(state, action.index);
     case 'rerollOffers':
       placement.rerollOffers(state);
       break;
@@ -54,8 +50,7 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       placement.upgradeRock(state, action.x, action.y);
       break;
     case 'sellRock':
-      placement.sellRock(state, action.x, action.y);
-      break;
+      return placement.sellRock(state, action.x, action.y);
     case 'sellGem':
       placement.sellGem(state, action.gemId);
       break;
@@ -90,9 +85,6 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
     case 'setGameSpeed':
       state.gameSpeed = action.speed;
       break;
-    case 'previewRockPath':
-      previewRockPath(state, action.x, action.y);
-      break;
     case 'rerollQuest':
       placement.rerollQuestAction(state, action.questId);
       break;
@@ -121,6 +113,7 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
       replaceState(state, createAttempt(createDefaultSave(), 'a1', 'normal'));
       break;
   }
+  return {};
 }
 
 export function tickGame(state: GameState, dt: number): void {

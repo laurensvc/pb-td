@@ -74,8 +74,6 @@ export function createAttempt(
     claimedOffer: null,
     holdGem: null,
     mergeUndoStack: [],
-    toast: null,
-    rockPathDelta: null,
     pathNav: getArea(areaId).pathNav,
     rocks: [],
     inventory: [],

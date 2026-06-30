@@ -1,20 +1,8 @@
 import Phaser from 'phaser';
-import { BOARD_HEIGHT, BOARD_WIDTH } from '../game/content';
-import { cellParity } from '../game/boardParity';
-import { canMergeGems } from '../game/gems';
 import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/boardQueries';
-import { buildDetectionGems } from '../game/detection';
 import { getGemCombatStats } from '../game/gems';
 import { canPlaceAtBoardPoint, isPlanningPhase } from './boardInput';
-import { isEnemyVisible } from '../game/damage';
-import { areAdjacentGems } from '../game/recipes';
-import type {
-  BaseGemFamilyId,
-  EnemyState,
-  GameState,
-  GemState,
-  Vec2,
-} from '../game/types';
+import type { GameState, Vec2 } from '../game/types';
 import {
   ASSET_PATHS,
   BOSS_ENEMY_IDS,
@@ -47,20 +35,15 @@ import {
   drawMissile,
   drawPathOverlay,
   drawPlacementPreview,
-  hideMissingSprites,
-  pruneMissingSprites,
 } from './render/boardGraphics';
 import { updateFxLabels } from './render/fxLabels';
+import { BoardSpriteLayer } from './sprites/boardSprites';
 
 export class CosmicBoardScene extends Phaser.Scene {
   private board!: Phaser.GameObjects.Graphics;
   private boardOverlay!: Phaser.GameObjects.Graphics;
   private fx!: Phaser.GameObjects.Graphics;
-  private terrainSprites = new Map<string, Phaser.GameObjects.Image>();
-  private rockSprites = new Map<string, Phaser.GameObjects.Image>();
-  private gemSprites = new Map<number, Phaser.GameObjects.Image>();
-  private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
-  private waypointMarkers = new Map<string, Phaser.GameObjects.Container>();
+  private spriteLayer!: BoardSpriteLayer;
   private fxLabels = new Map<number, Phaser.GameObjects.Text>();
   private hoverCell: Vec2 | null = null;
   private layout: BoardLayout = {
@@ -110,6 +93,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     this.board = this.add.graphics().setDepth(1);
     this.boardOverlay = this.add.graphics().setDepth(1.35);
     this.fx = this.add.graphics().setDepth(4);
+    this.spriteLayer = new BoardSpriteLayer(this);
     this.assetsReady = true;
     this.input.on('pointerdown', this.handlePointerDown, this);
     this.input.on('pointermove', this.handlePointerMove, this);
@@ -124,7 +108,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     this.input.off('gameout', this.clearHover, this);
     this.input.off('pointerout', this.clearHover, this);
     this.game.canvas.removeEventListener('contextmenu', this.preventContextMenu);
-    this.pruneHiddenSprites();
+    this.spriteLayer.pruneAll(this.fxLabels);
   }
 
   private preventContextMenu = (event: Event): void => {
@@ -140,10 +124,11 @@ export class CosmicBoardScene extends Phaser.Scene {
     const layoutChanged =
       nextLayout.width !== this.lastLayoutWidth || nextLayout.height !== this.lastLayoutHeight;
     this.layout = nextLayout;
+    this.spriteLayer.setLayout(nextLayout);
     this.lastLayoutWidth = nextLayout.width;
     this.lastLayoutHeight = nextLayout.height;
     if (layoutChanged) {
-      this.pruneHiddenSprites();
+      this.spriteLayer.pruneAll(this.fxLabels);
     }
     this.drawBoard(state);
     this.drawSprites(state);
@@ -272,46 +257,15 @@ export class CosmicBoardScene extends Phaser.Scene {
     g.fillRect(this.layout.left, this.layout.top, this.layout.width, this.layout.height);
 
     if (this.assetsReady) {
-      this.updateHexTerrain(state.pathNav.pathCells);
       drawCheckpointRoute(overlay, this.layout, state.pathNav.checkpoints);
       drawPathOverlay(overlay, this.layout, state.pathNav);
       drawPlacementPreview(overlay, this.layout, state, this.hoverCell);
     }
   }
 
-  private updateHexTerrain(pathCells: ReadonlySet<string>): void {
-    const liveKeys = new Set<string>();
-    const tileW = this.layout.hexRadius * Math.sqrt(3);
-    const tileH = this.layout.hexRadius * 2;
-    for (let r = 0; r < BOARD_HEIGHT; r++) {
-      for (let q = 0; q < BOARD_WIDTH; q++) {
-        const key = `${q},${r}`;
-        liveKeys.add(key);
-        const onPath = pathCells.has(key);
-        const isGemCell = cellParity(q, r) === 'gem';
-        const texture = onPath ? 'hex-path-floor' : isGemCell ? 'hex-gem-floor' : 'hex-rock-floor';
-        const point = cellToScreen(this.layout, { x: q, y: r });
-        const sprite =
-          this.terrainSprites.get(key) ??
-          this.add.image(0, 0, texture).setOrigin(0.5, 0.5).setDepth(0.8);
-        this.terrainSprites.set(key, sprite);
-        sprite
-          .setTexture(texture)
-          .setPosition(point.x, point.y)
-          .setDisplaySize(tileW, tileH)
-          .setVisible(true);
-      }
-    }
-    hideMissingSprites(this.terrainSprites, liveKeys);
-  }
-
   private drawSprites(state: GameState): void {
     if (!this.assetsReady) return;
-    this.updateWaypointMarkers(state.pathNav);
-    this.updateRockSprites(state.rocks);
-    this.updateGemSprites(state.gems, state.mergeSourceGemId, state.greatUnlocked);
-    this.updateEnemySprites(state);
-    this.drawEnemyBars(state.enemies);
+    this.spriteLayer.sync(state, this.boardOverlay);
   }
 
   private drawFx(state: GameState): void {
@@ -344,196 +298,5 @@ export class CosmicBoardScene extends Phaser.Scene {
     }
     for (const missile of state.missiles) drawMissile(g, this.layout, missile);
     updateFxLabels(this, this.layout, this.fxLabels, state.fxEvents);
-  }
-
-  private updateWaypointMarkers(pathNav: GameState['pathNav']): void {
-    const liveKeys = new Set<string>();
-    const lastIndex = pathNav.checkpoints.length - 1;
-    const size = this.layout.hexRadius * 0.78;
-
-    for (let i = 0; i < pathNav.checkpoints.length; i++) {
-      const cp = pathNav.checkpoints[i]!;
-      const key = `${cp.x},${cp.y}`;
-      liveKeys.add(key);
-      const point = cellToScreen(this.layout, cp);
-      const isStart = i === 0;
-      const isFinish = i === lastIndex;
-
-      let container = this.waypointMarkers.get(key);
-      if (!container) {
-        container = this.add.container(0, 0).setDepth(1.55);
-        this.waypointMarkers.set(key, container);
-      }
-
-      container.removeAll(true);
-
-      if (isStart) {
-        const portal = this.add
-          .image(0, 0, 'spawn-portal')
-          .setOrigin(0.5, 0.72)
-          .setDisplaySize(size * 1.35, size * 1.35);
-        container.add(portal);
-      } else if (isFinish) {
-        const nexus = this.add
-          .image(0, 0, 'goal-nexus')
-          .setOrigin(0.5, 0.72)
-          .setDisplaySize(size * 1.35, size * 1.35);
-        container.add(nexus);
-      } else {
-        const ring = this.add.graphics();
-        ring.fillStyle(0xffd166, 0.18);
-        ring.lineStyle(2, 0xffd166, 0.95);
-        ring.fillCircle(0, 0, size * 0.42);
-        ring.strokeCircle(0, 0, size * 0.42);
-        const label = this.add
-          .text(0, 0, String(i), {
-            fontFamily: 'Chakra Petch, monospace',
-            fontSize: `${Math.max(11, Math.floor(this.layout.hexRadius * 0.55))}px`,
-            color: '#fff1c2',
-            fontStyle: 'bold',
-          })
-          .setOrigin(0.5);
-        container.add([ring, label]);
-      }
-
-      container.setPosition(point.x, point.y).setVisible(true);
-    }
-
-    for (const [key, marker] of this.waypointMarkers) {
-      if (!liveKeys.has(key)) marker.setVisible(false);
-    }
-  }
-
-  private updateRockSprites(rocks: GameState['rocks']): void {
-    const liveKeys = new Set<string>();
-    for (const rock of rocks) {
-      const key = `${rock.x},${rock.y}`;
-      liveKeys.add(key);
-      const point = cellToScreen(this.layout, rock);
-      const sprite =
-        this.rockSprites.get(key) ??
-        this.add.image(0, 0, 'cosmic-rock').setOrigin(0.5, 0.72).setDepth(2.05);
-      this.rockSprites.set(key, sprite);
-      sprite
-        .setPosition(point.x, point.y + this.layout.hexRadius * 0.12)
-        .setDisplaySize(this.layout.hexRadius * 1.7, this.layout.hexRadius * 1.7)
-        .setVisible(true);
-    }
-    pruneMissingSprites(this.rockSprites, liveKeys);
-  }
-
-  private updateGemSprites(
-    gems: readonly GemState[],
-    mergeSourceId: number | null,
-    greatUnlocked: readonly BaseGemFamilyId[],
-  ): void {
-    const liveIds = new Set<number>();
-    const source = mergeSourceId !== null ? gems.find((g) => g.id === mergeSourceId) : undefined;
-    for (const gem of gems) {
-      liveIds.add(gem.id);
-      const point = boardToScreen(this.layout, gem);
-      const texKey = gemTextureKey(gem.family, gem.level);
-      const sprite =
-        this.gemSprites.get(gem.id) ??
-        this.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.12);
-      this.gemSprites.set(gem.id, sprite);
-      const size = this.layout.hexRadius * (1.35 + gem.level * 0.05);
-      const pulse = 1 + Math.sin(this.time.now / 180) * 0.04;
-      sprite
-        .setTexture(texKey)
-        .setPosition(point.x, point.y + this.layout.hexRadius * 0.08)
-        .setDisplaySize(size * pulse, size * pulse)
-        .setVisible(true);
-      if (gem.id === mergeSourceId) {
-        sprite.setTint(0xfff4a3);
-      } else if (
-        source &&
-        canMergeGems(source, gem, greatUnlocked) &&
-        areAdjacentGems(source.x, source.y, gem.x, gem.y)
-      ) {
-        sprite.setTint(0xa8ffd0);
-      } else {
-        sprite.clearTint();
-      }
-    }
-    pruneMissingSprites(this.gemSprites, liveIds);
-  }
-
-  private updateEnemySprites(state: GameState): void {
-    const enemies = state.enemies;
-    const detectionGems = buildDetectionGems(state);
-    const liveIds = new Set<number>();
-    for (const enemy of enemies) {
-      if (!enemy.alive) continue;
-      liveIds.add(enemy.id);
-      const point = boardToScreen(this.layout, enemy);
-      const texKey = enemyWalkTextureKey(enemy.definitionId);
-      const animKey = `${texKey}-anim`;
-      const isBoss = BOSS_ENEMY_IDS.includes(enemy.definitionId);
-      const sprite =
-        this.enemySprites.get(enemy.id) ??
-        this.add.sprite(0, 0, texKey, 0).setOrigin(0.5, 0.82).setDepth(2.18);
-      this.enemySprites.set(enemy.id, sprite);
-      const size = this.layout.hexRadius * (isBoss ? 2.5 : 1.75);
-      sprite
-        .setPosition(point.x, point.y + this.layout.hexRadius * 0.15)
-        .setDisplaySize(size, size)
-        .setVisible(true);
-      if (this.anims.exists(animKey)) {
-        if (!sprite.anims.isPlaying || sprite.anims.currentAnim?.key !== animKey) {
-          sprite.play(animKey);
-        }
-      }
-
-      sprite.clearTint();
-      sprite.setAlpha(1);
-      const slowed = enemy.slowUntil > state.time;
-      const stealthed =
-        enemy.invisible &&
-        !isEnemyVisible(enemy.revealedUntil, state.time, 0.5, enemy, detectionGems, true);
-      if (slowed) sprite.setTint(0x88ccff);
-      else if (enemy.flying) sprite.setTint(0xc4f0ff);
-      if (stealthed) sprite.setAlpha(0.35);
-    }
-    pruneMissingSprites(this.enemySprites, liveIds);
-  }
-
-  private pruneHiddenSprites(): void {
-    pruneMissingSprites(this.gemSprites, new Set());
-    pruneMissingSprites(this.enemySprites, new Set());
-    pruneMissingSprites(this.rockSprites, new Set());
-    for (const [key, marker] of this.waypointMarkers) {
-      marker.destroy();
-      this.waypointMarkers.delete(key);
-    }
-    pruneMissingSprites(this.fxLabels, new Set());
-  }
-
-  private drawEnemyBars(enemies: readonly EnemyState[]): void {
-    const g = this.boardOverlay;
-    for (const enemy of enemies) {
-      if (!enemy.alive) continue;
-      const point = boardToScreen(this.layout, enemy);
-      const isBoss = BOSS_ENEMY_IDS.includes(enemy.definitionId);
-      const barW = this.layout.hexRadius * (isBoss ? 1.2 : 0.85);
-      g.fillStyle(0x02050a, 0.7);
-      g.fillRect(point.x - barW / 2, point.y - this.layout.hexRadius * 0.75, barW, 4);
-      g.fillStyle(COLORS.green, 0.95);
-      g.fillRect(
-        point.x - barW / 2,
-        point.y - this.layout.hexRadius * 0.75,
-        barW * Math.max(0, enemy.hp / enemy.maxHp),
-        4,
-      );
-      if (enemy.maxShield > 0) {
-        g.fillStyle(COLORS.shield, 0.92);
-        g.fillRect(
-          point.x - barW / 2,
-          point.y - this.layout.hexRadius * 0.62,
-          barW * Math.max(0, enemy.shield / enemy.maxShield),
-          3,
-        );
-      }
-    }
   }
 }

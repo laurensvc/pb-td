@@ -109,10 +109,6 @@ export function rockPathLengthDelta(state: GameState, x: number, y: number): num
   return after - before;
 }
 
-export function previewRockPath(state: GameState, x: number, y: number): void {
-  state.rockPathDelta = rockPathLengthDelta(state, x, y);
-}
-
-export function clearRockPathPreview(state: GameState): void {
-  state.rockPathDelta = null;
+export function previewRockPath(state: GameState, x: number, y: number): number | null {
+  return rockPathLengthDelta(state, x, y);
 }

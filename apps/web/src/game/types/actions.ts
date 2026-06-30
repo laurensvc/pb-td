@@ -1,5 +1,9 @@
 import type { GameSpeed, GemFamilyId, PlacementMode, TierId } from './primitives';
 
+export interface UiFeedback {
+  toast?: string;
+}
+
 export type GameAction =
   | { type: 'startArea'; areaId: string; tierId: TierId }
   | { type: 'startWave' }
@@ -22,7 +26,6 @@ export type GameAction =
   | { type: 'clearHold' }
   | { type: 'undoMerge' }
   | { type: 'cycleGemTargeting'; gemId: number }
-  | { type: 'previewRockPath'; x: number; y: number }
   | { type: 'setGameSpeed'; speed: GameSpeed }
   | { type: 'rerollQuest'; questId: string }
   | { type: 'buyGem'; family: GemFamilyId }

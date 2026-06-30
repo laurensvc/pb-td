@@ -163,8 +163,6 @@ export interface GameState {
   claimedOffer: GemOffer | null;
   holdGem: HoldGem | null;
   mergeUndoStack: MergeUndoEntry[];
-  toast: string | null;
-  rockPathDelta: number | null;
   pathNav: PathNavData;
   rocks: RockState[];
   inventory: InventoryGem[];
