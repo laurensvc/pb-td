@@ -1,8 +1,0 @@
-packages:
-  - 'apps/*'
-  - 'packages/*'
-allowBuilds:
-  '@firebase/util': true
-  esbuild: true
-  msgpackr-extract: true
-  protobufjs: true
