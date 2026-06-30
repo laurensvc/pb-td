@@ -8,14 +8,11 @@ import { getGemCombatStats } from '../game/gems';
 import { canPlaceAtBoardPoint, isPlanningPhase } from './boardInput';
 import { isEnemyVisible } from '../game/damage';
 import { areAdjacentGems } from '../game/recipes';
-import { hexPixelCorners, worldToHex } from '../game/hexGrid';
 import type {
   BaseGemFamilyId,
   EnemyState,
-  FxEvent,
   GameState,
   GemState,
-  MissileState,
   Vec2,
 } from '../game/types';
 import {
@@ -31,7 +28,7 @@ import {
   gemAssetPath,
   gemTextureKey,
 } from './assetManifest';
-import { tryGetBridge, type PhaserBridge } from './bridge';
+import { tryGetBridge } from './bridge';
 import {
   boardToScreen,
   cellCenter,
@@ -43,15 +40,17 @@ import {
   screenToCell,
   type BoardLayout,
 } from './boardCoords';
-
-const COLORS = {
-  bg: 0x050812,
-  grid: 0x19324a,
-  path: 0x35d0ff,
-  green: 0x7fffb2,
-  red: 0xff5a7a,
-  shield: 0xbd9cff,
-};
+import { findGemAtCell, handleRightClick } from './input/pointerHandlers';
+import {
+  COLORS,
+  drawCheckpointRoute,
+  drawMissile,
+  drawPathOverlay,
+  drawPlacementPreview,
+  hideMissingSprites,
+  pruneMissingSprites,
+} from './render/boardGraphics';
+import { updateFxLabels } from './render/fxLabels';
 
 export class CosmicBoardScene extends Phaser.Scene {
   private board!: Phaser.GameObjects.Graphics;
@@ -344,43 +343,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       }
     }
     for (const missile of state.missiles) drawMissile(g, this.layout, missile);
-    this.updateFxLabels(state.fxEvents);
-  }
-
-  private updateFxLabels(fxEvents: readonly FxEvent[]): void {
-    const liveIds = new Set<number>();
-    for (const fx of fxEvents) {
-      liveIds.add(fx.id);
-      const point = boardToScreen(this.layout, { x: fx.x, y: fx.y });
-      const alpha = Math.min(1, fx.life);
-      const color =
-        fx.kind === 'merge' ? '#fff4a3' : fx.kind === 'quest' ? '#e9d5ff' : '#7fffb2';
-      const rise = (1 - alpha) * this.layout.hexRadius * 0.55;
-
-      let label = this.fxLabels.get(fx.id);
-      if (!label) {
-        label = this.add
-          .text(0, 0, fx.text, {
-            fontFamily: 'Chakra Petch, monospace',
-            fontSize: `${Math.max(12, Math.floor(this.layout.hexRadius * 0.58))}px`,
-            color,
-            fontStyle: 'bold',
-            stroke: '#02050a',
-            strokeThickness: 3,
-          })
-          .setOrigin(0.5, 0.5)
-          .setDepth(4.2);
-        this.fxLabels.set(fx.id, label);
-      }
-
-      label
-        .setText(fx.text)
-        .setColor(color)
-        .setAlpha(alpha)
-        .setPosition(point.x, point.y - this.layout.hexRadius * 0.35 - rise)
-        .setVisible(true);
-    }
-    pruneMissingSprites(this.fxLabels, liveIds);
+    updateFxLabels(this, this.layout, this.fxLabels, state.fxEvents);
   }
 
   private updateWaypointMarkers(pathNav: GameState['pathNav']): void {
@@ -573,148 +536,4 @@ export class CosmicBoardScene extends Phaser.Scene {
       }
     }
   }
-}
-
-
-function handleRightClick(
-  bridge: PhaserBridge,
-  state: GameState,
-  cell: Vec2,
-): void {
-  const planning = isPlanningPhase(state.status);
-  const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
-  if (rock) {
-    const center = cellCenter(cell);
-    bridge.dispatch({ type: 'sellRock', x: center.x, y: center.y });
-    return;
-  }
-  const gem = findGemAtCell(state, cell);
-  if (gem) {
-    if (state.placementMode === 'gem' || planning) {
-      bridge.dispatch({ type: 'pickUpGem', gemId: gem.id });
-    } else {
-      bridge.dispatch({ type: 'sellGem', gemId: gem.id });
-    }
-  }
-}
-
-function findGemAtCell(state: GameState, cell: Vec2): GemState | undefined {
-  return state.gems.find((g) => {
-    const gemCell = worldToHex(g.x, g.y);
-    return gemCell.x === cell.x && gemCell.y === cell.y;
-  });
-}
-
-function hideMissingSprites<T extends string | number>(
-  sprites: Map<T, Phaser.GameObjects.Image | Phaser.GameObjects.Sprite>,
-  liveIds: ReadonlySet<T>,
-): void {
-  for (const [id, sprite] of sprites) {
-    if (!liveIds.has(id)) sprite.setVisible(false);
-  }
-}
-
-function pruneMissingSprites<T extends string | number>(
-  sprites: Map<T, Phaser.GameObjects.GameObject>,
-  liveIds: ReadonlySet<T>,
-): void {
-  for (const [id, sprite] of sprites) {
-    if (!liveIds.has(id)) {
-      sprite.destroy();
-      sprites.delete(id);
-    }
-  }
-}
-
-function hexScreenCorners(layout: BoardLayout, cell: Vec2): Vec2[] {
-  return hexPixelCorners(cell.x, cell.y, layout.hexRadius).map((corner) => ({
-    x: layout.left + layout.padX + corner.x,
-    y: layout.top + layout.padY + corner.y,
-  }));
-}
-
-function drawHexShape(
-  g: Phaser.GameObjects.Graphics,
-  corners: Vec2[],
-  fill: number,
-  fillAlpha: number,
-  stroke?: number,
-  strokeAlpha = 0.35,
-): void {
-  g.fillStyle(fill, fillAlpha);
-  g.beginPath();
-  g.moveTo(corners[0]!.x, corners[0]!.y);
-  for (let i = 1; i < corners.length; i++) g.lineTo(corners[i]!.x, corners[i]!.y);
-  g.closePath();
-  g.fillPath();
-  if (stroke !== undefined) {
-    g.lineStyle(1, stroke, strokeAlpha);
-    g.strokePath();
-  }
-}
-
-
-function drawCheckpointRoute(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  checkpoints: readonly Vec2[],
-): void {
-  if (checkpoints.length < 2) return;
-  g.lineStyle(3, COLORS.path, 0.28);
-  for (let i = 0; i < checkpoints.length - 1; i++) {
-    const a = cellToScreen(layout, checkpoints[i]!);
-    const b = cellToScreen(layout, checkpoints[i + 1]!);
-    g.beginPath();
-    g.moveTo(a.x, a.y);
-    g.lineTo(b.x, b.y);
-    g.strokePath();
-  }
-  for (const cp of checkpoints) {
-    const point = cellToScreen(layout, cp);
-    g.fillStyle(COLORS.path, 0.55);
-    g.fillCircle(point.x, point.y, Math.max(4, layout.hexRadius * 0.08));
-  }
-}
-
-function drawPathOverlay(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  pathNav: GameState['pathNav'],
-): void {
-  for (const key of pathNav.pathCells) {
-    const [x, y] = key.split(',').map(Number);
-    drawHexShape(g, hexScreenCorners(layout, { x, y }), COLORS.path, 0.08, undefined);
-  }
-}
-
-function drawPlacementPreview(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  state: GameState,
-  hoverCell: Vec2 | null,
-): void {
-  if (!hoverCell || state.status === 'running') return;
-  const boardPoint = cellCenter(hoverCell);
-  const corners = hexScreenCorners(layout, hoverCell);
-  if (canPlaceAtBoardPoint(state, boardPoint.x, boardPoint.y)) {
-    drawHexShape(g, corners, COLORS.green, 0.25, COLORS.green, 0.85);
-  }
-}
-
-function drawMissile(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  missile: MissileState,
-): void {
-  const point = boardToScreen(layout, missile);
-  const radius = rangeToPixels(layout, missile.radius);
-  if (missile.active) {
-    g.lineStyle(2, 0xfff4a3, 0.75);
-    g.strokeCircle(point.x, point.y, Math.max(6, radius * (1 - missile.impactIn / 0.24)));
-    return;
-  }
-  g.fillStyle(0xfff4a3, Math.max(0, missile.life / 0.42) * 0.18);
-  g.fillCircle(point.x, point.y, radius);
-  g.lineStyle(3, 0xffcf6b, Math.max(0, missile.life / 0.42) * 0.8);
-  g.strokeCircle(point.x, point.y, radius);
 }
