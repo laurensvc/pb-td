@@ -187,6 +187,10 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 - [x] Engine: split-spawn fix, claim-without-rocks guard, missile wave-end gating, crown respec refund
 - [x] Pure `createSnapshot`; transient toast/path delta consumed in publish hook
 - [x] Regression tests (57 web tests passing)
+- [x] FX popups render text; spawn/goal portal assets on board
+- [x] Undo merge reverts quest progress, great unlocks, and gold
+- [x] HUD panels extracted + memoized; snapshot carries save clone
+- [x] Removed dead Facet prototype UI, AuthGate stub, unused deps
 
 **Done when:** Test/lint/build green; no known soft-locks before Colyseus work.
 

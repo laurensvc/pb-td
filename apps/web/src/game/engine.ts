@@ -286,6 +286,7 @@ export function createSnapshot(state: GameState): Snapshot {
             ? 'All 50 waves cleared. Crown secured for this tier.'
             : 'All 50 waves cleared. Mastery held.'
           : null,
+    save: cloneSave(state.save),
   };
   return snapshot;
 }
@@ -704,6 +705,9 @@ function mergeGems(state: GameState, targetGemId: number): void {
   const undoEntry: MergeUndoEntry = {
     gems: state.gems.map((g) => ({ ...g })),
     removedGemId: source.id,
+    quests: state.quests.map((q) => ({ ...q })),
+    greatUnlocked: [...state.greatUnlocked],
+    gold: state.gold,
   };
   state.mergeUndoStack.push(undoEntry);
 
@@ -723,6 +727,9 @@ function undoMerge(state: GameState): void {
   const entry = state.mergeUndoStack.pop();
   if (!entry) return;
   state.gems = entry.gems.map((g) => ({ ...g }));
+  state.quests = entry.quests.map((q) => ({ ...q }));
+  state.greatUnlocked = [...entry.greatUnlocked];
+  state.gold = entry.gold;
   state.mergeSourceGemId = null;
   state.mergeCount = Math.max(0, state.mergeCount - 1);
   rebuildPathNav(state);

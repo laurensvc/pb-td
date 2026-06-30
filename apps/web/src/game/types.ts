@@ -225,6 +225,9 @@ export interface GemState {
 export interface MergeUndoEntry {
   gems: GemState[];
   removedGemId: number;
+  quests: QuestState[];
+  greatUnlocked: BaseGemFamilyId[];
+  gold: number;
 }
 
 export interface InventoryGem {
@@ -418,6 +421,7 @@ export interface Snapshot {
   fxEvents: FxEvent[];
   resultTitle: string | null;
   resultMessage: string | null;
+  save: SaveState;
 }
 
 export type GameAction =

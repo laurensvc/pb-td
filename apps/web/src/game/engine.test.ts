@@ -326,4 +326,39 @@ describe('cosmic gem siege simulation', () => {
     dispatchGameAction(game, { type: 'respecUpgrades' });
     expect(game.save.crowns).toBe(2);
   });
+
+  it('reverts quest progress and great unlock when undoing a merge', () => {
+    const game = createGame();
+    game.buildStep = 'ready';
+    game.quests = [
+      {
+        id: 'quest-merge',
+        templateId: 'merge',
+        label: 'Merge 2 gems',
+        target: 2,
+        progress: 1,
+        completed: false,
+        rewardGold: 15,
+        unlockGreat: 'kinetic',
+      },
+    ];
+    addBoardGem(game, 2, 5, 'kinetic', 1);
+    addBoardGem(game, 3, 4, 'kinetic', 1);
+    const [a, b] = game.gems;
+    const goldBefore = game.gold;
+    dispatchGameAction(game, { type: 'selectMergeSource', gemId: a!.id });
+    dispatchGameAction(game, { type: 'mergeGems', targetGemId: b!.id });
+    expect(game.mergeCount).toBe(1);
+    expect(game.quests[0]!.completed).toBe(true);
+    expect(game.greatUnlocked).toContain('kinetic');
+    expect(game.gold).toBeGreaterThan(goldBefore);
+
+    dispatchGameAction(game, { type: 'undoMerge' });
+    expect(game.gems).toHaveLength(2);
+    expect(game.mergeCount).toBe(0);
+    expect(game.quests[0]!.completed).toBe(false);
+    expect(game.quests[0]!.progress).toBe(1);
+    expect(game.greatUnlocked).not.toContain('kinetic');
+    expect(game.gold).toBe(goldBefore);
+  });
 });

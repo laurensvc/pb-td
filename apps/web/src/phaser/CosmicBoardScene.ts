@@ -60,6 +60,7 @@ export class CosmicBoardScene extends Phaser.Scene {
   private gemSprites = new Map<number, Phaser.GameObjects.Image>();
   private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
   private waypointMarkers = new Map<string, Phaser.GameObjects.Container>();
+  private fxLabels = new Map<number, Phaser.GameObjects.Text>();
   private hoverCell: Vec2 | null = null;
   private layout: BoardLayout = {
     left: 0,
@@ -348,7 +349,43 @@ export class CosmicBoardScene extends Phaser.Scene {
       }
     }
     for (const missile of state.missiles) drawMissile(g, this.layout, missile);
-    for (const fx of state.fxEvents) drawFxPopup(g, this.layout, fx);
+    this.updateFxLabels(state.fxEvents);
+  }
+
+  private updateFxLabels(fxEvents: readonly FxEvent[]): void {
+    const liveIds = new Set<number>();
+    for (const fx of fxEvents) {
+      liveIds.add(fx.id);
+      const point = boardToScreen(this.layout, { x: fx.x, y: fx.y });
+      const alpha = Math.min(1, fx.life);
+      const color =
+        fx.kind === 'merge' ? '#fff4a3' : fx.kind === 'quest' ? '#e9d5ff' : '#7fffb2';
+      const rise = (1 - alpha) * this.layout.hexRadius * 0.55;
+
+      let label = this.fxLabels.get(fx.id);
+      if (!label) {
+        label = this.add
+          .text(0, 0, fx.text, {
+            fontFamily: 'Chakra Petch, monospace',
+            fontSize: `${Math.max(12, Math.floor(this.layout.hexRadius * 0.58))}px`,
+            color,
+            fontStyle: 'bold',
+            stroke: '#02050a',
+            strokeThickness: 3,
+          })
+          .setOrigin(0.5, 0.5)
+          .setDepth(4.2);
+        this.fxLabels.set(fx.id, label);
+      }
+
+      label
+        .setText(fx.text)
+        .setColor(color)
+        .setAlpha(alpha)
+        .setPosition(point.x, point.y - this.layout.hexRadius * 0.35 - rise)
+        .setVisible(true);
+    }
+    pruneMissingSprites(this.fxLabels, liveIds);
   }
 
   private updateWaypointMarkers(pathNav: GameState['pathNav']): void {
@@ -361,37 +398,45 @@ export class CosmicBoardScene extends Phaser.Scene {
       const key = `${cp.x},${cp.y}`;
       liveKeys.add(key);
       const point = cellToScreen(this.layout, cp);
+      const isStart = i === 0;
+      const isFinish = i === lastIndex;
 
       let container = this.waypointMarkers.get(key);
       if (!container) {
-        const ring = this.add.graphics();
-        const label = this.add
-          .text(0, 0, '', {
-            fontFamily: 'Chakra Petch, monospace',
-            fontSize: `${Math.max(11, Math.floor(this.layout.hexRadius * 0.55))}px`,
-            color: '#ffffff',
-            fontStyle: 'bold',
-          })
-          .setOrigin(0.5);
-        container = this.add.container(0, 0, [ring, label]).setDepth(1.55);
+        container = this.add.container(0, 0).setDepth(1.55);
         this.waypointMarkers.set(key, container);
       }
 
-      const isStart = i === 0;
-      const isFinish = i === lastIndex;
-      const labelText = isStart ? 'S' : isFinish ? 'F' : String(i);
-      const color = isFinish ? COLORS.red : isStart ? COLORS.green : 0xffd166;
+      container.removeAll(true);
 
-      const ring = container.list[0] as Phaser.GameObjects.Graphics;
-      ring.clear();
-      ring.fillStyle(color, isStart || isFinish ? 0.28 : 0.18);
-      ring.lineStyle(2, color, 0.95);
-      ring.fillCircle(0, 0, size * 0.42);
-      ring.strokeCircle(0, 0, size * 0.42);
-
-      const text = container.list[1] as Phaser.GameObjects.Text;
-      text.setText(labelText);
-      text.setColor(isFinish ? '#ffd0da' : isStart ? '#d7ffe8' : '#fff1c2');
+      if (isStart) {
+        const portal = this.add
+          .image(0, 0, 'spawn-portal')
+          .setOrigin(0.5, 0.72)
+          .setDisplaySize(size * 1.35, size * 1.35);
+        container.add(portal);
+      } else if (isFinish) {
+        const nexus = this.add
+          .image(0, 0, 'goal-nexus')
+          .setOrigin(0.5, 0.72)
+          .setDisplaySize(size * 1.35, size * 1.35);
+        container.add(nexus);
+      } else {
+        const ring = this.add.graphics();
+        ring.fillStyle(0xffd166, 0.18);
+        ring.lineStyle(2, 0xffd166, 0.95);
+        ring.fillCircle(0, 0, size * 0.42);
+        ring.strokeCircle(0, 0, size * 0.42);
+        const label = this.add
+          .text(0, 0, String(i), {
+            fontFamily: 'Chakra Petch, monospace',
+            fontSize: `${Math.max(11, Math.floor(this.layout.hexRadius * 0.55))}px`,
+            color: '#fff1c2',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5);
+        container.add([ring, label]);
+      }
 
       container.setPosition(point.x, point.y).setVisible(true);
     }
@@ -507,6 +552,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       marker.destroy();
       this.waypointMarkers.delete(key);
     }
+    pruneMissingSprites(this.fxLabels, new Set());
   }
 
   private drawEnemyBars(enemies: readonly EnemyState[]): void {
@@ -578,7 +624,7 @@ function hideMissingSprites<T extends string | number>(
 }
 
 function pruneMissingSprites<T extends string | number>(
-  sprites: Map<T, Phaser.GameObjects.Image | Phaser.GameObjects.Sprite>,
+  sprites: Map<T, Phaser.GameObjects.GameObject>,
   liveIds: ReadonlySet<T>,
 ): void {
   for (const [id, sprite] of sprites) {
@@ -683,15 +729,4 @@ function drawMissile(
   g.fillCircle(point.x, point.y, radius);
   g.lineStyle(3, 0xffcf6b, Math.max(0, missile.life / 0.42) * 0.8);
   g.strokeCircle(point.x, point.y, radius);
-}
-
-function drawFxPopup(g: Phaser.GameObjects.Graphics, layout: BoardLayout, fx: FxEvent): void {
-  const point = boardToScreen(layout, { x: fx.x, y: fx.y });
-  const alpha = Math.min(1, fx.life);
-  const color =
-    fx.kind === 'merge' ? 0xfff4a3 : fx.kind === 'quest' ? 0xc084fc : 0x7fffb2;
-  g.fillStyle(color, alpha * 0.25);
-  g.fillCircle(point.x, point.y - layout.hexRadius * 0.25, layout.hexRadius * 0.45);
-  g.lineStyle(2, color, alpha * 0.85);
-  g.strokeCircle(point.x, point.y - layout.hexRadius * 0.25, layout.hexRadius * 0.28);
 }
