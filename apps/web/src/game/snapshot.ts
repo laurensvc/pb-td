@@ -1,4 +1,4 @@
-import { getArea, getEnemy } from './content';
+import { getArea, getEnemy, getWave, getWaveCount } from './content';
 import { ROCKS_PER_PHASE, isPlanningPhase, prospectRerollCost } from './buildPhase';
 import { goldInterest, waveIncome } from './economy';
 import { cloneSave } from './save';
@@ -8,8 +8,7 @@ import type { GameState, Snapshot } from './types';
 
 export function buildCurrentWaveSpawnTracker(state: GameState): Snapshot['waveSpawnTracker'] {
   if (state.status !== 'running') return null;
-  const area = getArea(state.areaId);
-  const wave = area.tiers[state.tierId].waves[state.waveIndex];
+  const wave = getWave(state.areaId, state.tierId, state.waveIndex);
   if (!wave) return null;
   return buildWaveSpawnTracker(
     wave.segments,
@@ -22,8 +21,7 @@ export function buildCurrentWaveSpawnTracker(state: GameState): Snapshot['waveSp
 }
 
 function buildWavePreview(state: GameState): Snapshot['nextWavePreview'] {
-  const area = getArea(state.areaId);
-  const wave = area.tiers[state.tierId].waves[state.waveIndex];
+  const wave = getWave(state.areaId, state.tierId, state.waveIndex);
   if (!wave) return [];
   return wave.segments.map((segment) => {
     const def = getEnemy(segment.enemyId);
@@ -44,17 +42,16 @@ function buildWavePreview(state: GameState): Snapshot['nextWavePreview'] {
 
 export function createSnapshot(state: GameState): Snapshot {
   const area = getArea(state.areaId);
-  const tier = area.tiers[state.tierId];
-  const wave = tier.waves[state.waveIndex];
-  const waveNum = Math.min(state.waveIndex + 1, tier.waves.length);
+  const wave = getWave(state.areaId, state.tierId, state.waveIndex);
+  const waveNum = Math.min(state.waveIndex + 1, getWaveCount());
   return {
     status: state.status,
     areaId: state.areaId,
     areaName: area.name,
     tierId: state.tierId,
     time: state.time,
-    wave: Math.min(state.waveIndex + 1, tier.waves.length),
-    totalWaves: tier.waves.length,
+    wave: Math.min(state.waveIndex + 1, getWaveCount()),
+    totalWaves: getWaveCount(),
     lives: state.lives,
     maxLives: state.maxLives,
     gold: state.gold,

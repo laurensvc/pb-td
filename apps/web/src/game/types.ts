@@ -125,7 +125,6 @@ export interface WaveDefinition {
 }
 
 export interface AreaTierDefinition {
-  waves: WaveDefinition[];
   enemyHpMultiplier: number;
   enemySpeedMultiplier: number;
   starMultiplier: number;

@@ -2,7 +2,7 @@ import {
   LUCKY_BOX_COST,
   RANDOM_GEM_COST,
   gemDefinitions,
-  getArea,
+  getWave,
 } from './content';
 import { acceptsRock, parityMatchesPlacement } from './boardParity';
 import {
@@ -110,8 +110,7 @@ export function upgradeRock(state: GameState, x: number, y: number): void {
 export function startWave(state: GameState): void {
   if (!isPlanningPhase(state.status)) return;
   if (state.buildStep !== 'ready') return;
-  const area = getArea(state.areaId);
-  const wave = area.tiers[state.tierId].waves[state.waveIndex];
+  const wave = getWave(state.areaId, state.tierId, state.waveIndex);
   if (!wave) return;
   state.mergeUndoStack = [];
   state.killedThisWave = 0;

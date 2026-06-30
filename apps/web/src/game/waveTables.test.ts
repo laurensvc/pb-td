@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getArea } from './content';
+import { getWave } from './content';
 import {
   authoredWaveSegments,
   buildWaveSpawnTracker,
@@ -15,7 +15,7 @@ describe('wave tables', () => {
   });
 
   it('uses authored segments in area wave definitions', () => {
-    const wave1 = getArea('a1').tiers.normal.waves[0]!;
+    const wave1 = getWave('a1', 'normal', 0);
     expect(wave1.segments[0]?.enemyId).toBe('scout');
     expect(countWaveEnemies(wave1.segments)).toBeGreaterThan(10);
   });

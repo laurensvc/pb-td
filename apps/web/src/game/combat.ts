@@ -4,6 +4,8 @@ import {
   getArea,
   getEnemy,
   getUpgrade,
+  getWave,
+  getWaveCount,
 } from './content';
 import { distance } from './boardQueries';
 import { beginBuildPhase } from './attempt';
@@ -88,7 +90,7 @@ export function spawnEnemies(state: GameState, dt: number): void {
   if (state.enemiesToSpawn <= 0) return;
   const area = getArea(state.areaId);
   const tier = area.tiers[state.tierId];
-  const wave = tier.waves[state.waveIndex];
+  const wave = getWave(state.areaId, state.tierId, state.waveIndex);
   if (!wave) return;
 
   state.spawnTimer -= dt;
@@ -532,8 +534,7 @@ export function completeWaveOrAttempt(state: GameState): void {
   if (state.missiles.some((missile) => missile.active && missile.impactIn > 0)) return;
 
   const area = getArea(state.areaId);
-  const tier = area.tiers[state.tierId];
-  const wave = tier.waves[state.waveIndex];
+  const wave = getWave(state.areaId, state.tierId, state.waveIndex);
   const waveNumber = state.waveIndex + 1;
 
   if (wave?.goldBonus) state.gold += wave.goldBonus;
@@ -549,7 +550,7 @@ export function completeWaveOrAttempt(state: GameState): void {
   if (!state.waveLeaked) trackQuestProgress(state, 'leakless', 1);
   trackQuestProgress(state, 'gold', state.gold);
 
-  if (state.waveIndex < tier.waves.length - 1) {
+  if (state.waveIndex < getWaveCount() - 1) {
     state.waveIndex += 1;
     state.status = 'betweenWaves';
     state.enemies = state.enemies.filter((enemy) => enemy.alive);
