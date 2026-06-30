@@ -13,6 +13,7 @@ import type {
   WaveSegment,
 } from './types';
 import { buildPathNav } from './pathNav';
+import { authoredWaveSegments } from './waveTables';
 
 export const BOARD_WIDTH = 16;
 export const BOARD_HEIGHT = 10;
@@ -232,6 +233,21 @@ export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
     armorReduction: 0.08,
     bonusVsHighHp: 0.25,
   },
+  ember: {
+    id: 'ember',
+    name: 'Ember Core',
+    role: 'Burn damage that stacks on repeated hits.',
+    branch: 'ember',
+    damageType: 'magic',
+    baseDamage: 16,
+    baseRange: 2.85,
+    baseCooldown: 0.92,
+    projectileSpeed: 8.2,
+    color: '#fb923c',
+    shopCost: 21,
+    poisonDps: 5,
+    poisonDuration: 2.5,
+  },
   toxic_shot: {
     id: 'toxic_shot',
     name: 'Toxic Shot',
@@ -361,6 +377,40 @@ export const gemDefinitions: Record<GemFamilyId, GemDefinition> = {
     bonusVsHighHp: 0.45,
     armorReduction: 0.14,
   },
+  ember_lance: {
+    id: 'ember_lance',
+    name: 'Ember Lance',
+    role: 'Hybrid: ember + kinetic. Rapid burning crits.',
+    hybrid: true,
+    damageType: 'magic',
+    baseDamage: 20,
+    baseRange: 3.0,
+    baseCooldown: 0.82,
+    projectileSpeed: 9.2,
+    color: '#fdba74',
+    shopCost: 0,
+    poisonDps: 8,
+    poisonDuration: 2.2,
+    critChance: 0.14,
+  },
+  solar_flare: {
+    id: 'solar_flare',
+    name: 'Solar Flare',
+    role: 'Hybrid: ember + nova. Burning splash artillery.',
+    hybrid: true,
+    damageType: 'pure',
+    baseDamage: 26,
+    baseRange: 2.75,
+    baseCooldown: 1.5,
+    projectileSpeed: 6.6,
+    color: '#f97316',
+    shopCost: 0,
+    poisonDps: 10,
+    poisonDuration: 2.8,
+    splashRadius: 0.72,
+    slowFactor: 0.22,
+    slowDuration: 1.3,
+  },
 };
 
 export const BASE_GEM_FAMILIES: BaseGemFamilyId[] = [
@@ -369,6 +419,7 @@ export const BASE_GEM_FAMILIES: BaseGemFamilyId[] = [
   'arcane',
   'nova',
   'prism',
+  'ember',
 ];
 
 export const HYBRID_GEM_FAMILIES: HybridGemFamilyId[] = [
@@ -380,6 +431,8 @@ export const HYBRID_GEM_FAMILIES: HybridGemFamilyId[] = [
   'venom_lens',
   'shatter_star',
   'executioner',
+  'ember_lance',
+  'solar_flare',
 ];
 
 const areaOnePath = [
@@ -403,8 +456,10 @@ const areaThreePath = [
   { x: 15, y: 6 },
 ];
 
-function makeTierWaves(tier: TierId): WaveDefinition[] {
-  return Array.from({ length: TOTAL_WAVES }, (_, index) => buildWave(index + 1, tier));
+function makeTierWaves(areaId: string, tier: TierId): WaveDefinition[] {
+  return Array.from({ length: TOTAL_WAVES }, (_, index) =>
+    buildWave(areaId, index + 1, tier),
+  );
 }
 
 export const areaDefinitions: AreaDefinition[] = [
@@ -416,7 +471,7 @@ export const areaDefinitions: AreaDefinition[] = [
     pathNav: buildPathNav(areaOnePath),
     tiers: {
       normal: {
-        waves: makeTierWaves('normal'),
+        waves: makeTierWaves('a1', 'normal'),
         enemyHpMultiplier: 1,
         enemySpeedMultiplier: 1,
         starMultiplier: 1,
@@ -424,7 +479,7 @@ export const areaDefinitions: AreaDefinition[] = [
         startingGold: 35,
       },
       hard: {
-        waves: makeTierWaves('hard'),
+        waves: makeTierWaves('a1', 'hard'),
         enemyHpMultiplier: 1.45,
         enemySpeedMultiplier: 1.08,
         starMultiplier: 1.35,
@@ -441,7 +496,7 @@ export const areaDefinitions: AreaDefinition[] = [
     pathNav: buildPathNav(areaTwoPath),
     tiers: {
       normal: {
-        waves: makeTierWaves('normal'),
+        waves: makeTierWaves('a2', 'normal'),
         enemyHpMultiplier: 1.15,
         enemySpeedMultiplier: 1.04,
         starMultiplier: 1.2,
@@ -449,7 +504,7 @@ export const areaDefinitions: AreaDefinition[] = [
         startingGold: 38,
       },
       hard: {
-        waves: makeTierWaves('hard'),
+        waves: makeTierWaves('a2', 'hard'),
         enemyHpMultiplier: 1.62,
         enemySpeedMultiplier: 1.12,
         starMultiplier: 1.48,
@@ -466,7 +521,7 @@ export const areaDefinitions: AreaDefinition[] = [
     pathNav: buildPathNav(areaThreePath),
     tiers: {
       normal: {
-        waves: makeTierWaves('normal'),
+        waves: makeTierWaves('a3', 'normal'),
         enemyHpMultiplier: 1.28,
         enemySpeedMultiplier: 1.06,
         starMultiplier: 1.35,
@@ -474,7 +529,7 @@ export const areaDefinitions: AreaDefinition[] = [
         startingGold: 40,
       },
       hard: {
-        waves: makeTierWaves('hard'),
+        waves: makeTierWaves('a3', 'hard'),
         enemyHpMultiplier: 1.78,
         enemySpeedMultiplier: 1.14,
         starMultiplier: 1.62,
@@ -496,6 +551,7 @@ const upgradeDefinitions: UpgradeDefinition[] = [
   makeUnlock('unlock-arcane', 'Arcane Path', 'arcane', 75, 0, ['missile-damage-1']),
   makeUnlock('unlock-nova', 'Nova Mortar', 'nova', 1, 1, ['unlock-verdant', 'unlock-arcane']),
   makeUnlock('unlock-prism', 'Prism Shard', 'prism', 1, 2, ['unlock-nova']),
+  makeUnlock('unlock-ember', 'Ember Core', 'ember', 90, 0, ['unlock-verdant']),
   ...makeGemStatUpgrades('verdant', 'damage', 'Verdant Toxin', 32, 10, 0.13, ['unlock-verdant']),
   ...makeGemStatUpgrades('verdant', 'range', 'Verdant Reach', 30, 9, 0.14, ['unlock-verdant']),
   ...makeGemStatUpgrades('verdant', 'rate', 'Verdant Bloom', 32, 10, -0.055, ['unlock-verdant']),
@@ -508,6 +564,9 @@ const upgradeDefinitions: UpgradeDefinition[] = [
   ...makeGemStatUpgrades('prism', 'damage', 'Prism Cut', 48, 14, 0.14, ['unlock-prism']),
   ...makeGemStatUpgrades('prism', 'range', 'Prism Focus', 44, 12, 0.14, ['unlock-prism']),
   ...makeGemStatUpgrades('prism', 'rate', 'Prism Refraction', 50, 14, -0.06, ['unlock-prism']),
+  ...makeGemStatUpgrades('ember', 'damage', 'Ember Heat', 30, 10, 0.13, ['unlock-ember']),
+  ...makeGemStatUpgrades('ember', 'range', 'Ember Reach', 28, 9, 0.14, ['unlock-ember']),
+  ...makeGemStatUpgrades('ember', 'rate', 'Ember Pulse', 30, 10, -0.055, ['unlock-ember']),
 ];
 
 export const upgrades = upgradeDefinitions;
@@ -542,12 +601,13 @@ export function waveClearGoldBonus(waveNumber: number): number {
   return 8 + Math.floor(waveNumber * 1.5);
 }
 
-function buildWave(waveNumber: number, tier: TierId): WaveDefinition {
+function buildWave(areaId: string, waveNumber: number, tier: TierId): WaveDefinition {
   const isBoss = waveNumber % 10 === 0;
-  const segments = composeWaveSegments(waveNumber, isBoss, tier);
+  const authored = authoredWaveSegments(areaId, waveNumber, tier);
+  const segments = authored ?? composeWaveSegments(waveNumber, isBoss, tier);
   const spawnInterval = Math.max(0.06, 0.14 - waveNumber * 0.0015);
   return {
-    id: `wave-${waveNumber}-${tier}`,
+    id: `wave-${areaId}-${waveNumber}-${tier}`,
     segments,
     spawnInterval,
     isBoss,

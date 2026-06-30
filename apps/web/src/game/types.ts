@@ -4,7 +4,7 @@ export type TargetingMode = 'first' | 'last' | 'strong' | 'weak';
 export type HoldGem = Pick<InventoryGem, 'family' | 'level'>;
 export type TierId = 'normal' | 'hard';
 export type GameStatus = 'idle' | 'running' | 'betweenWaves' | 'lost' | 'cleared';
-export type BaseGemFamilyId = 'kinetic' | 'verdant' | 'arcane' | 'nova' | 'prism';
+export type BaseGemFamilyId = 'kinetic' | 'verdant' | 'arcane' | 'nova' | 'prism' | 'ember';
 export type HybridGemFamilyId =
   | 'toxic_shot'
   | 'plasma_mortar'
@@ -13,7 +13,9 @@ export type HybridGemFamilyId =
   | 'slayer_shard'
   | 'venom_lens'
   | 'shatter_star'
-  | 'executioner';
+  | 'executioner'
+  | 'ember_lance'
+  | 'solar_flare';
 export type GemFamilyId = BaseGemFamilyId | HybridGemFamilyId;
 export interface GemOffer {
   family: BaseGemFamilyId;
@@ -34,7 +36,8 @@ export type EnemyId =
   | 'mystic'
   | 'colossus'
   | 'dreadnought';
-export type UpgradeBranch = 'missile' | 'kinetic' | 'verdant' | 'arcane' | 'nova' | 'prism' | 'unlock';
+export type UpgradeBranch = 'missile' | 'kinetic' | 'verdant' | 'arcane' | 'nova' | 'prism' | 'ember' | 'unlock';
+export type GameSpeed = 1 | 2 | 4;
 export type TowerStat = 'damage' | 'range' | 'rate';
 export type MissileStat = 'damage' | 'radius' | 'cooldown';
 
@@ -312,6 +315,10 @@ export interface GameState {
   placementMode: PlacementMode;
   buildStep: BuildStep;
   runSeed: number;
+  combatRollNonce: number;
+  gameSpeed: GameSpeed;
+  crystalDust: number;
+  killedThisWave: number;
   rocksPlacedThisPhase: number;
   rerollsThisPhase: number;
   offers: GemOffer[];
@@ -374,6 +381,18 @@ export interface Snapshot {
   prospectRerollCost: number;
   rockPathDelta: number | null;
   nextWavePreview: { enemyId: EnemyId; count: number; name: string; tags: string[] }[];
+  waveSpawnTracker: {
+    total: number;
+    spawned: number;
+    remaining: number;
+    alive: number;
+    killed: number;
+    currentSegment: { enemyId: EnemyId; name: string } | null;
+  } | null;
+  runSeed: number;
+  gameSpeed: GameSpeed;
+  crystalDust: number;
+  missileUnlocked: boolean;
   rockCount: number;
   inventory: InventoryGem[];
   selectedInventoryGemId: number | null;
@@ -424,6 +443,7 @@ export type GameAction =
   | { type: 'undoMerge' }
   | { type: 'cycleGemTargeting'; gemId: number }
   | { type: 'previewRockPath'; x: number; y: number }
+  | { type: 'setGameSpeed'; speed: GameSpeed }
   | { type: 'rerollQuest'; questId: string }
   | { type: 'buyGem'; family: GemFamilyId }
   | { type: 'buyRandomGem' }

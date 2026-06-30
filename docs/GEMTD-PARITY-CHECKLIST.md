@@ -114,11 +114,11 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 
 ## Phase 8 — Waves & preview
 
-**Status:** `in_progress`
+**Status:** `done`
 
 - [x] Next wave preview panel (types, counts, tags)
-- [ ] Current wave spawn tracker
-- [ ] Author wave tables per area (blend with procedural)
+- [x] Current wave spawn tracker
+- [x] Author wave tables per area (blend with procedural)
 
 **Done when:** Player reads next wave before ready.
 
@@ -126,11 +126,11 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 
 ## Phase 9 — Economy tuning
 
-**Status:** `pending`
+**Status:** `done`
 
-- [ ] Interest formula vs classic
-- [ ] Gold sinks = rerolls + combos (not shop power)
-- [ ] Crystal Dust (optional)
+- [x] Interest formula vs classic
+- [x] Gold sinks = rerolls + combos (not shop power)
+- [x] Crystal Dust (optional)
 
 **Done when:** Gold mainly pays rerolls, not direct power.
 
@@ -138,14 +138,14 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 
 ## Phase 10 — UI polish
 
-**Status:** `pending`
+**Status:** `done`
 
-- [ ] Offer cards with gem art
-- [ ] Recipe book with icons
-- [ ] Gem stat tooltips
-- [ ] Great-gem unlock list
-- [ ] Merge partner highlights
-- [ ] Hotkeys + speed controls
+- [x] Offer cards with gem art
+- [x] Recipe book with icons
+- [x] Gem stat tooltips
+- [x] Great-gem unlock list
+- [x] Merge partner highlights
+- [x] Hotkeys + speed controls
 
 **Done when:** New player learns loop without external docs.
 
@@ -153,12 +153,12 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 
 ## Phase 11 — Content expansion
 
-**Status:** `pending`
+**Status:** `done`
 
-- [ ] 6th base gem family
-- [ ] Full hybrid recipe set
-- [ ] More areas / checkpoint layouts
-- [ ] Quest board vs great unlocks
+- [x] 6th base gem family
+- [x] Full hybrid recipe set
+- [x] More areas / checkpoint layouts
+- [x] Quest board vs great unlocks
 
 **Done when:** 3+ maps feel routing-different.
 
@@ -166,13 +166,13 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 
 ## Phase 12 — Simulation & cleanup
 
-**Status:** `pending`
+**Status:** `done`
 
-- [ ] Seeded RNG for offers/combat
-- [ ] Remove or gate missile strike
-- [ ] Remove or gate persistent combat meta (optional)
-- [ ] Extract sim tests for build FSM
-- [ ] Replay / seed display
+- [x] Seeded RNG for offers/combat
+- [x] Remove or gate missile strike
+- [x] Remove or gate persistent combat meta (optional)
+- [x] Extract sim tests for build FSM
+- [x] Replay / seed display
 
 **Done when:** Same seed → same offers and outcomes.
 
@@ -180,9 +180,9 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 
 ## Phase 13 — Multiplayer (Facet)
 
-**Status:** `pending`
+**Status:** `in_progress`
 
-- [ ] Shared offer seed
+- [x] Shared offer seed
 - [ ] Colyseus rooms + Firebase auth
 - [ ] Standard Race ranking
 - [ ] Replays & match history

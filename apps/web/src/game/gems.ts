@@ -42,7 +42,7 @@ const LEVEL_COOLDOWN_MULT: Record<GemLevel, number> = {
   7: 0.62,
 };
 
-const BASE_FAMILIES: BaseGemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism'];
+const BASE_FAMILIES: BaseGemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism', 'ember'];
 
 export function isHybridFamily(family: GemFamilyId): boolean {
   return Boolean(gemDefinitions[family].hybrid);

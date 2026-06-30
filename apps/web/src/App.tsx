@@ -1,7 +1,8 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import {
   areaDefinitions,
   areaTierKey,
+  BASE_GEM_FAMILIES,
   gemDefinitions,
   upgrades,
 } from './game/content';
@@ -9,7 +10,7 @@ import { QUEST_REROLL_COST } from './game/economy';
 import { hybridRecipes } from './game/recipes';
 import { buildStepLabel } from './game/buildPhase';
 import { canBuyUpgrade, isTierUnlocked } from './game/engine';
-import { gemDisplayName } from './game/gems';
+import { gemDisplayName, getGemCombatStats } from './game/gems';
 import { getRespecCost } from './game/save';
 import type {
   GameAction,
@@ -32,6 +33,7 @@ const branchLabels: Record<UpgradeBranch, string> = {
   arcane: 'Arcane',
   nova: 'Nova',
   prism: 'Prism',
+  ember: 'Ember',
   unlock: 'Unlocks',
 };
 
@@ -43,6 +45,7 @@ const branchOrder: UpgradeBranch[] = [
   'arcane',
   'nova',
   'prism',
+  'ember',
 ];
 
 const GEM_LEVEL_COLORS: Record<GemLevel, string> = {
@@ -63,6 +66,31 @@ export default function App() {
   const planning = snapshot.status === 'idle' || snapshot.status === 'betweenWaves';
   const [tab, setTab] = useState<SideTab>('build');
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === ' ' && snapshot.canStartWave) {
+        event.preventDefault();
+        dispatch({ type: 'startWave' });
+      } else if (key === 'm' && planning && snapshot.buildStep === 'ready') {
+        dispatch({ type: 'selectPlacementMode', mode: 'merge' });
+      } else if (key === 'u' && planning && snapshot.mergeUndoCount > 0) {
+        dispatch({ type: 'undoMerge' });
+      } else if (key === '1') {
+        dispatch({ type: 'setGameSpeed', speed: 1 });
+      } else if (key === '2') {
+        dispatch({ type: 'setGameSpeed', speed: 2 });
+      } else if (key === '3') {
+        dispatch({ type: 'setGameSpeed', speed: 4 });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dispatch, planning, snapshot.buildStep, snapshot.canStartWave, snapshot.mergeUndoCount]);
+
   return (
     <main className="app-shell">
       <PhaserGameHost bridge={controller.bridge} />
@@ -82,20 +110,46 @@ export default function App() {
           <ResourcePill icon="heart" label="Lives" value={`${snapshot.lives}/${snapshot.maxLives}`} />
           <ResourcePill icon="star" label="Stars" value={snapshot.stars} />
           <ResourcePill icon="crown" label="Crowns" value={snapshot.crowns} />
+          {snapshot.crystalDust > 0 && (
+            <ResourcePill icon="gold" label="Dust" value={snapshot.crystalDust} />
+          )}
         </div>
 
         <div className="hud-actions">
           <div className="wave-readout">
             <span>Path {snapshot.pathLength}</span>
             <span>
-              Next +{snapshot.waveIncome}g · {snapshot.interestPreview} interest
+              Next +{snapshot.waveIncome}g · {snapshot.interestPreview}g interest
             </span>
-            <span>
-              Strike{' '}
-              {snapshot.missileCooldownLeft <= 0
-                ? 'READY'
-                : `${snapshot.missileCooldownLeft.toFixed(1)}s`}
-            </span>
+            {snapshot.waveSpawnTracker ? (
+              <span>
+                Spawn {snapshot.waveSpawnTracker.spawned}/{snapshot.waveSpawnTracker.total} ·{' '}
+                {snapshot.waveSpawnTracker.alive} alive · {snapshot.waveSpawnTracker.killed} killed
+              </span>
+            ) : (
+              <span>
+                Strike{' '}
+                {snapshot.missileUnlocked
+                  ? snapshot.missileCooldownLeft <= 0
+                    ? 'READY'
+                    : `${snapshot.missileCooldownLeft.toFixed(1)}s`
+                  : 'LOCKED'}
+              </span>
+            )}
+          </div>
+          <div className="speed-controls">
+            {([1, 2, 4] as const).map((speed) => (
+              <button
+                key={speed}
+                type="button"
+                className={
+                  snapshot.gameSpeed === speed ? 'game-button small active' : 'game-button small'
+                }
+                onClick={() => dispatch({ type: 'setGameSpeed', speed })}
+              >
+                {speed}x
+              </button>
+            ))}
           </div>
           <button
             className="game-button primary"
@@ -138,19 +192,31 @@ export default function App() {
               <HoldPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
               <WavePreviewPanel snapshot={snapshot} planning={planning} />
               <MazePanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-              <PlacedGemsPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-              <RecipePanel />
+              <PlacedGemsPanel
+                snapshot={snapshot}
+                planning={planning}
+                dispatch={dispatch}
+                save={save}
+              />
+              <GreatGemsPanel snapshot={snapshot} />
+              <RecipePanel save={save} />
             </>
           )}
           {tab === 'shop' && (
             <>
-              <ProspectPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
+              <ProspectPanel
+                snapshot={snapshot}
+                planning={planning}
+                dispatch={dispatch}
+                save={save}
+              />
               <QuestPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
             </>
           )}
           {tab === 'progress' && (
             <>
               <AreaPanel save={save} dispatch={dispatch} />
+              <RunMetaPanel snapshot={snapshot} />
               <UpgradePanel save={save} dispatch={dispatch} />
               <section className="game-card compact">
                 <div className="card-header">
@@ -273,14 +339,22 @@ function BuildPhasePanel({
   );
 }
 
+function gemTooltip(save: SaveState, family: string, level: GemLevel): string {
+  const stats = getGemCombatStats(save, family as import('./game/types').GemFamilyId, level);
+  const def = gemDefinitions[family as import('./game/types').GemFamilyId];
+  return `${def.name} L${level}: ${Math.round(stats.damage)} dmg · ${stats.range.toFixed(1)} rng · ${stats.cooldown.toFixed(2)}s · ${def.role}`;
+}
+
 function ProspectPanel({
   snapshot,
   planning,
   dispatch,
+  save,
 }: {
   snapshot: Snapshot;
   planning: boolean;
   dispatch: (action: GameAction) => void;
+  save: SaveState;
 }) {
   const showOffers =
     planning && (snapshot.buildStep === 'prospect' || snapshot.buildStep === 'upgrade');
@@ -305,7 +379,12 @@ function ProspectPanel({
                 <button
                   key={`${offer.family}-${offer.level}-${index}`}
                   type="button"
-                  className={selected ? 'game-button gem-buy selected' : 'game-button gem-buy'}
+                  title={gemTooltip(save, offer.family, offer.level)}
+                  className={
+                    selected
+                      ? 'game-button gem-buy offer-card selected'
+                      : 'game-button gem-buy offer-card'
+                  }
                   style={{ '--tower-color': def.color } as CSSProperties}
                   onClick={() => dispatch({ type: 'claimOffer', index })}
                 >
@@ -465,6 +544,29 @@ function WavePreviewPanel({
   snapshot: Snapshot;
   planning: boolean;
 }) {
+  const tracker = snapshot.waveSpawnTracker;
+  if (tracker) {
+    return (
+      <section className="game-card compact">
+        <div className="card-header">
+          <h2>Wave in progress</h2>
+          <span className="hint">
+            {tracker.spawned}/{tracker.total} spawned
+          </span>
+        </div>
+        <div className="spawn-tracker-bar">
+          <div
+            className="spawn-tracker-fill"
+            style={{ width: `${(tracker.spawned / Math.max(1, tracker.total)) * 100}%` }}
+          />
+        </div>
+        <p className="hint">
+          {tracker.remaining} left to spawn · {tracker.alive} on board · {tracker.killed} killed
+          {tracker.currentSegment ? ` · now: ${tracker.currentSegment.name}` : ''}
+        </p>
+      </section>
+    );
+  }
   if (!planning || snapshot.nextWavePreview.length === 0) return null;
   return (
     <section className="game-card compact">
@@ -533,10 +635,12 @@ function PlacedGemsPanel({
   snapshot,
   planning,
   dispatch,
+  save,
 }: {
   snapshot: Snapshot;
   planning: boolean;
   dispatch: (action: GameAction) => void;
+  save: SaveState;
 }) {
   if (snapshot.placedGems.length === 0) return null;
 
@@ -554,6 +658,7 @@ function PlacedGemsPanel({
             <button
               key={gem.id}
               type="button"
+              title={gemTooltip(save, gem.family, gem.level)}
               disabled={!planning}
               className={isMergeSource ? 'gem-chip selected' : 'gem-chip'}
               style={
@@ -628,22 +733,74 @@ function QuestPanel({
   );
 }
 
-function RecipePanel() {
+function GreatGemsPanel({ snapshot }: { snapshot: Snapshot }) {
+  return (
+    <section className="game-card compact">
+      <div className="card-header">
+        <h2>Great gems</h2>
+        <span className="hint">L7 unlocks</span>
+      </div>
+      <div className="chip-grid">
+        {BASE_GEM_FAMILIES.map((family) => {
+          const unlocked = snapshot.greatUnlocked.includes(family);
+          const def = gemDefinitions[family];
+          return (
+            <div
+              key={family}
+              className={unlocked ? 'gem-chip great-unlocked' : 'gem-chip great-locked'}
+              style={{ '--tower-color': def.color } as CSSProperties}
+              title={unlocked ? `${def.name} great craft unlocked` : `Complete quest to unlock ${def.name} L7`}
+            >
+              <span className="tower-icon" />
+              <strong>{def.name}</strong>
+              <span className="hint">{unlocked ? 'Great ✓' : 'Locked'}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function RunMetaPanel({ snapshot }: { snapshot: Snapshot }) {
+  return (
+    <section className="game-card compact">
+      <div className="card-header">
+        <h2>Run meta</h2>
+      </div>
+      <p className="hint mono">Seed {snapshot.runSeed}</p>
+      <p className="hint">Speed {snapshot.gameSpeed}x · Space start · M merge · U undo</p>
+      <p className="hint">Crystal dust: {snapshot.crystalDust} (cosmetic meta)</p>
+    </section>
+  );
+}
+
+function RecipePanel({ save }: { save: SaveState }) {
   return (
     <section className="game-card compact">
       <div className="card-header">
         <h2>Hybrids</h2>
       </div>
       <ul className="recipe-list">
-        {hybridRecipes.map((recipe) => (
-          <li key={recipe.id}>
-            <strong>{recipe.label}</strong>
-            <span className="hint">
-              {gemDefinitions[recipe.inputs[0].family].name} L{recipe.inputs[0].level} +{' '}
-              {gemDefinitions[recipe.inputs[1].family].name} L{recipe.inputs[1].level}
-            </span>
-          </li>
-        ))}
+        {hybridRecipes.map((recipe) => {
+          const a = gemDefinitions[recipe.inputs[0].family];
+          const b = gemDefinitions[recipe.inputs[1].family];
+          const out = gemDefinitions[recipe.output.family];
+          return (
+            <li key={recipe.id} title={gemTooltip(save, recipe.output.family, recipe.output.level)}>
+              <div className="recipe-row">
+                <span className="tower-icon" style={{ '--tower-color': a.color } as CSSProperties} />
+                <span className="tower-icon" style={{ '--tower-color': b.color } as CSSProperties} />
+                <span className="recipe-arrow">→</span>
+                <span className="tower-icon" style={{ '--tower-color': out.color } as CSSProperties} />
+                <strong>{recipe.label}</strong>
+              </div>
+              <span className="hint">
+                {a.name} L{recipe.inputs[0].level} + {b.name} L{recipe.inputs[1].level}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

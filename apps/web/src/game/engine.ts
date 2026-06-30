@@ -28,7 +28,7 @@ import {
   gemDamageType,
   isEnemyVisible,
 } from './damage';
-import { goldInterest, QUEST_REROLL_COST, waveIncome } from './economy';
+import { goldInterest, CRYSTAL_DUST_PER_WAVE, QUEST_REROLL_COST, waveIncome } from './economy';
 import {
   canMergeGems,
   countIdenticalCluster,
@@ -36,7 +36,11 @@ import {
   getGemCombatStats,
   resolveMerge,
 } from './gems';
+import { nextCombatRoll } from './rng';
 import { cellsAlongPath } from './pathBuild';
+import {
+  buildWaveSpawnTracker,
+} from './waveTables';
 import { buildMazePathNav, canPlaceRock, createMazeLayout, hasValidPath, rockRefundPercent } from './maze';
 import { LEAK_EPSILON, pathProgressAt, resolveCheckpoints, stepEnemyOnPath } from './pathNav';
 import {
@@ -145,6 +149,9 @@ export function dispatchGameAction(state: GameState, action: GameAction): void {
     case 'cycleGemTargeting':
       cycleGemTargeting(state, action.gemId);
       break;
+    case 'setGameSpeed':
+      state.gameSpeed = action.speed;
+      break;
     case 'previewRockPath':
       previewRockPath(state, action.x, action.y);
       break;
@@ -229,6 +236,11 @@ export function createSnapshot(state: GameState): Snapshot {
     prospectRerollCost: prospectRerollCost(state.rerollsThisPhase),
     rockPathDelta: state.rockPathDelta,
     nextWavePreview: buildWavePreview(state),
+    waveSpawnTracker: buildCurrentWaveSpawnTracker(state),
+    runSeed: state.runSeed,
+    gameSpeed: state.gameSpeed,
+    crystalDust: state.crystalDust,
+    missileUnlocked: hasMissileUnlocked(state.save),
     rockCount: state.rocks.length,
     inventory: state.inventory.map((g) => ({ ...g })),
     selectedInventoryGemId: state.selectedInventoryGemId,
@@ -362,6 +374,25 @@ function previewRockPath(state: GameState, x: number, y: number): void {
   state.rockPathDelta = rockPathLengthDelta(state, x, y);
 }
 
+function buildCurrentWaveSpawnTracker(state: GameState): Snapshot['waveSpawnTracker'] {
+  if (state.status !== 'running') return null;
+  const area = getArea(state.areaId);
+  const wave = area.tiers[state.tierId].waves[state.waveIndex];
+  if (!wave) return null;
+  return buildWaveSpawnTracker(
+    wave.segments,
+    state.segmentIndex,
+    state.enemiesToSpawn,
+    state.enemies.filter((e) => e.alive).length,
+    state.killedThisWave,
+    (id) => getEnemy(id).name,
+  );
+}
+
+function hasMissileUnlocked(save: SaveState): boolean {
+  return save.purchasedUpgradeIds.some((id) => id.startsWith('missile-'));
+}
+
 function buildWavePreview(state: GameState): Snapshot['nextWavePreview'] {
   const area = getArea(state.areaId);
   const wave = area.tiers[state.tierId].waves[state.waveIndex];
@@ -386,7 +417,7 @@ function buildWavePreview(state: GameState): Snapshot['nextWavePreview'] {
 function gemCanTargetAir(family: GemFamilyId): boolean {
   const def = gemDefinitions[family];
   if (def.hybrid) return true;
-  return family === 'nova' || family === 'arcane' || family === 'prism' || family === 'plasma_mortar';
+  return family === 'nova' || family === 'arcane' || family === 'prism' || family === 'plasma_mortar' || family === 'solar_flare';
 }
 
 export function canPlaceGemAt(state: GameState, x: number, y: number): boolean {
@@ -423,6 +454,10 @@ function createAttempt(save: SaveState, areaId: string, tierId: TierId): GameSta
     placementMode: 'rock',
     buildStep: 'rocks',
     runSeed,
+    combatRollNonce: 0,
+    gameSpeed: 1,
+    crystalDust: 0,
+    killedThisWave: 0,
     rocksPlacedThisPhase: 0,
     rerollsThisPhase: 0,
     offers: [],
@@ -544,6 +579,7 @@ function startWave(state: GameState): void {
   const wave = area.tiers[state.tierId].waves[state.waveIndex];
   if (!wave) return;
   state.mergeUndoStack = [];
+  state.killedThisWave = 0;
   state.status = 'running';
   state.segmentIndex = 0;
   state.enemiesToSpawn = wave.segments[0]?.count ?? 0;
@@ -783,7 +819,7 @@ function buyRandomGem(state: GameState): void {
   const families = state.save.unlockedGemFamilies;
   if (families.length === 0) return;
   state.gold -= RANDOM_GEM_COST;
-  const family = families[Math.floor(Math.random() * families.length)]!;
+  const family = families[Math.floor(nextCombatRoll(state) * families.length)]!;
   addInventoryGem(state, family, 1);
 }
 
@@ -794,8 +830,8 @@ function buyLuckyBox(state: GameState): void {
   const families = state.save.unlockedGemFamilies;
   if (families.length === 0) return;
   state.gold -= LUCKY_BOX_COST;
-  const family = families[Math.floor(Math.random() * families.length)]!;
-  const level = (1 + Math.floor(Math.random() * 3)) as GemLevel;
+  const family = families[Math.floor(nextCombatRoll(state) * families.length)]!;
+  const level = (1 + Math.floor(nextCombatRoll(state) * 3)) as GemLevel;
   addInventoryGem(state, family, level);
 }
 
@@ -812,6 +848,7 @@ function addInventoryGem(state: GameState, family: GemFamilyId, level: GemLevel)
 
 function fireMissile(state: GameState, x: number, y: number): void {
   if (state.status !== 'running' || state.missileCooldownLeft > 0) return;
+  if (!hasMissileUnlocked(state.save)) return;
   const stats = getMissileStats(state);
   state.missiles.push({
     id: state.nextMissileId++,
@@ -1090,6 +1127,7 @@ function completeWaveOrAttempt(state: GameState): void {
   const waveNumber = state.waveIndex + 1;
 
   if (wave?.goldBonus) state.gold += wave.goldBonus;
+  state.crystalDust += CRYSTAL_DUST_PER_WAVE;
   const income = waveIncome(waveNumber);
   const interest = goldInterest(state.gold);
   state.gold += income + interest;
@@ -1135,7 +1173,7 @@ function hitWithProjectile(
     target.armorReduction = Math.max(target.armorReduction, projectile.armorReduction);
     damage *= 1 + target.armorReduction;
   }
-  if (projectile.critChance && Math.random() < projectile.critChance) {
+  if (projectile.critChance && nextCombatRoll(state) < projectile.critChance) {
     damage *= 2;
   }
 
@@ -1270,6 +1308,7 @@ function applyDamage(
   if (enemy.hp <= 0 && enemy.alive) {
     enemy.alive = false;
     state.killedEnemies += 1;
+    state.killedThisWave += 1;
     trackQuestProgress(state, 'kills', 1);
     const definition = getEnemy(enemy.definitionId);
     if (definition.isBoss) trackQuestProgress(state, 'boss', 1);

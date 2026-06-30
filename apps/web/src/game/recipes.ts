@@ -97,6 +97,26 @@ export const hybridRecipes: Recipe[] = [
     output: { family: 'executioner', level: 4 },
     label: 'Executioner',
   },
+  {
+    id: 'hybrid-ember-lance',
+    kind: 'hybrid',
+    inputs: [
+      { family: 'ember', level: 1 },
+      { family: 'kinetic', level: 1 },
+    ],
+    output: { family: 'ember_lance', level: 1 },
+    label: 'Ember Lance',
+  },
+  {
+    id: 'hybrid-solar-flare',
+    kind: 'hybrid',
+    inputs: [
+      { family: 'ember', level: 2 },
+      { family: 'nova', level: 2 },
+    ],
+    output: { family: 'solar_flare', level: 2 },
+    label: 'Solar Flare',
+  },
 ];
 
 export function findMatchingRecipe(

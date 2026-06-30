@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
 import { BOARD_HEIGHT, BOARD_WIDTH, gemDefinitions } from '../game/content';
 import { cellParity } from '../game/boardParity';
+import { canMergeGems } from '../game/gems';
 import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/engine';
+import { areAdjacentGems } from '../game/recipes';
 import { hexPixelCorners, worldToHex } from '../game/hexGrid';
 import type {
+  BaseGemFamilyId,
   EnemyState,
   FxEvent,
   GameState,
@@ -269,7 +272,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     if (!this.assetsReady) return;
     this.updateWaypointMarkers(state.pathNav);
     this.updateRockSprites(state.rocks);
-    this.updateGemSprites(state.gems, state.mergeSourceGemId);
+    this.updateGemSprites(state.gems, state.mergeSourceGemId, state.greatUnlocked);
     this.updateEnemySprites(state.enemies);
     this.drawEnemyBars(state.enemies);
   }
@@ -375,8 +378,13 @@ export class CosmicBoardScene extends Phaser.Scene {
     hideMissingSprites(this.rockSprites, liveKeys);
   }
 
-  private updateGemSprites(gems: readonly GemState[], mergeSourceId: number | null): void {
+  private updateGemSprites(
+    gems: readonly GemState[],
+    mergeSourceId: number | null,
+    greatUnlocked: readonly BaseGemFamilyId[],
+  ): void {
     const liveIds = new Set<number>();
+    const source = mergeSourceId !== null ? gems.find((g) => g.id === mergeSourceId) : undefined;
     for (const gem of gems) {
       liveIds.add(gem.id);
       const point = boardToScreen(this.layout, gem);
@@ -394,6 +402,12 @@ export class CosmicBoardScene extends Phaser.Scene {
         .setVisible(true);
       if (gem.id === mergeSourceId) {
         sprite.setTint(0xfff4a3);
+      } else if (
+        source &&
+        canMergeGems(source, gem, greatUnlocked) &&
+        areAdjacentGems(source.x, source.y, gem.x, gem.y)
+      ) {
+        sprite.setTint(0xa8ffd0);
       } else {
         sprite.clearTint();
       }

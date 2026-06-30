@@ -41,7 +41,8 @@ export function useCosmicGame(): CosmicGameController {
       getState: () => game.current,
       dispatch,
       step: (dt: number) => {
-        tickGame(game.current, dt);
+        const speed = game.current.gameSpeed;
+        tickGame(game.current, dt * speed);
         lastPublish.current += dt;
         if (lastPublish.current >= 0.08) {
           lastPublish.current = 0;

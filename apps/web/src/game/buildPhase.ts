@@ -3,7 +3,7 @@ import type { BaseGemFamilyId, BuildStep, GemFamilyId, GemLevel, GemOffer, Targe
 export type { BuildStep, GemOffer };
 export const ROCKS_PER_PHASE = 5;
 
-const BASE_FAMILIES: BaseGemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism'];
+const BASE_FAMILIES: BaseGemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism', 'ember'];
 
 export function prospectRerollCost(rerollsThisPhase: number): number {
   const costs = [10, 20, 40, 80, 160];
@@ -11,15 +11,7 @@ export function prospectRerollCost(rerollsThisPhase: number): number {
   return costs[costs.length - 1]! * 2 ** (rerollsThisPhase - costs.length + 1);
 }
 
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import { mulberry32 } from './rng';
 
 export function generateOffers(
   runSeed: number,
