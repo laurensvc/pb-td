@@ -35,7 +35,7 @@ export const BuildPhasePanel = memo(function BuildPhasePanel({
             }
           >
             {step === 'rocks'
-              ? `Rocks ${snapshot.rocksPlacedThisPhase}/${ROCKS_PER_PHASE}`
+              ? `Raw gems ${snapshot.rawGems.length}/${ROCKS_PER_PHASE}`
               : step === 'prospect'
                 ? 'Prospect'
                 : step === 'upgrade'
@@ -51,14 +51,7 @@ export const BuildPhasePanel = memo(function BuildPhasePanel({
             className="game-button small active"
             onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'rock' })}
           >
-            Place rock ({snapshot.rocksRemaining} left)
-          </button>
-          <button
-            type="button"
-            className="game-button small"
-            onClick={() => dispatch({ type: 'finishRocks' })}
-          >
-            Done with rocks
+            Place raw gem ({snapshot.rocksRemaining} left)
           </button>
         </div>
       )}
@@ -69,7 +62,7 @@ export const BuildPhasePanel = memo(function BuildPhasePanel({
         </p>
       )}
       {snapshot.buildStep === 'ready' && (
-        <p className="hint">Merge gems if needed, then Start Wave when ready.</p>
+        <p className="hint">Unused raw gems became stone blocks. Merge gems, then Start Wave.</p>
       )}
     </section>
   );
@@ -203,7 +196,9 @@ export const MazePanel = memo(function MazePanel({
         <button
           type="button"
           disabled={!planning || snapshot.buildStep !== 'ready'}
-          className={snapshot.placementMode === 'merge' ? 'game-button small active' : 'game-button small'}
+          className={
+            snapshot.placementMode === 'merge' ? 'game-button small active' : 'game-button small'
+          }
           onClick={() => dispatch({ type: 'selectPlacementMode', mode: 'merge' })}
         >
           Merge
@@ -219,12 +214,12 @@ export const MazePanel = memo(function MazePanel({
       </div>
       {snapshot.buildStep === 'rocks' && snapshot.rockPathDelta !== null && (
         <p className="hint path-delta">
-          Rock preview: {snapshot.rockPathDelta >= 0 ? '+' : ''}
+          Raw gem preview: {snapshot.rockPathDelta >= 0 ? '+' : ''}
           {snapshot.rockPathDelta} path tiles
         </p>
       )}
       <p className="hint">
-        Right-click rocks to sell, gems to hold/swap. Merge adjacent gems in build phase.
+        Commit one raw gem after all five are placed. The other four become stone blocks.
       </p>
     </section>
   );

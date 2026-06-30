@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/boardQueries';
+import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRawGemAt } from '../game/boardQueries';
 import { getGemCombatStats } from '../game/gems';
 import { canPlaceAtBoardPoint, isPlanningPhase } from './boardInput';
 import type { GameState, Vec2 } from '../game/types';
@@ -24,7 +24,6 @@ import {
   computeLayout,
   pointerToCanvas,
   rangeToPixels,
-  screenToBoard,
   screenToCell,
   type BoardLayout,
 } from './boardCoords';
@@ -32,7 +31,6 @@ import { findGemAtCell, handleRightClick } from './input/pointerHandlers';
 import {
   COLORS,
   drawCheckpointRoute,
-  drawMissile,
   drawPathOverlay,
   drawPlacementPreview,
 } from './render/boardGraphics';
@@ -161,8 +159,7 @@ export class CosmicBoardScene extends Phaser.Scene {
     const canvasPoint = this.pointerCanvasPoint(pointer);
     this.hoverCell = screenToCell(this.layout, canvasPoint.x, canvasPoint.y);
     const boardPoint = this.hoverCell ? cellCenter(this.hoverCell) : null;
-    const canPlace =
-      boardPoint !== null && canPlaceAtBoardPoint(state, boardPoint.x, boardPoint.y);
+    const canPlace = boardPoint !== null && canPlaceAtBoardPoint(state, boardPoint.x, boardPoint.y);
     if (
       planning &&
       state.buildStep === 'rocks' &&
@@ -203,8 +200,8 @@ export class CosmicBoardScene extends Phaser.Scene {
     }
 
     if (planning && state.buildStep === 'rocks' && state.placementMode === 'rock') {
-      if (canPlaceRockAt(state, boardPoint.x, boardPoint.y)) {
-        bridge.dispatch({ type: 'placeRock', x: boardPoint.x, y: boardPoint.y });
+      if (canPlaceRawGemAt(state, boardPoint.x, boardPoint.y)) {
+        bridge.dispatch({ type: 'placeRawGem', x: boardPoint.x, y: boardPoint.y });
       }
       return;
     }
@@ -231,12 +228,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       }
       return;
     }
-    if (state.status === 'running') {
-      const missilePoint = screenToBoard(this.layout, canvasPoint.x, canvasPoint.y);
-      if (missilePoint) {
-        bridge.dispatch({ type: 'fireMissile', x: missilePoint.x, y: missilePoint.y });
-      }
-    }
+    if (state.status === 'running') return;
   }
 
   private clearHover(): void {
@@ -296,7 +288,6 @@ export class CosmicBoardScene extends Phaser.Scene {
         }
       }
     }
-    for (const missile of state.missiles) drawMissile(g, this.layout, missile);
     updateFxLabels(this, this.layout, this.fxLabels, state.fxEvents);
   }
 }

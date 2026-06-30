@@ -1,7 +1,6 @@
 import { gemDefinitions, BASE_GEM_FAMILIES } from './content';
 import { hexAreAdjacent, worldToHex } from './hexGrid';
 import { findMatchingRecipe } from './recipes';
-import { purchasedUpgrades } from './upgrades';
 import type {
   BaseGemFamilyId,
   GemCombatStats,
@@ -91,10 +90,16 @@ export function countIdenticalCluster(
   gems: readonly Pick<GemState, 'id' | 'family' | 'level' | 'x' | 'y'>[],
   seed: Pick<GemState, 'id' | 'family' | 'level' | 'x' | 'y'>,
 ): number {
+  return identicalClusterIds(gems, seed).length;
+}
+
+export function identicalClusterIds(
+  gems: readonly Pick<GemState, 'id' | 'family' | 'level' | 'x' | 'y'>[],
+  seed: Pick<GemState, 'id' | 'family' | 'level' | 'x' | 'y'>,
+): number[] {
   const matching = gems.filter((g) => g.family === seed.family && g.level === seed.level);
   const visited = new Set<number>();
   const queue = [seed.id];
-  let count = 0;
 
   while (queue.length > 0) {
     const id = queue.shift()!;
@@ -102,22 +107,22 @@ export function countIdenticalCluster(
     const gem = matching.find((g) => g.id === id);
     if (!gem) continue;
     visited.add(id);
-    count += 1;
     const cell = worldToHex(gem.x, gem.y);
     for (const other of matching) {
       if (visited.has(other.id)) continue;
       if (hexAreAdjacent(cell, worldToHex(other.x, other.y))) queue.push(other.id);
     }
   }
-  return count;
+  return [...visited];
 }
 
 export function canMergeGems(
   a: Pick<GemState, 'family' | 'level'>,
   b: Pick<GemState, 'family' | 'level'>,
   greatUnlocked: readonly BaseGemFamilyId[] = [],
+  identicalClusterSize = 2,
 ): boolean {
-  const result = resolveMerge(a, b);
+  const result = resolveMerge(a, b, identicalClusterSize);
   if (!result) return false;
   if (result.level === 7 && isBaseFamily(result.family)) {
     return greatUnlocked.includes(result.family);
@@ -145,23 +150,30 @@ export function gemSellValue(family: GemFamilyId, level: GemLevel): number {
   return Math.floor(base * LEVEL_MULTIPLIERS[level] * 0.55);
 }
 
-export function getGemCombatStats(save: SaveState, family: GemFamilyId, level: GemLevel): GemCombatStats {
+export function getGemCombatStats(
+  _save: SaveState,
+  family: GemFamilyId,
+  level: GemLevel,
+): GemCombatStats {
   const base = gemDefinitions[family];
   const dmgMult = LEVEL_MULTIPLIERS[level];
-  const meta = metaMultipliers(save, family);
 
-  let damage = base.baseDamage * dmgMult * meta.damage;
-  let range = base.baseRange + LEVEL_RANGE_BONUS[level] + meta.range;
-  let cooldown = base.baseCooldown * LEVEL_COOLDOWN_MULT[level] * meta.cooldown;
+  let damage = base.baseDamage * dmgMult;
+  let range = base.baseRange + LEVEL_RANGE_BONUS[level];
+  let cooldown = base.baseCooldown * LEVEL_COOLDOWN_MULT[level];
 
-  const poisonDps = base.poisonDps ? base.poisonDps * dmgMult * meta.damage : undefined;
+  const poisonDps = base.poisonDps ? base.poisonDps * dmgMult : undefined;
   const poisonDuration = base.poisonDuration ? base.poisonDuration + (level - 1) * 0.35 : undefined;
   const shieldPierce = base.shieldPierce ? base.shieldPierce + (level - 1) * 0.35 : undefined;
   const splashRadius = base.splashRadius ? base.splashRadius + (level - 1) * 0.12 : undefined;
-  const slowFactor = base.slowFactor ? Math.min(0.75, base.slowFactor + (level - 1) * 0.04) : undefined;
+  const slowFactor = base.slowFactor
+    ? Math.min(0.75, base.slowFactor + (level - 1) * 0.04)
+    : undefined;
   const slowDuration = base.slowDuration ? base.slowDuration + (level - 1) * 0.25 : undefined;
   const armorReduction = base.armorReduction ? base.armorReduction + (level - 1) * 0.03 : undefined;
-  const critChance = base.critChance ? Math.min(0.65, base.critChance + (level - 1) * 0.05) : undefined;
+  const critChance = base.critChance
+    ? Math.min(0.65, base.critChance + (level - 1) * 0.05)
+    : undefined;
   const bonusVsHighHp = base.bonusVsHighHp ? base.bonusVsHighHp + (level - 1) * 0.08 : undefined;
 
   if (level === 7) {
@@ -194,23 +206,24 @@ export function gemDisplayName(family: GemFamilyId, level: GemLevel): string {
   const def = gemDefinitions[family];
   if (level === 7) return `Great ${def.name}`;
   if (def.hybrid && level === 1) return def.name;
-  return `${def.name} L${level}`;
+  return `${qualityName(level)} ${def.name}`;
 }
 
-function metaMultipliers(
-  save: SaveState,
-  family: GemFamilyId,
-): { damage: number; range: number; cooldown: number } {
-  let damage = 1;
-  let range = 0;
-  let cooldown = 1;
-  const branch = gemDefinitions[family].branch;
-  for (const upgrade of purchasedUpgrades(save)) {
-    if (!branch || upgrade.gemFamily !== family) continue;
-    if (upgrade.towerStat === 'damage') damage *= 1 + upgrade.value;
-    if (upgrade.towerStat === 'range') range += upgrade.value;
-    if (upgrade.towerStat === 'rate') cooldown *= 1 + upgrade.value;
+export function qualityName(level: GemLevel): string {
+  switch (level) {
+    case 1:
+      return 'Chipped';
+    case 2:
+      return 'Flawed';
+    case 3:
+      return 'Normal';
+    case 4:
+      return 'Flawless';
+    case 5:
+      return 'Perfect';
+    case 6:
+      return 'Great';
+    case 7:
+      return 'Great';
   }
-  return { damage, range, cooldown };
 }
-

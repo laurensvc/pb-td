@@ -1,14 +1,8 @@
 import Phaser from 'phaser';
 import { hexPixelCorners } from '../../game/hexGrid';
-import type { GameState, MissileState, Vec2 } from '../../game/types';
+import type { GameState, Vec2 } from '../../game/types';
 import { canPlaceAtBoardPoint } from '../boardInput';
-import {
-  boardToScreen,
-  cellCenter,
-  cellToScreen,
-  rangeToPixels,
-  type BoardLayout,
-} from '../boardCoords';
+import { cellCenter, cellToScreen, type BoardLayout } from '../boardCoords';
 
 export const COLORS = {
   bg: 0x050812,
@@ -114,20 +108,3 @@ export function drawPlacementPreview(
   }
 }
 
-export function drawMissile(
-  g: Phaser.GameObjects.Graphics,
-  layout: BoardLayout,
-  missile: MissileState,
-): void {
-  const point = boardToScreen(layout, missile);
-  const radius = rangeToPixels(layout, missile.radius);
-  if (missile.active) {
-    g.lineStyle(2, 0xfff4a3, 0.75);
-    g.strokeCircle(point.x, point.y, Math.max(6, radius * (1 - missile.impactIn / 0.24)));
-    return;
-  }
-  g.fillStyle(0xfff4a3, Math.max(0, missile.life / 0.42) * 0.18);
-  g.fillCircle(point.x, point.y, radius);
-  g.lineStyle(3, 0xffcf6b, Math.max(0, missile.life / 0.42) * 0.8);
-  g.strokeCircle(point.x, point.y, radius);
-}

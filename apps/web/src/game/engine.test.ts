@@ -4,12 +4,12 @@ import { hexWorldCenter } from './hexGrid';
 import { createDefaultSave } from './save';
 import type { GameState, GemFamilyId, GemLevel } from './types';
 import {
+  canPlaceRawGemAt,
   canPlaceGemAt,
   canPlaceRockAt,
   createGame,
   createSnapshot,
   dispatchGameAction,
-  getMissileStats,
   isTierUnlocked,
   tickGame,
 } from './engine';
@@ -43,20 +43,23 @@ function addBoardGem(
 }
 
 function skipBuildPhaseToReady(game: GameState): void {
-  if (game.rocks.length === 0) {
-    const probe = hexWorldCenter(0, 0);
-    if (canPlaceRockAt(game, probe.x, probe.y)) {
-      dispatchGameAction(game, { type: 'placeRock', x: probe.x, y: probe.y });
-    }
+  if (game.buildStep === 'rocks') placeFiveRawGems(game);
+  if (game.buildStep === 'prospect' && game.rawGems[0]) {
+    dispatchGameAction(game, { type: 'commitRawGem', rawGemId: game.rawGems[0].id });
   }
-  dispatchGameAction(game, { type: 'finishRocks' });
-  dispatchGameAction(game, { type: 'claimOffer', index: 0 });
-  if (game.rocks.length > 0 && game.claimedOffer) {
-    const rock = game.rocks[0]!;
-    const center = hexWorldCenter(rock.x, rock.y);
-    dispatchGameAction(game, { type: 'upgradeRock', x: center.x, y: center.y });
-  } else if (game.buildStep !== 'ready') {
+  if (game.buildStep !== 'ready') {
     game.buildStep = 'ready';
+  }
+}
+
+function placeFiveRawGems(game: GameState): void {
+  for (let r = 0; r < 10 && game.rawGems.length < 5; r++) {
+    for (let q = 0; q < 16 && game.rawGems.length < 5; q++) {
+      const point = hexWorldCenter(q, r);
+      if (canPlaceRawGemAt(game, point.x, point.y)) {
+        dispatchGameAction(game, { type: 'placeRawGem', x: point.x, y: point.y });
+      }
+    }
   }
 }
 
@@ -94,34 +97,10 @@ describe('cosmic gem siege simulation', () => {
     expect(game.lives).toBe(0);
   });
 
-  it('fires cooldown-limited AoE missiles that kill enemies and grant stars', () => {
-    const game = createGame({ ...createDefaultSave(), stars: 200 });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-2' });
-    startWaveWhenReady(game);
-    runFor(0.1, (dt) => tickGame(game, dt));
-
-    const target = game.enemies[0];
-    dispatchGameAction(game, { type: 'fireMissile', x: target.x, y: target.y });
-    dispatchGameAction(game, { type: 'fireMissile', x: target.x, y: target.y });
-    expect(game.missiles).toHaveLength(1);
-
-    runFor(0.4, (dt) => tickGame(game, dt));
-
-    expect(game.killedEnemies).toBeGreaterThan(0);
-    expect(game.save.stars).toBeGreaterThan(0);
-    expect(game.gold).toBeGreaterThan(0);
-    expect(game.missileCooldownLeft).toBeGreaterThan(0);
-  });
-
-  it('keeps kill-earned stars after a failed attempt and retries with the same save', () => {
+  it('keeps non-power save data after a failed attempt and retry', () => {
     const game = createGame();
+    game.save.clearedAreaTiers.push('a1:normal');
     startWaveWhenReady(game);
-    runFor(0.1, (dt) => tickGame(game, dt));
-    dispatchGameAction(game, { type: 'fireMissile', x: game.enemies[0].x, y: game.enemies[0].y });
-    runFor(0.4, (dt) => tickGame(game, dt));
-    const earned = game.save.stars;
-
     runFor(30, (dt) => tickGame(game, dt));
     for (let wave = 0; wave < 25 && game.status !== 'lost'; wave++) {
       startWaveWhenReady(game);
@@ -131,7 +110,7 @@ describe('cosmic gem siege simulation', () => {
     dispatchGameAction(game, { type: 'retry' });
 
     expect(game.status).toBe('idle');
-    expect(game.save.stars).toBe(earned);
+    expect(game.save.clearedAreaTiers).toEqual(['a1:normal']);
     expect(game.gold).toBeGreaterThan(0);
   });
 
@@ -182,13 +161,6 @@ describe('cosmic gem siege simulation', () => {
     expect(game.status).toBe('running');
   });
 
-  it('applies purchased missile upgrades to combat stats', () => {
-    const game = createGame({ ...createDefaultSave(), stars: 200 });
-    const beforeMissile = getMissileStats(game);
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
-    expect(getMissileStats(game).damage).toBeGreaterThan(beforeMissile.damage);
-  });
-
   it('scales gem stats by level', () => {
     const save = createDefaultSave();
     const l1 = getGemCombatStats(save, 'kinetic', 1);
@@ -197,23 +169,11 @@ describe('cosmic gem siege simulation', () => {
     expect(l5.range).toBeGreaterThan(l1.range);
   });
 
-  it('enforces gem family unlocks in shop after a loss', () => {
-    const game = createGame();
-    game.status = 'lost';
-    const goldBefore = game.gold;
-    dispatchGameAction(game, { type: 'buyGem', family: 'arcane' });
-    expect(game.gold).toBe(goldBefore);
-
-    dispatchGameAction(game, { type: 'buyGem', family: 'kinetic' });
-    expect(game.inventory.length).toBe(1);
-  });
-
-  it('awards a crown once for full clears and unlocks hard tier', () => {
+  it('unlocks hard tier from cleared normal tier without account power currency', () => {
     const save = createDefaultSave();
     const game = createGame({
       ...save,
       clearedAreaTiers: [areaTierKey('a1', 'normal')],
-      crowns: 1,
     });
 
     expect(isTierUnlocked(game.save, 'a1', 'hard')).toBe(true);
@@ -232,24 +192,9 @@ describe('cosmic gem siege simulation', () => {
     expect(canPlaceRockAt(game, offMaze.x, offMaze.y)).toBe(false);
   });
 
-  it('charges the paid respec cost and resets upgrade purchases', () => {
-    const game = createGame({ ...createDefaultSave(), stars: 200 });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'kinetic-damage-1' });
-    const starsBefore = game.save.stars;
-
-    dispatchGameAction(game, { type: 'respecUpgrades' });
-
-    expect(game.save.purchasedUpgradeIds).toHaveLength(0);
-    expect(game.save.unlockedGemFamilies).toEqual(['kinetic', 'verdant']);
-    expect(game.save.stars).toBeGreaterThan(starsBefore);
-    expect(game.save.stars).toBeLessThan(200);
-  });
-
   it('rejects gem placement on occupied or wrong parity cells', () => {
     const game = createGame();
-    game.status = 'lost';
-    dispatchGameAction(game, { type: 'buyGem', family: 'kinetic' });
+    game.inventory.push({ id: game.nextInventoryGemId++, family: 'kinetic', level: 1 });
     dispatchGameAction(game, { type: 'selectInventoryGem', gemId: game.inventory[0]!.id });
     const rockCell = hexWorldCenter(0, 0);
     expect(canPlaceGemAt(game, rockCell.x, rockCell.y)).toBe(false);
@@ -263,6 +208,13 @@ describe('cosmic gem siege simulation', () => {
     const snapshot = createSnapshot(game);
     expect(snapshot.nextWavePreview.length).toBeGreaterThan(0);
     expect(snapshot.buildStep).toBe('rocks');
+  });
+
+  it('exposes raw gem quality odds during build phase', () => {
+    const game = createGame();
+    const snapshot = createSnapshot(game);
+    expect(snapshot.rawGemBuildLevel).toBe(1);
+    expect(snapshot.rawGemQualityOdds.map((entry) => entry.chance)).toEqual([70, 25, 5, 0, 0]);
   });
 
   it('does not double-spawn split enemies on projectile kill', () => {
@@ -281,7 +233,6 @@ describe('cosmic gem siege simulation', () => {
       shield: 0,
       maxShield: 0,
       speed: 1,
-      rewardStars: 1,
       rewardGold: 1,
       color: '#fff',
       alive: true,
@@ -315,23 +266,36 @@ describe('cosmic gem siege simulation', () => {
     expect(game.nextEnemyId).toBe(before + 2);
   });
 
-  it('blocks claiming an offer without any rocks', () => {
+  it('commits one raw gem and turns the other four into stone blocks', () => {
     const game = createGame();
-    dispatchGameAction(game, { type: 'finishRocks' });
-    dispatchGameAction(game, { type: 'claimOffer', index: 0 });
-    expect(game.claimedOffer).toBeNull();
+    placeFiveRawGems(game);
+    expect(game.rawGems).toHaveLength(5);
     expect(game.buildStep).toBe('prospect');
+    const committed = game.rawGems[0]!;
+    dispatchGameAction(game, { type: 'commitRawGem', rawGemId: committed.id });
+    expect(game.rawGems).toHaveLength(0);
+    expect(game.gems).toHaveLength(1);
+    expect(game.gems[0]!.family).toBe(committed.family);
+    expect(game.rocks).toHaveLength(4);
+    expect(game.buildStep).toBe('ready');
   });
 
-  it('refunds crowns on respec', () => {
-    const game = createGame({ ...createDefaultSave(), stars: 300, crowns: 2 });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'missile-damage-1' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-verdant' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-arcane' });
-    dispatchGameAction(game, { type: 'buyUpgrade', upgradeId: 'unlock-nova' });
-    expect(game.save.crowns).toBe(1);
-    dispatchGameAction(game, { type: 'respecUpgrades' });
-    expect(game.save.crowns).toBe(2);
+  it('consumes four identical connected gems for a two-level merge', () => {
+    const game = createGame();
+    game.buildStep = 'ready';
+    addBoardGem(game, 2, 5, 'kinetic', 1);
+    addBoardGem(game, 3, 4, 'kinetic', 1);
+    addBoardGem(game, 3, 5, 'kinetic', 1);
+    addBoardGem(game, 2, 6, 'kinetic', 1);
+    const [source, target] = game.gems;
+
+    dispatchGameAction(game, { type: 'selectMergeSource', gemId: source!.id });
+    dispatchGameAction(game, { type: 'mergeGems', targetGemId: target!.id });
+
+    expect(game.gems).toHaveLength(1);
+    expect(game.gems[0]!.id).toBe(target!.id);
+    expect(game.gems[0]!.level).toBe(3);
+    expect(game.mergeUndoStack).toHaveLength(1);
   });
 
   it('reverts quest progress and great unlock when undoing a merge', () => {

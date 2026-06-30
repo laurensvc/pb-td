@@ -3,9 +3,9 @@ import { saveFingerprint } from './saveFingerprint';
 import { createDefaultSave } from './save';
 
 describe('saveFingerprint', () => {
-  it('changes when stars are earned', () => {
+  it('changes when non-power save progress changes', () => {
     const a = createDefaultSave();
-    const b = { ...createDefaultSave(), stars: 5 };
+    const b = { ...createDefaultSave(), clearedAreaTiers: ['a1:normal'] };
     expect(saveFingerprint(a)).not.toBe(saveFingerprint(b));
   });
 });

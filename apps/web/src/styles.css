@@ -379,6 +379,26 @@ button {
   gap: 6px;
 }
 
+.odds-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.odds-strip strong {
+  padding: 3px 5px;
+  border-radius: 6px;
+  border: 1px solid rgba(120, 150, 200, 0.28);
+  color: #dbeafe;
+  background: rgba(8, 14, 26, 0.72);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .game-button.gem-buy,
 .gem-chip {
   min-height: 48px;
@@ -394,7 +414,11 @@ button {
   width: 14px;
   height: 18px;
   border-radius: 3px 3px 2px 2px;
-  background: linear-gradient(180deg, var(--tower-color), color-mix(in srgb, var(--tower-color) 55%, #111));
+  background: linear-gradient(
+    180deg,
+    var(--tower-color),
+    color-mix(in srgb, var(--tower-color) 55%, #111)
+  );
   box-shadow: 0 0 10px color-mix(in srgb, var(--tower-color) 55%, transparent);
   clip-path: polygon(50% 0%, 100% 38%, 78% 100%, 22% 100%, 0% 38%);
   grid-row: span 2;

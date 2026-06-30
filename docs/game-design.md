@@ -16,13 +16,13 @@ Binding rules document for simulation, UI, and multiplayer. Overrides ambiguous 
 
 ## 2. Board
 
-| Property | Value |
-|----------|------:|
-| Grid | 28 columns × 20 rows |
-| Coordinates | Integer `(x, y)`, origin top-left |
-| Spawn | Fixed cell; enemies enter here |
-| Exit | Fixed cell; leaks count here |
-| Terrain | `buildable`, `blocked` (permanent), `spawn`, `exit` |
+| Property    |                                               Value |
+| ----------- | --------------------------------------------------: |
+| Grid        |                                28 columns × 20 rows |
+| Coordinates |                   Integer `(x, y)`, origin top-left |
+| Spawn       |                      Fixed cell; enemies enter here |
+| Exit        |                        Fixed cell; leaks count here |
+| Terrain     | `buildable`, `blocked` (permanent), `spawn`, `exit` |
 
 **Layout file:** `packages/content/data/boards/default-28x20.json`
 
@@ -40,12 +40,13 @@ BUILD → WAVE → RESOLUTION → BUILD …
 
 ### 3.1 Build phase steps (strict order)
 
-1. **Place rocks** — up to **5 new rocks** this phase (free). Rocks placed in prior phases persist.
-2. **Prospect** — reveal **5 gem offers** from shared seed. Player may **claim one** family+tier offer.
-3. **Reroll** (optional) — pay escalating gold to reroll all 5 offers (see §8).
-4. **Upgrade** — convert **exactly one** owned rock to the claimed gem (free). This is the **only** way to add a new tower this phase.
-5. **Merge / sell / combine / targeting** — optional actions before ready.
-6. **Ready** — player locks board; wave starts when all ready or build timer expires (default 30s).
+1. **Roll raw gems** — reveal **5 raw gems** from the shared seed.
+2. **Place raw gems** — place all 5 raw gems on legal board cells. They temporarily block the maze.
+3. **Reroll** (optional) — before placing any raw gem, pay escalating gold to reroll all 5 raw gems (see §8).
+4. **Commit** — build exactly one raw gem, or build a detected recipe upgrade if the 5 raw gems contain a valid formula.
+5. **Stone conversion** — every uncommitted raw gem becomes a permanent stone block in the maze.
+6. **Merge / sell / combine / targeting** — optional actions before ready.
+7. **Ready** — player locks board; wave starts when all ready or build timer expires (default 30s).
 
 ### 3.2 Wave phase
 
@@ -75,7 +76,7 @@ BUILD → WAVE → RESOLUTION → BUILD …
 
 ### 4.2 Towers (gems)
 
-- Created only via **rock upgrade** (1/phase) or **combination** (consumes ingredients).
+- Created only via **raw gem commit** (1/phase), direct raw-gem recipe, or **combination** (consumes ingredients).
 - Occupy one cell; block ground path like rocks.
 - **Sell** during build phase → refund per tier table (Phase 1: 70% of ingredient value proxy).
 - Cannot move during wave.
@@ -93,21 +94,35 @@ Every placement (rock or tower) is validated **before** acceptance:
 
 ## 5. Prospect and RNG
 
-- Each build phase: 5 offers, each `{ family, tier }`.
-- Standard Race: **identical offer pool** for all players (order may differ cosmetically).
+- Each build phase: 5 raw gems, each `{ family, tier }`.
+- Raw gems have **5 natural quality levels**. Higher tiers beyond natural quality are created through merges, recipes, or later Great Gem rules.
+- Standard Race: **identical raw-gem pool** for all players (order may differ cosmetically).
 - RNG: seeded PRNG; seed revealed at match start.
-- Claim: take one offer into “pending upgrade” state.
-- **No hidden rarity** — uniform tier weights per wave band (see wave data).
+- Commit: turn one placed raw gem into the built tower, or commit a detected recipe output.
+- If the 5 placed raw gems contain a recipe, the player may build that upgrade directly instead of a single raw gem.
+- Unused raw gems convert into stone blocks.
+- Raw gem quality odds are determined by player/build level and must be shown in the HUD before placement.
+- No hidden odds: the displayed chance table is the authoritative roll table for the current build phase.
+
+### Raw quality odds
+
+| Build level | Chipped | Flawed | Normal | Flawless | Perfect |
+| ----------: | ------: | -----: | -----: | -------: | ------: |
+|           1 |     70% |    25% |     5% |       0% |      0% |
+|           2 |     50% |    32% |    15% |       3% |      0% |
+|           3 |     35% |    35% |    22% |       7% |      1% |
+|           4 |     22% |    33% |    30% |      12% |      3% |
+|           5 |     12% |    25% |    35% |      20% |      8% |
 
 ### Reroll costs (escalating, unlimited while gold lasts)
 
-| Reroll # | Cost |
-|---------:|-----:|
-| 1 | 10 |
-| 2 | 20 |
-| 3 | 40 |
-| 4 | 80 |
-| 5+ | previous × 2 |
+| Reroll # |         Cost |
+| -------: | -----------: |
+|        1 |           10 |
+|        2 |           20 |
+|        3 |           40 |
+|        4 |           80 |
+|       5+ | previous × 2 |
 
 Reroll counter resets each build phase.
 
@@ -121,9 +136,8 @@ Reroll counter resets each build phase.
 - Merge anytime in build phase.
 - No merge during wave.
 
-### Phase 2 additions
-
 - **4 identical** → **1** at **tier + 2**.
+- Four-gem merges consume three matching connected gems and upgrade the selected target cell.
 - Merge undo allowed until next wave starts.
 
 ### Restrictions
@@ -140,12 +154,12 @@ Reroll counter resets each build phase.
 
 **Launch recipes (4):**
 
-| ID | Name | Inputs | Gold |
-|----|------|--------|-----:|
-| magma-core | Magma Core | Flame T2+ + Stone T2+ | 120 |
-| tempest-coil | Tempest Coil | Tide T2+ + Gale T2+ | 120 |
-| wildfire-grove | Wildfire Grove | Flame T2+ + Thorn T2+ | 140 |
-| prism-array | Prism Array | Radiant T2+ + Arcane T2+ | 140 |
+| ID             | Name           | Inputs                   | Gold |
+| -------------- | -------------- | ------------------------ | ---: |
+| magma-core     | Magma Core     | Flame T2+ + Stone T2+    |  120 |
+| tempest-coil   | Tempest Coil   | Tide T2+ + Gale T2+      |  120 |
+| wildfire-grove | Wildfire Grove | Flame T2+ + Thorn T2+    |  140 |
+| prism-array    | Prism Array    | Radiant T2+ + Arcane T2+ |  140 |
 
 Ingredients are consumed from the board. Result placed on a buildable empty cell adjacent to at least one ingredient cell (Phase 1 simplification: any empty buildable cell).
 
@@ -155,16 +169,16 @@ Ingredients are consumed from the board. Result placed on a buildable empty cell
 
 ### Phase 1 resources
 
-| Resource | Earned | Spent |
-|----------|--------|-------|
-| Gold | Kills, wave clear, boss | Rerolls, combinations |
+| Resource | Earned                  | Spent                 |
+| -------- | ----------------------- | --------------------- |
+| Gold     | Kills, wave clear, boss | Rerolls, combinations |
 
 Starting gold: **40**.
 
 ### Phase 2 additions
 
-| Resource | Earned | Spent |
-|----------|--------|-------|
+| Resource     | Earned             | Spent                      |
+| ------------ | ------------------ | -------------------------- |
 | Crystal Dust | Bosses, milestones | High-tier combos, upgrades |
 
 No compounding interest. No random gold jackpots.
@@ -188,13 +202,13 @@ Health, armour, speed, resistances, bounty gold, leak life damage, special trait
 
 ### Leak damage
 
-| Archetype | Lives lost |
-|-----------|----------:|
-| Standard | 1 |
-| Bulwark | 2 |
-| Flyer | 1 |
-| Siege Beast | 3 |
-| Boss | 5 |
+| Archetype   | Lives lost |
+| ----------- | ---------: |
+| Standard    |          1 |
+| Bulwark     |          2 |
+| Flyer       |          1 |
+| Siege Beast |          3 |
+| Boss        |          5 |
 
 ---
 
@@ -202,7 +216,10 @@ Health, armour, speed, resistances, bounty gold, leak life damage, special trait
 
 ### Ground
 
-- Follow BFS distance field on walkable cells (not blocked, not tower/rock).
+- Follow BFS distance field on walkable cells (not blocked, not tower/stone).
+- Route is ordered through GemTD checkpoints: `S → 1 → 2 → 3 → 4 → 5 → F`.
+- For each segment, enemies choose the shortest valid path to the next checkpoint; they do not prefer tower exposure.
+- Blocking must reject squeeze gaps that look passable visually but are not legal path cells.
 - Recalculate field only after build-phase placement changes.
 
 ### Flyers (Phase 2)
@@ -212,36 +229,51 @@ Health, armour, speed, resistances, bounty gold, leak life damage, special trait
 
 ---
 
-## 11. Waves
+## 11. GemTD parity lock
+
+These rules are the acceptance tests for "close to Warcraft 3 GemTD" behavior:
+
+- The round ritual is always: roll 5 raw gems, place 5, commit 1 gem or 1 valid recipe, convert the other 4 to stones.
+- Quality odds are visible before any placement and change only when the player's build level changes.
+- Same-family/same-level merge recipes support both 2-to-+1 and 4-to-+2 outcomes.
+- Debuffs stack only when they come from different levels; duplicate same-level debuffs do not stack.
+- The maze route has exactly seven ordered route points: spawn, five checkpoint tiles, finish.
+- Ground enemies path checkpoint-to-checkpoint by shortest path, not by drawn decoration.
+- Flyers ignore the maze and travel directly from spawn to finish.
+- Assets must preserve gameplay readability: transparent enemies/gems/towers/rocks/gates, distinct monster silhouettes, and visibly numbered or color-coded checkpoint tiles.
+
+---
+
+## 12. Waves
 
 24 waves in four acts (see `packages/content/data/waves/standard-24.json`).
 
-| Wave | Milestone |
-|-----:|-----------|
-| 3 | First swarm |
-| 5 | First flyer |
-| 6 | Mini-boss (The Burrower) |
-| 9 | Heavy armour |
-| 12 | Major boss (The Tempest) |
-| 15 | Mixed resistances |
-| 18 | Multi-lane pressure |
-| 20 | Elite flyers |
-| 24 | Final boss (The Final Colossus) |
+| Wave | Milestone                       |
+| ---: | ------------------------------- |
+|    3 | First swarm                     |
+|    5 | First flyer                     |
+|    6 | Mini-boss (The Burrower)        |
+|    9 | Heavy armour                    |
+|   12 | Major boss (The Tempest)        |
+|   15 | Mixed resistances               |
+|   18 | Multi-lane pressure             |
+|   20 | Elite flyers                    |
+|   24 | Final boss (The Final Colossus) |
 
 ---
 
-## 12. Simulation
+## 13. Simulation
 
-| Property | Value |
-|----------|-------|
-| Sim tick | 20 per second |
-| State sync (MP) | 10 per second |
-| Client render | Display refresh |
-| Ordering | Stable entity iteration; versioned content pack |
+| Property        | Value                                           |
+| --------------- | ----------------------------------------------- |
+| Sim tick        | 20 per second                                   |
+| State sync (MP) | 10 per second                                   |
+| Client render   | Display refresh                                 |
+| Ordering        | Stable entity iteration; versioned content pack |
 
 ---
 
-## 13. Multiplayer commands
+## 14. Multiplayer commands
 
 See `packages/protocol` for Zod schemas.
 
@@ -251,18 +283,18 @@ Envelope: `{ playerId, roomId, clientSequence, commandType, payload }`.
 
 ---
 
-## 14. Auth and infra (locked)
+## 15. Auth and infra (locked)
 
-| Concern | Choice |
-|---------|--------|
-| Auth | Firebase Google OAuth from Phase 1 |
-| Web host | Firebase Hosting |
-| Game server | Colyseus on Cloud Run or homelab |
-| Match DB | **PostgreSQL** preferred for command logs + replay; Firestore acceptable for MVP metadata only |
+| Concern     | Choice                                                                                         |
+| ----------- | ---------------------------------------------------------------------------------------------- |
+| Auth        | Firebase Google OAuth from Phase 1                                                             |
+| Web host    | Firebase Hosting                                                                               |
+| Game server | Colyseus on Cloud Run or homelab                                                               |
+| Match DB    | **PostgreSQL** preferred for command logs + replay; Firestore acceptable for MVP metadata only |
 
 ---
 
-## 15. Vertical slice (Phase 1 content lock)
+## 16. Vertical slice (Phase 1 content lock)
 
 - Board: `default-28x20`
 - Families: **Flame, Stone, Thorn** only
@@ -273,7 +305,7 @@ Envelope: `{ playerId, roomId, clientSequence, commandType, payload }`.
 
 ---
 
-## 16. Open balance knobs (tunable in content JSON)
+## 17. Open balance knobs (tunable in content JSON)
 
 - Reroll base costs and multiplier
 - Combination gold costs

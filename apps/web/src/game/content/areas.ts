@@ -3,8 +3,11 @@ import { buildPathNav } from '../pathNav';
 
 const areaOnePath = [
   { x: 0, y: 5 },
-  { x: 10, y: 5 },
-  { x: 10, y: 8 },
+  { x: 4, y: 2 },
+  { x: 12, y: 2 },
+  { x: 12, y: 5 },
+  { x: 4, y: 5 },
+  { x: 4, y: 8 },
   { x: 15, y: 8 },
 ];
 
@@ -25,8 +28,8 @@ const areaThreePath = [
 export const areaDefinitions: AreaDefinition[] = [
   {
     id: 'a1',
-    name: 'Orion Breach',
-    subtitle: 'Build your maze, merge gems, survive 50 waves.',
+    name: 'Gem TD Field',
+    subtitle: 'Place raw gems, form stone walls, route enemies through five checkpoints.',
     path: areaOnePath,
     pathNav: buildPathNav(areaOnePath),
     tiers: {

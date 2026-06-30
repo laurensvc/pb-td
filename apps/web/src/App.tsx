@@ -15,7 +15,7 @@ const ProgressTab = lazy(() =>
   import('./components/cosmic/panels/ProgressTab').then((m) => ({ default: m.ProgressTab })),
 );
 
-type SideTab = 'build' | 'shop' | 'progress';
+type SideTab = 'build' | 'prospect' | 'run';
 
 export default function App() {
   const { snapshot, dispatch, bridge } = useCosmicGame();
@@ -61,8 +61,8 @@ export default function App() {
           {(
             [
               ['build', 'Build'],
-              ['shop', 'Shop'],
-              ['progress', 'Progress'],
+              ['prospect', 'Prospect'],
+              ['run', 'Run'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -82,12 +82,10 @@ export default function App() {
             {tab === 'build' && (
               <BuildTab snapshot={snapshot} planning={planning} dispatch={dispatch} save={save} />
             )}
-            {tab === 'shop' && (
+            {tab === 'prospect' && (
               <ShopTab snapshot={snapshot} planning={planning} dispatch={dispatch} save={save} />
             )}
-            {tab === 'progress' && (
-              <ProgressTab snapshot={snapshot} save={save} dispatch={dispatch} />
-            )}
+            {tab === 'run' && <ProgressTab snapshot={snapshot} dispatch={dispatch} />}
           </Suspense>
         </div>
       </aside>
@@ -105,7 +103,7 @@ function GameHud({
   return (
     <header className="game-hud" aria-label="Run status">
       <div className="hud-title">
-        <span className="game-logo">Cosmic Gem Siege</span>
+        <span className="game-logo">Gem TD</span>
         <span className="hud-subtitle">
           {snapshot.areaName} · {snapshot.tierId.toUpperCase()} · Wave {snapshot.wave}/
           {snapshot.totalWaves}
@@ -116,8 +114,6 @@ function GameHud({
       <div className="resource-bar">
         <ResourcePill icon="gold" label="Gold" value={snapshot.gold} />
         <ResourcePill icon="heart" label="Lives" value={`${snapshot.lives}/${snapshot.maxLives}`} />
-        <ResourcePill icon="star" label="Stars" value={snapshot.stars} />
-        <ResourcePill icon="crown" label="Crowns" value={snapshot.crowns} />
         {snapshot.crystalDust > 0 && (
           <ResourcePill icon="gold" label="Dust" value={snapshot.crystalDust} />
         )}
@@ -135,14 +131,7 @@ function GameHud({
               {snapshot.waveSpawnTracker.alive} alive · {snapshot.waveSpawnTracker.killed} killed
             </span>
           ) : (
-            <span>
-              Strike{' '}
-              {snapshot.missileUnlocked
-                ? snapshot.missileCooldownLeft <= 0
-                  ? 'READY'
-                  : `${snapshot.missileCooldownLeft.toFixed(1)}s`
-                : 'LOCKED'}
-            </span>
+            <span>Seed {snapshot.runSeed}</span>
           )}
         </div>
         <div className="speed-controls">

@@ -4,10 +4,7 @@ import type {
   EnemyId,
   GemFamilyId,
   GemLevel,
-  MissileStat,
   TierId,
-  TowerStat,
-  UpgradeBranch,
   Vec2,
 } from './primitives';
 
@@ -16,12 +13,16 @@ export interface GemOffer {
   level: GemLevel;
 }
 
+export interface RawGemQualityOdds {
+  level: GemLevel;
+  chance: number;
+}
+
 export interface EnemyDefinition {
   id: EnemyId;
   name: string;
   hp: number;
   speed: number;
-  rewardStars: number;
   rewardGold: number;
   shield?: number;
   color: string;
@@ -39,7 +40,7 @@ export interface GemDefinition {
   id: GemFamilyId;
   name: string;
   role: string;
-  branch?: Exclude<UpgradeBranch, 'missile' | 'unlock'>;
+  branch?: BaseGemFamilyId;
   hybrid?: boolean;
   damageType?: DamageType;
   baseDamage: number;
@@ -120,27 +121,8 @@ export interface AreaDefinition {
   tiers: Record<TierId, AreaTierDefinition>;
 }
 
-export interface UpgradeDefinition {
-  id: string;
-  label: string;
-  branch: UpgradeBranch;
-  costStars: number;
-  costCrowns?: number;
-  requires?: string[];
-  gemFamily?: GemFamilyId;
-  towerStat?: TowerStat;
-  missileStat?: MissileStat;
-  unlockGemFamily?: GemFamilyId;
-  value: number;
-}
-
 export interface SaveState {
   version: number;
-  stars: number;
-  crowns: number;
-  spentStars: number;
-  totalStarsEarned: number;
   unlockedGemFamilies: GemFamilyId[];
-  purchasedUpgradeIds: string[];
   clearedAreaTiers: string[];
 }

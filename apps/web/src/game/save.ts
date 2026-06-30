@@ -1,16 +1,11 @@
-import { areaDefinitions, areaTierKey, upgrades } from './content';
+import { areaDefinitions, areaTierKey } from './content';
 import type { GemFamilyId, SaveState } from './types';
 
-const SAVE_KEY = 'cosmic-siege-save-v2';
+const SAVE_KEY = 'gem-td-save-v1';
 
 export const defaultSaveState: SaveState = {
-  version: 2,
-  stars: 0,
-  crowns: 0,
-  spentStars: 0,
-  totalStarsEarned: 0,
-  unlockedGemFamilies: ['kinetic', 'verdant'],
-  purchasedUpgradeIds: [],
+  version: 1,
+  unlockedGemFamilies: ['kinetic', 'verdant', 'arcane', 'nova', 'prism', 'ember'],
   clearedAreaTiers: [],
 };
 
@@ -20,7 +15,7 @@ export function createDefaultSave(): SaveState {
 
 export function loadSave(storage: Storage | undefined = getStorage()): SaveState {
   if (!storage) return createDefaultSave();
-  const raw = storage.getItem(SAVE_KEY) ?? storage.getItem('cosmic-siege-save-v1');
+  const raw = storage.getItem(SAVE_KEY);
   if (!raw) return createDefaultSave();
   try {
     return normalizeSave(JSON.parse(raw) as Partial<SaveState> & Record<string, unknown>);
@@ -38,7 +33,6 @@ export function cloneSave(save: SaveState): SaveState {
   return {
     ...save,
     unlockedGemFamilies: [...save.unlockedGemFamilies],
-    purchasedUpgradeIds: [...save.purchasedUpgradeIds],
     clearedAreaTiers: [...save.clearedAreaTiers],
   };
 }
@@ -54,15 +48,9 @@ export function normalizeSave(partial: Partial<SaveState> & Record<string, unkno
   );
 
   return {
-    version: 2,
-    stars: Math.max(0, Math.floor(partial.stars ?? 0)),
-    crowns: Math.max(0, Math.floor(partial.crowns ?? 0)),
-    spentStars: Math.max(0, Math.floor(partial.spentStars ?? 0)),
-    totalStarsEarned: Math.max(0, Math.floor(partial.totalStarsEarned ?? 0)),
-    unlockedGemFamilies: unlocked.length > 0 ? unlocked : ['kinetic', 'verdant'],
-    purchasedUpgradeIds: uniqueStrings(partial.purchasedUpgradeIds ?? []).filter((upgradeId) =>
-      upgrades.some((upgrade) => upgrade.id === upgradeId),
-    ),
+    version: 1,
+    unlockedGemFamilies:
+      unlocked.length > 0 ? unlocked : [...defaultSaveState.unlockedGemFamilies],
     clearedAreaTiers: uniqueStrings(partial.clearedAreaTiers ?? []).filter((key) =>
       areaDefinitions.some((area) =>
         (Object.keys(area.tiers) as string[]).some(
@@ -71,11 +59,6 @@ export function normalizeSave(partial: Partial<SaveState> & Record<string, unkno
       ),
     ),
   };
-}
-
-export function getRespecCost(save: SaveState): number {
-  if (save.spentStars <= 0) return 0;
-  return Math.max(25, Math.ceil(save.spentStars * 0.1));
 }
 
 function uniqueStrings(values: readonly string[]): string[] {

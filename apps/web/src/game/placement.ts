@@ -1,9 +1,4 @@
-import {
-  LUCKY_BOX_COST,
-  RANDOM_GEM_COST,
-  gemDefinitions,
-  getWave,
-} from './content';
+import { getWave } from './content';
 import { acceptsRock, parityMatchesPlacement } from './boardParity';
 import {
   ROCKS_PER_PHASE,
@@ -14,24 +9,20 @@ import {
 } from './buildPhase';
 import {
   canPlaceGemAt,
+  canPlaceRawGemAt,
   canPlaceRockAt,
   gemAtCell,
+  rawGemAtCell,
   rebuildPathNav,
   rockAtCell,
   toCell,
 } from './boardQueries';
 import { QUEST_REROLL_COST } from './economy';
-import {
-  canMergeGems,
-  countIdenticalCluster,
-  gemSellValue,
-  resolveMerge,
-} from './gems';
+import { canMergeGems, gemSellValue, identicalClusterIds, resolveMerge } from './gems';
 import { hexWorldCenter, worldToHex } from './hexGrid';
 import { rockRefundPercent } from './maze';
 import { rerollQuest } from './quests';
-import { areAdjacentGems } from './recipes';
-import { nextCombatRoll } from './rng';
+import { areAdjacentGems, findMatchingRecipe, hybridRecipes } from './recipes';
 import { pushFx, trackQuestProgress } from './runProgress';
 import type {
   GameState,
@@ -46,7 +37,99 @@ import type {
 export function finishRocks(state: GameState): void {
   if (!isPlanningPhase(state.status)) return;
   if (state.buildStep !== 'rocks') return;
-  state.buildStep = 'prospect';
+  if (state.rawGems.length >= ROCKS_PER_PHASE) state.buildStep = 'prospect';
+}
+
+export function placeRawGem(state: GameState, x: number, y: number): UiFeedback {
+  if (!isPlanningPhase(state.status)) return {};
+  if (state.buildStep !== 'rocks') return {};
+  if (state.rawGems.length >= ROCKS_PER_PHASE) return {};
+  if (!canPlaceRawGemAt(state, x, y)) {
+    const cell = toCell(x, y);
+    if (!rockAtCell(state, cell.x, cell.y) && !rawGemAtCell(state, cell.x, cell.y)) {
+      return { toast: 'That raw gem would break the route through checkpoints.' };
+    }
+    return {};
+  }
+  const offer = state.offers[state.rawGems.length];
+  if (!offer) return {};
+  const cell = toCell(x, y);
+  state.rawGems.push({
+    id: state.nextRawGemId++,
+    family: offer.family,
+    level: offer.level,
+    x: cell.x,
+    y: cell.y,
+  });
+  state.rocksPlacedThisPhase = state.rawGems.length;
+  if (state.rawGems.length >= ROCKS_PER_PHASE) state.buildStep = 'prospect';
+  rebuildPathNav(state);
+  return {};
+}
+
+function commitRawOutput(
+  state: GameState,
+  output: { family: GemFamilyId; level: GemLevel },
+  outputCell: { x: number; y: number },
+): void {
+  const center = hexWorldCenter(outputCell.x, outputCell.y);
+  state.gems.push({
+    id: state.nextGemId++,
+    family: output.family,
+    level: output.level,
+    x: center.x,
+    y: center.y,
+    cooldownLeft: 0,
+    kills: 0,
+    damageDone: 0,
+    targeting: defaultGemTargeting(),
+  });
+  for (const raw of state.rawGems) {
+    if (raw.x === outputCell.x && raw.y === outputCell.y) continue;
+    state.rocks.push({ x: raw.x, y: raw.y, costPaid: 0 });
+    state.rocksPlaced += 1;
+  }
+  state.rawGems = [];
+  state.claimedOffer = null;
+  state.buildStep = 'ready';
+  state.placementMode = 'merge';
+  rebuildPathNav(state);
+}
+
+export function commitRawGem(state: GameState, rawGemId: number): void {
+  if (!isPlanningPhase(state.status)) return;
+  if (state.buildStep !== 'prospect') return;
+  if (state.rawGems.length < ROCKS_PER_PHASE) return;
+  const raw = state.rawGems.find((candidate) => candidate.id === rawGemId);
+  if (!raw) return;
+  commitRawOutput(state, { family: raw.family, level: raw.level }, raw);
+}
+
+export function commitRawRecipe(state: GameState, recipeId: string): void {
+  if (!isPlanningPhase(state.status)) return;
+  if (state.buildStep !== 'prospect') return;
+  if (state.rawGems.length < ROCKS_PER_PHASE) return;
+  const recipe = hybridRecipes.find((candidate) => candidate.id === recipeId);
+  if (!recipe) return;
+  const match = findRawRecipeMatch(state.rawGems, recipe);
+  if (!match) return;
+  commitRawOutput(state, recipe.output, match.outputCell);
+}
+
+function findRawRecipeMatch(
+  rawGems: readonly { family: GemFamilyId; level: GemLevel; x: number; y: number }[],
+  recipe: (typeof hybridRecipes)[number],
+): { outputCell: { x: number; y: number } } | null {
+  for (let i = 0; i < rawGems.length; i++) {
+    for (let j = i + 1; j < rawGems.length; j++) {
+      const a = rawGems[i]!;
+      const b = rawGems[j]!;
+      if (findMatchingRecipe(a, b)?.id === recipe.id) {
+        return { outputCell: { x: a.x, y: a.y } };
+      }
+    }
+  }
+  return null;
 }
 
 export function claimOffer(state: GameState, index: number): UiFeedback {
@@ -66,8 +149,13 @@ export function claimOffer(state: GameState, index: number): UiFeedback {
 
 export function rerollOffers(state: GameState): void {
   if (!isPlanningPhase(state.status)) return;
-  if (state.buildStep === 'rocks') finishRocks(state);
-  if (state.buildStep !== 'prospect' && state.buildStep !== 'upgrade') return;
+  if (state.rawGems.length > 0) return;
+  if (
+    state.buildStep !== 'rocks' &&
+    state.buildStep !== 'prospect' &&
+    state.buildStep !== 'upgrade'
+  )
+    return;
   const cost = prospectRerollCost(state.rerollsThisPhase);
   if (state.gold < cost) return;
   state.gold -= cost;
@@ -206,9 +294,13 @@ export function mergeGems(state: GameState, targetGemId: number): void {
   const source = state.gems.find((g) => g.id === state.mergeSourceGemId);
   const target = state.gems.find((g) => g.id === targetGemId);
   if (!source || !target || source.id === target.id) return;
-  const clusterSize = countIdenticalCluster(state.gems, source);
+  const identicalCluster =
+    source.family === target.family && source.level === target.level
+      ? identicalClusterIds(state.gems, source)
+      : [];
+  const clusterSize = identicalCluster.length || 2;
   const result = resolveMerge(source, target, clusterSize);
-  if (!result || !canMergeGems(source, target, state.greatUnlocked)) return;
+  if (!result || !canMergeGems(source, target, state.greatUnlocked, clusterSize)) return;
   if (!areAdjacentGems(source.x, source.y, target.x, target.y)) return;
 
   const undoEntry: MergeUndoEntry = {
@@ -222,7 +314,15 @@ export function mergeGems(state: GameState, targetGemId: number): void {
 
   target.family = result.family;
   target.level = result.level;
-  state.gems = state.gems.filter((g) => g.id !== source.id);
+  const removeIds = new Set<number>([source.id]);
+  if (identicalCluster.length >= 4) {
+    for (const id of identicalCluster) {
+      if (id === target.id || removeIds.has(id)) continue;
+      removeIds.add(id);
+      if (removeIds.size >= 3) break;
+    }
+  }
+  state.gems = state.gems.filter((g) => !removeIds.has(g.id));
   state.mergeSourceGemId = null;
   state.placementMode = 'merge';
   state.mergeCount += 1;
@@ -352,39 +452,6 @@ export function rerollQuestAction(state: GameState, questId: string): void {
   if (!quest || quest.completed) return;
   state.gold -= QUEST_REROLL_COST;
   rerollQuest(state.quests, questId, Math.floor(state.time * 1000) + state.gold);
-}
-
-export function buyGem(state: GameState, family: GemFamilyId): void {
-  if (isPlanningPhase(state.status)) return;
-  if (state.status === 'running') return;
-  if (!state.save.unlockedGemFamilies.includes(family)) return;
-  const cost = gemDefinitions[family].shopCost;
-  if (state.gold < cost) return;
-  state.gold -= cost;
-  addInventoryGem(state, family, 1);
-}
-
-export function buyRandomGem(state: GameState): void {
-  if (isPlanningPhase(state.status)) return;
-  if (state.status === 'running') return;
-  if (state.gold < RANDOM_GEM_COST) return;
-  const families = state.save.unlockedGemFamilies;
-  if (families.length === 0) return;
-  state.gold -= RANDOM_GEM_COST;
-  const family = families[Math.floor(nextCombatRoll(state) * families.length)]!;
-  addInventoryGem(state, family, 1);
-}
-
-export function buyLuckyBox(state: GameState): void {
-  if (isPlanningPhase(state.status)) return;
-  if (state.status === 'running') return;
-  if (state.gold < LUCKY_BOX_COST) return;
-  const families = state.save.unlockedGemFamilies;
-  if (families.length === 0) return;
-  state.gold -= LUCKY_BOX_COST;
-  const family = families[Math.floor(nextCombatRoll(state) * families.length)]!;
-  const level = (1 + Math.floor(nextCombatRoll(state) * 3)) as GemLevel;
-  addInventoryGem(state, family, level);
 }
 
 export function addInventoryGem(state: GameState, family: GemFamilyId, level: GemLevel): void {

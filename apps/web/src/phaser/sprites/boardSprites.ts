@@ -10,6 +10,7 @@ import type {
   EnemyState,
   GameState,
   GemState,
+  RawGemState,
 } from '../../game/types';
 import { BOSS_ENEMY_IDS, enemyWalkTextureKey, gemTextureKey } from '../assetManifest';
 import { boardToScreen, cellToScreen, type BoardLayout } from '../boardCoords';
@@ -27,6 +28,7 @@ export class BoardSpriteLayer {
   };
   private terrainSprites = new Map<string, Phaser.GameObjects.Image>();
   private rockSprites = new Map<string, Phaser.GameObjects.Image>();
+  private rawGemSprites = new Map<number, Phaser.GameObjects.Image>();
   private gemSprites = new Map<number, Phaser.GameObjects.Image>();
   private enemySprites = new Map<number, Phaser.GameObjects.Sprite>();
   private waypointMarkers = new Map<string, Phaser.GameObjects.Container>();
@@ -41,6 +43,7 @@ export class BoardSpriteLayer {
     this.updateHexTerrain(state.pathNav.pathCells);
     this.updateWaypointMarkers(state.pathNav);
     this.updateRockSprites(state.rocks);
+    this.updateRawGemSprites(state.rawGems);
     this.updateGemSprites(state.gems, state.mergeSourceGemId, state.greatUnlocked);
     this.updateEnemySprites(state);
     this.drawEnemyBars(overlay, state.enemies);
@@ -50,6 +53,7 @@ export class BoardSpriteLayer {
     pruneMissingSprites(this.gemSprites, new Set());
     pruneMissingSprites(this.enemySprites, new Set());
     pruneMissingSprites(this.rockSprites, new Set());
+    pruneMissingSprites(this.rawGemSprites, new Set());
     for (const [key, marker] of this.waypointMarkers) {
       marker.destroy();
       this.waypointMarkers.delete(key);
@@ -196,6 +200,28 @@ export class BoardSpriteLayer {
     pruneMissingSprites(this.gemSprites, liveIds);
   }
 
+  private updateRawGemSprites(rawGems: readonly RawGemState[]): void {
+    const liveIds = new Set<number>();
+    for (const raw of rawGems) {
+      liveIds.add(raw.id);
+      const point = cellToScreen(this.layout, raw);
+      const texKey = gemTextureKey(raw.family, raw.level);
+      const sprite =
+        this.rawGemSprites.get(raw.id) ??
+        this.scene.add.image(0, 0, texKey).setOrigin(0.5, 0.78).setDepth(2.1);
+      this.rawGemSprites.set(raw.id, sprite);
+      const size = this.layout.hexRadius * (1.2 + raw.level * 0.04);
+      sprite
+        .setTexture(texKey)
+        .setPosition(point.x, point.y + this.layout.hexRadius * 0.08)
+        .setDisplaySize(size, size)
+        .setAlpha(0.72)
+        .setTint(0xdbeafe)
+        .setVisible(true);
+    }
+    pruneMissingSprites(this.rawGemSprites, liveIds);
+  }
+
   private updateEnemySprites(state: GameState): void {
     const enemies = state.enemies;
     const detectionGems = buildDetectionGems(state);
@@ -235,7 +261,10 @@ export class BoardSpriteLayer {
     pruneMissingSprites(this.enemySprites, liveIds);
   }
 
-  private drawEnemyBars(overlay: Phaser.GameObjects.Graphics, enemies: readonly EnemyState[]): void {
+  private drawEnemyBars(
+    overlay: Phaser.GameObjects.Graphics,
+    enemies: readonly EnemyState[],
+  ): void {
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
       const point = boardToScreen(this.layout, enemy);

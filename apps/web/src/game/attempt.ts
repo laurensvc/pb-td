@@ -10,7 +10,10 @@ export interface CreateGameOptions {
   runSeed?: number;
 }
 
-export function createGame(save: SaveState = createDefaultSave(), options?: CreateGameOptions): GameState {
+export function createGame(
+  save: SaveState = createDefaultSave(),
+  options?: CreateGameOptions,
+): GameState {
   return createAttempt(cloneSave(save), 'a1', 'normal', options?.runSeed);
 }
 
@@ -23,16 +26,12 @@ export function beginBuildPhase(state: GameState): void {
   state.rocksPlacedThisPhase = 0;
   state.rerollsThisPhase = 0;
   state.claimedOffer = null;
+  state.rawGems = [];
   state.holdGem = null;
   state.mergeUndoStack = [];
   state.placementMode = 'rock';
   state.mergeSourceGemId = null;
-  state.offers = generateOffers(
-    state.runSeed,
-    state.waveIndex,
-    0,
-    state.save.unlockedGemFamilies,
-  );
+  state.offers = generateOffers(state.runSeed, state.waveIndex, 0, state.save.unlockedGemFamilies);
 }
 
 export function createAttempt(
@@ -43,7 +42,7 @@ export function createAttempt(
 ): GameState {
   const safeTier = isTierUnlocked(save, areaId, tierId) ? tierId : 'normal';
   const tier = getArea(areaId).tiers[safeTier];
-  const resolvedSeed = runSeed ?? ((Date.now() ^ (save.stars * 997)) | 0);
+  const resolvedSeed = runSeed ?? (Date.now() ^ 0x9e3779b9) | 0;
 
   const attempt: GameState = {
     status: 'idle',
@@ -58,7 +57,6 @@ export function createAttempt(
     maxLives: STARTING_LIVES,
     gold: tier.startingGold,
     rocksPlaced: 0,
-    missileCooldownLeft: 0,
     selectedInventoryGemId: null,
     mergeSourceGemId: null,
     placementMode: 'rock',
@@ -73,6 +71,7 @@ export function createAttempt(
     offers: [],
     claimedOffer: null,
     holdGem: null,
+    rawGems: [],
     mergeUndoStack: [],
     pathNav: getArea(areaId).pathNav,
     rocks: [],
@@ -80,15 +79,13 @@ export function createAttempt(
     enemies: [],
     gems: [],
     projectiles: [],
-    missiles: [],
-    rewards: { stars: 0, crowns: 0 },
     leakedEnemies: 0,
     killedEnemies: 0,
     nextEnemyId: 1,
     nextGemId: 1,
     nextInventoryGemId: 1,
+    nextRawGemId: 1,
     nextProjectileId: 1,
-    nextMissileId: 1,
     nextFxId: 1,
     quests: createRunQuests(areaId.charCodeAt(1) + tier.startingGold),
     greatUnlocked: [],

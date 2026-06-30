@@ -1,5 +1,10 @@
 import { isPlanningPhase } from '../game/buildPhase';
-import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/boardQueries';
+import {
+  canPlaceGemAt,
+  canPlaceHoldGemAt,
+  canPlaceRawGemAt,
+  canPlaceRockAt,
+} from '../game/boardQueries';
 import type { GameState } from '../game/types';
 
 export { isPlanningPhase };
@@ -8,7 +13,9 @@ export function canPlaceAtBoardPoint(state: GameState, x: number, y: number): bo
   if (state.status === 'running') return false;
   switch (state.placementMode) {
     case 'rock':
-      return canPlaceRockAt(state, x, y);
+      return state.buildStep === 'rocks'
+        ? canPlaceRawGemAt(state, x, y)
+        : canPlaceRockAt(state, x, y);
     case 'hold':
       return canPlaceHoldGemAt(state, x, y);
     case 'gem':

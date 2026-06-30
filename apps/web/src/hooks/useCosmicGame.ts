@@ -93,7 +93,6 @@ export function useCosmicGame(): CosmicGameController {
         const shouldPublish =
           uiDirty.current ||
           state.status === 'running' ||
-          state.missiles.some((m) => m.active && m.impactIn > 0) ||
           state.fxEvents.length > 0;
 
         if (shouldPublish && lastPublish.current >= PUBLISH_INTERVAL_S) {

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { hexWorldCenter } from './hexGrid';
-import { generateOffers, prospectRerollCost, ROCKS_PER_PHASE } from './buildPhase';
+import {
+  generateOffers,
+  prospectRerollCost,
+  rawGemBuildLevel,
+  rawGemQualityOdds,
+  ROCKS_PER_PHASE,
+} from './buildPhase';
 import { canPlaceHoldGemAt, createGame, dispatchGameAction } from './engine';
 import { mergedLevelBy } from './gems';
 
@@ -15,7 +21,14 @@ describe('build phase helpers', () => {
   it('generates five offers from run seed', () => {
     const offers = generateOffers(42, 0, 0, ['kinetic', 'verdant', 'arcane']);
     expect(offers).toHaveLength(5);
-    expect(offers.every((o) => o.level >= 1 && o.level <= 3)).toBe(true);
+    expect(offers.every((o) => o.level >= 1 && o.level <= 5)).toBe(true);
+  });
+
+  it('exposes visible raw gem quality odds by build level', () => {
+    expect(rawGemBuildLevel(0)).toBe(1);
+    expect(rawGemBuildLevel(49)).toBe(5);
+    expect(rawGemQualityOdds(0).map((entry) => entry.chance)).toEqual([70, 25, 5, 0, 0]);
+    expect(rawGemQualityOdds(49).reduce((sum, entry) => sum + entry.chance, 0)).toBe(100);
   });
 
   it('allows five free rocks per phase', () => {

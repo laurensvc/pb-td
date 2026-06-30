@@ -31,10 +31,7 @@ export type EnemyId =
   | 'mystic'
   | 'colossus'
   | 'dreadnought';
-export type UpgradeBranch = 'missile' | 'kinetic' | 'verdant' | 'arcane' | 'nova' | 'prism' | 'ember' | 'unlock';
 export type GameSpeed = 1 | 2 | 4;
-export type TowerStat = 'damage' | 'range' | 'rate';
-export type MissileStat = 'damage' | 'radius' | 'cooldown';
 
 /** @deprecated Use GemFamilyId */
 export type TowerId = GemFamilyId;

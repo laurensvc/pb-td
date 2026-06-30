@@ -26,7 +26,6 @@ export interface EnemyState {
   shield: number;
   maxShield: number;
   speed: number;
-  rewardStars: number;
   rewardGold: number;
   color: string;
   alive: boolean;
@@ -92,26 +91,18 @@ export interface ProjectileState {
   active: boolean;
 }
 
-export interface MissileState {
-  id: number;
-  x: number;
-  y: number;
-  damage: number;
-  radius: number;
-  impactIn: number;
-  life: number;
-  active: boolean;
-}
-
-export interface AttemptRewards {
-  stars: number;
-  crowns: number;
-}
-
 export interface RockState {
   x: number;
   y: number;
   costPaid: number;
+}
+
+export interface RawGemState {
+  id: number;
+  family: BaseGemFamilyId;
+  level: GemLevel;
+  x: number;
+  y: number;
 }
 
 export interface QuestState {
@@ -147,7 +138,6 @@ export interface GameState {
   maxLives: number;
   gold: number;
   rocksPlaced: number;
-  missileCooldownLeft: number;
   selectedInventoryGemId: number | null;
   mergeSourceGemId: number | null;
   placementMode: PlacementMode;
@@ -161,6 +151,7 @@ export interface GameState {
   rerollsThisPhase: number;
   offers: GemOffer[];
   claimedOffer: GemOffer | null;
+  rawGems: RawGemState[];
   holdGem: HoldGem | null;
   mergeUndoStack: MergeUndoEntry[];
   pathNav: PathNavData;
@@ -169,15 +160,13 @@ export interface GameState {
   enemies: EnemyState[];
   gems: GemState[];
   projectiles: ProjectileState[];
-  missiles: MissileState[];
-  rewards: AttemptRewards;
   leakedEnemies: number;
   killedEnemies: number;
   nextEnemyId: number;
   nextGemId: number;
   nextInventoryGemId: number;
+  nextRawGemId: number;
   nextProjectileId: number;
-  nextMissileId: number;
   nextFxId: number;
   quests: QuestState[];
   greatUnlocked: BaseGemFamilyId[];

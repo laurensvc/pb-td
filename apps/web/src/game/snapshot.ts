@@ -1,8 +1,13 @@
 import { getArea, getEnemy, getWave, getWaveCount } from './content';
-import { ROCKS_PER_PHASE, isPlanningPhase, prospectRerollCost } from './buildPhase';
+import {
+  ROCKS_PER_PHASE,
+  isPlanningPhase,
+  prospectRerollCost,
+  rawGemBuildLevel,
+  rawGemQualityOdds,
+} from './buildPhase';
 import { goldInterest, waveIncome } from './economy';
 import { cloneSave } from './save';
-import { getMissileStats, hasMissileUnlocked } from './upgrades';
 import { buildWaveSpawnTracker } from './waveTables';
 import type { GameState, Snapshot } from './types';
 
@@ -57,18 +62,15 @@ export function createSnapshot(state: GameState): Snapshot {
     gold: state.gold,
     rockCost: 0,
     activeEnemies: state.enemies.filter((enemy) => enemy.alive).length,
-    stars: state.save.stars,
-    crowns: state.save.crowns,
-    attemptStars: state.rewards.stars,
-    attemptCrowns: state.rewards.crowns,
-    missileCooldownLeft: state.missileCooldownLeft,
-    missileCooldown: getMissileStats(state).cooldown,
     placementMode: state.placementMode,
     buildStep: state.buildStep,
     rocksPlacedThisPhase: state.rocksPlacedThisPhase,
-    rocksRemaining: Math.max(0, ROCKS_PER_PHASE - state.rocksPlacedThisPhase),
+    rocksRemaining: Math.max(0, ROCKS_PER_PHASE - state.rawGems.length),
     offers: state.offers.map((o) => ({ ...o })),
+    rawGemBuildLevel: rawGemBuildLevel(state.waveIndex),
+    rawGemQualityOdds: rawGemQualityOdds(state.waveIndex),
     claimedOffer: state.claimedOffer ? { ...state.claimedOffer } : null,
+    rawGems: state.rawGems.map((raw) => ({ ...raw })),
     holdGem: state.holdGem ? { ...state.holdGem } : null,
     mergeUndoCount: state.mergeUndoStack.length,
     prospectRerollCost: prospectRerollCost(state.rerollsThisPhase),
@@ -77,7 +79,6 @@ export function createSnapshot(state: GameState): Snapshot {
     runSeed: state.runSeed,
     gameSpeed: state.gameSpeed,
     crystalDust: state.crystalDust,
-    missileUnlocked: hasMissileUnlocked(state.save),
     rockCount: state.rocks.length,
     inventory: state.inventory.map((g) => ({ ...g })),
     selectedInventoryGemId: state.selectedInventoryGemId,
@@ -110,11 +111,9 @@ export function createSnapshot(state: GameState): Snapshot {
           : null,
     resultMessage:
       state.status === 'lost'
-        ? `${state.killedEnemies} invaders destroyed. Stars and meta progress kept.`
+        ? `${state.killedEnemies} invaders destroyed.`
         : state.status === 'cleared'
-          ? state.rewards.crowns > 0
-            ? 'All 50 waves cleared. Crown secured for this tier.'
-            : 'All 50 waves cleared. Mastery held.'
+          ? 'All waves cleared.'
           : null,
     save: cloneSave(state.save),
   };

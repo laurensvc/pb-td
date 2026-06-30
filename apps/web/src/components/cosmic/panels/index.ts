@@ -12,5 +12,4 @@ export {
   GreatGemsPanel,
   RunMetaPanel,
   RecipePanel,
-  UpgradePanel,
 } from './progress';

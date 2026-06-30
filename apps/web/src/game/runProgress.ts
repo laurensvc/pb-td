@@ -44,10 +44,6 @@ export function trackQuestProgress(
 }
 
 export function tickTransientFx(state: GameState, dt: number): void {
-  for (const missile of state.missiles) {
-    if (missile.active) continue;
-    missile.life -= dt;
-  }
   state.fxEvents = state.fxEvents.filter((fx) => {
     fx.life -= dt;
     return fx.life > 0;

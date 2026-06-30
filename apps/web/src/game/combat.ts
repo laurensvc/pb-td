@@ -1,12 +1,4 @@
-import {
-  areaTierKey,
-  gemDefinitions,
-  getArea,
-  getEnemy,
-  getUpgrade,
-  getWave,
-  getWaveCount,
-} from './content';
+import { gemDefinitions, getArea, getEnemy, getWave, getWaveCount } from './content';
 import { distance } from './boardQueries';
 import { beginBuildPhase } from './attempt';
 import { effectiveDamageMultiplier, gemDamageType, isEnemyVisible } from './damage';
@@ -17,74 +9,19 @@ import { hexWorldCenter } from './hexGrid';
 import { LEAK_EPSILON, pathProgressAt, stepEnemyOnPath } from './pathNav';
 import { nextCombatRoll } from './rng';
 import { pushFx, trackQuestProgress } from './runProgress';
-import { getRespecCost } from './save';
-import {
-  canBuyUpgrade,
-  getMissileStats,
-  hasMissileUnlocked,
-  purchasedUpgrades,
-} from './upgrades';
 import type {
   DamageType,
   EnemyState,
   GameState,
   GemFamilyId,
   GemState,
-  MissileState,
   ProjectileState,
   TierId,
   WaveSegment,
 } from './types';
 
 export const MAX_DT = 0.05;
-export const MISSILE_IMPACT_DELAY = 0.24;
-export const MISSILE_FX_LIFE = 0.42;
 export const PROJECTILE_HIT_DISTANCE = 0.12;
-
-export function fireMissile(state: GameState, x: number, y: number): void {
-  if (state.status !== 'running' || state.missileCooldownLeft > 0) return;
-  if (!hasMissileUnlocked(state.save)) return;
-  const stats = getMissileStats(state);
-  state.missiles.push({
-    id: state.nextMissileId++,
-    x,
-    y,
-    damage: stats.damage,
-    radius: stats.radius,
-    impactIn: MISSILE_IMPACT_DELAY,
-    life: MISSILE_FX_LIFE,
-    active: true,
-  });
-  state.missileCooldownLeft = stats.cooldown;
-}
-
-export function buyUpgrade(state: GameState, upgradeId: string): void {
-  const upgrade = getUpgrade(upgradeId);
-  if (!canBuyUpgrade(state.save, upgrade)) return;
-  state.save.stars -= upgrade.costStars;
-  state.save.crowns -= upgrade.costCrowns ?? 0;
-  state.save.spentStars += upgrade.costStars;
-  state.save.purchasedUpgradeIds.push(upgrade.id);
-  if (
-    upgrade.unlockGemFamily &&
-    !state.save.unlockedGemFamilies.includes(upgrade.unlockGemFamily)
-  ) {
-    state.save.unlockedGemFamilies.push(upgrade.unlockGemFamily);
-  }
-}
-
-export function respecUpgrades(state: GameState): void {
-  const cost = getRespecCost(state.save);
-  if (state.save.stars < cost) return;
-  const purchased = purchasedUpgrades(state.save);
-  const starRefund = purchased.reduce((total, upgrade) => total + upgrade.costStars, 0) - cost;
-  const crownRefund = purchased.reduce((total, upgrade) => total + (upgrade.costCrowns ?? 0), 0);
-  state.save.stars += Math.max(0, starRefund);
-  state.save.crowns += crownRefund;
-  state.save.spentStars = 0;
-  state.save.purchasedUpgradeIds = [];
-  state.save.unlockedGemFamilies = ['kinetic', 'verdant'];
-}
 
 export function spawnEnemies(state: GameState, dt: number): void {
   if (state.enemiesToSpawn <= 0) return;
@@ -138,7 +75,6 @@ export function spawnEnemy(
     shield,
     maxShield: shield,
     speed: definition.speed * tier.enemySpeedMultiplier,
-    rewardStars: Math.ceil(definition.rewardStars * tier.starMultiplier),
     rewardGold: Math.ceil(definition.rewardGold * tier.goldMultiplier),
     color: definition.color,
     alive: true,
@@ -249,29 +185,12 @@ export function tickProjectiles(state: GameState, dt: number): void {
   }
 }
 
-export function tickMissiles(state: GameState, dt: number): void {
-  for (const missile of state.missiles) {
-    if (!missile.active) continue;
-    missile.impactIn -= dt;
-    if (missile.impactIn > 0) continue;
-    missile.active = false;
-    damageInRadius(state, missile);
-  }
-}
-
-export function tickMissilesOnly(state: GameState, dt: number): void {
-  tickMissiles(state, dt);
-  clearInactive(state);
-}
-
 export function tickCombatStep(state: GameState, dt: number): void {
   state.time += dt;
-  state.missileCooldownLeft = Math.max(0, state.missileCooldownLeft - dt);
   spawnEnemies(state, dt);
   tickEnemies(state, dt);
   tickGems(state, dt);
   tickProjectiles(state, dt);
-  tickMissiles(state, dt);
   clearInactive(state);
   completeWaveOrAttempt(state);
 }
@@ -279,7 +198,6 @@ export function tickCombatStep(state: GameState, dt: number): void {
 export function clearInactive(state: GameState): void {
   state.enemies = state.enemies.filter((enemy) => enemy.alive);
   state.projectiles = state.projectiles.filter((projectile) => projectile.active);
-  state.missiles = state.missiles.filter((missile) => missile.active || missile.life > 0);
 }
 
 export function hitWithProjectile(
@@ -367,7 +285,6 @@ export function spawnSplitEnemy(
     shield: 0,
     maxShield: 0,
     speed: definition.speed * tier.enemySpeedMultiplier,
-    rewardStars: Math.ceil(definition.rewardStars * tier.starMultiplier * 0.5),
     rewardGold: Math.ceil(definition.rewardGold * tier.goldMultiplier * 0.5),
     color: definition.color,
     alive: true,
@@ -383,18 +300,6 @@ export function spawnSplitEnemy(
     slowFactor: 1,
     armorReduction: 0,
   });
-}
-
-export function damageInRadius(state: GameState, missile: MissileState): void {
-  for (const enemy of state.enemies) {
-    if (!enemy.alive) continue;
-    if (distance(enemy, missile) <= missile.radius) {
-      applyDamage(state, enemy, missile.damage, null, {
-        shieldPierce: 0.75,
-        damageType: 'pure',
-      });
-    }
-  }
 }
 
 export function applyDamage(
@@ -437,9 +342,6 @@ export function applyDamage(
     trackQuestProgress(state, 'kills', 1);
     const definition = getEnemy(enemy.definitionId);
     if (definition.isBoss) trackQuestProgress(state, 'boss', 1);
-    state.rewards.stars += enemy.rewardStars;
-    state.save.stars += enemy.rewardStars;
-    state.save.totalStarsEarned += enemy.rewardStars;
     state.gold += enemy.rewardGold;
     if (gem) gem.kills += 1;
     handleEnemyDeath(state, enemy);
@@ -531,7 +433,6 @@ export function completeWaveOrAttempt(state: GameState): void {
   if (state.enemiesToSpawn > 0) return;
   if (state.enemies.some((enemy) => enemy.alive)) return;
   if (state.projectiles.some((projectile) => projectile.active)) return;
-  if (state.missiles.some((missile) => missile.active && missile.impactIn > 0)) return;
 
   const wave = getWave(state.areaId, state.tierId, state.waveIndex);
   const waveNumber = state.waveIndex + 1;
@@ -558,12 +459,4 @@ export function completeWaveOrAttempt(state: GameState): void {
   }
 
   state.status = 'cleared';
-  if (state.leakedEnemies === 0) {
-    const key = areaTierKey(state.areaId, state.tierId);
-    if (!state.save.clearedAreaTiers.includes(key)) {
-      state.save.clearedAreaTiers.push(key);
-      state.save.crowns += 1;
-      state.rewards.crowns += 1;
-    }
-  }
 }

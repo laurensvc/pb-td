@@ -10,7 +10,7 @@ import type {
   TargetingMode,
   TierId,
 } from './primitives';
-import type { GemOffer, SaveState } from './content';
+import type { GemOffer, RawGemQualityOdds, SaveState } from './content';
 import type { FxEvent, HoldGem, InventoryGem, QuestState } from './runtime';
 
 export interface Snapshot {
@@ -26,18 +26,21 @@ export interface Snapshot {
   gold: number;
   rockCost: number;
   activeEnemies: number;
-  stars: number;
-  crowns: number;
-  attemptStars: number;
-  attemptCrowns: number;
-  missileCooldownLeft: number;
-  missileCooldown: number;
   placementMode: PlacementMode;
   buildStep: BuildStep;
   rocksPlacedThisPhase: number;
   rocksRemaining: number;
   offers: GemOffer[];
+  rawGemBuildLevel: number;
+  rawGemQualityOdds: RawGemQualityOdds[];
   claimedOffer: GemOffer | null;
+  rawGems: {
+    id: number;
+    family: BaseGemFamilyId;
+    level: GemLevel;
+    x: number;
+    y: number;
+  }[];
   holdGem: HoldGem | null;
   mergeUndoCount: number;
   prospectRerollCost: number;
@@ -54,7 +57,6 @@ export interface Snapshot {
   runSeed: number;
   gameSpeed: GameSpeed;
   crystalDust: number;
-  missileUnlocked: boolean;
   rockCount: number;
   inventory: InventoryGem[];
   selectedInventoryGemId: number | null;
