@@ -191,6 +191,9 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 - [x] Undo merge reverts quest progress, great unlocks, and gold
 - [x] HUD panels extracted + memoized; snapshot carries save clone
 - [x] Removed dead Facet prototype UI, AuthGate stub, unused deps
+- [x] Split `engine.ts` into placement/combat/attempt + query modules (~135 line facade)
+- [x] Split HUD panels into `components/cosmic/panels/*` (max ~290 lines/file)
+- [x] Shared `isPlanningPhase`, `buildDetectionGems`, `canPlaceAtBoardPoint` (DRY)
 
 **Done when:** Test/lint/build green; no known soft-locks before Colyseus work.
 

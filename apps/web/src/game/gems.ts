@@ -1,6 +1,7 @@
-import { gemDefinitions, upgrades } from './content';
+import { gemDefinitions, BASE_GEM_FAMILIES } from './content';
 import { hexAreAdjacent, worldToHex } from './hexGrid';
 import { findMatchingRecipe } from './recipes';
+import { purchasedUpgrades } from './upgrades';
 import type {
   BaseGemFamilyId,
   GemCombatStats,
@@ -9,7 +10,6 @@ import type {
   GemLevel,
   GemState,
   SaveState,
-  UpgradeDefinition,
 } from './types';
 
 const LEVEL_MULTIPLIERS: Record<GemLevel, number> = {
@@ -42,14 +42,12 @@ const LEVEL_COOLDOWN_MULT: Record<GemLevel, number> = {
   7: 0.62,
 };
 
-const BASE_FAMILIES: BaseGemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism', 'ember'];
-
 export function isHybridFamily(family: GemFamilyId): boolean {
   return Boolean(gemDefinitions[family].hybrid);
 }
 
 export function isBaseFamily(family: GemFamilyId): family is BaseGemFamilyId {
-  return BASE_FAMILIES.includes(family as BaseGemFamilyId);
+  return BASE_GEM_FAMILIES.includes(family as BaseGemFamilyId);
 }
 
 export function getGemDefinition(family: GemFamilyId): GemDefinition {
@@ -216,8 +214,3 @@ function metaMultipliers(
   return { damage, range, cooldown };
 }
 
-function purchasedUpgrades(save: SaveState): UpgradeDefinition[] {
-  return save.purchasedUpgradeIds
-    .map((id) => upgrades.find((u) => u.id === id))
-    .filter((u): u is UpgradeDefinition => Boolean(u));
-}

@@ -1,9 +1,8 @@
 import type { BaseGemFamilyId, BuildStep, GemFamilyId, GemLevel, GemOffer, TargetingMode } from './types';
+import { BASE_GEM_FAMILIES } from './content';
 
 export type { BuildStep, GemOffer };
 export const ROCKS_PER_PHASE = 5;
-
-const BASE_FAMILIES: BaseGemFamilyId[] = ['kinetic', 'verdant', 'arcane', 'nova', 'prism', 'ember'];
 
 export function prospectRerollCost(rerollsThisPhase: number): number {
   const costs = [10, 20, 40, 80, 160];
@@ -20,7 +19,7 @@ export function generateOffers(
   unlockedFamilies: readonly GemFamilyId[],
 ): GemOffer[] {
   const rng = mulberry32(runSeed + (waveIndex + 1) * 997 + rerollsThisPhase * 131);
-  const families = BASE_FAMILIES.filter((f) => unlockedFamilies.includes(f));
+  const families = BASE_GEM_FAMILIES.filter((f) => unlockedFamilies.includes(f));
   const pool = families.length > 0 ? families : (['kinetic', 'verdant'] as BaseGemFamilyId[]);
   const levels: GemLevel[] = [1, 1, 2, 2, 3];
   const offers: GemOffer[] = [];

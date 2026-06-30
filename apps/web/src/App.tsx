@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isPlanningPhase } from './game/buildPhase';
 import { getRespecCost } from './game/save';
 import type { GameAction, Snapshot } from './game/types';
 import { PhaserGameHost } from './components/PhaserGameHost';
@@ -17,7 +18,7 @@ import {
   RunMetaPanel,
   UpgradePanel,
   WavePreviewPanel,
-} from './components/cosmic/CosmicPanels';
+} from './components/cosmic/panels';
 import { useCosmicGame } from './hooks/useCosmicGame';
 
 type SideTab = 'build' | 'shop' | 'progress';
@@ -26,7 +27,7 @@ export default function App() {
   const { snapshot, dispatch, bridge } = useCosmicGame();
   const save = snapshot.save;
   const respecCost = getRespecCost(save);
-  const planning = snapshot.status === 'idle' || snapshot.status === 'betweenWaves';
+  const planning = isPlanningPhase(snapshot.status);
   const [tab, setTab] = useState<SideTab>('build');
 
   useEffect(() => {

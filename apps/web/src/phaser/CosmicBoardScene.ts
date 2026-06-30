@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
-import { BOARD_HEIGHT, BOARD_WIDTH, gemDefinitions } from '../game/content';
+import { BOARD_HEIGHT, BOARD_WIDTH } from '../game/content';
 import { cellParity } from '../game/boardParity';
 import { canMergeGems } from '../game/gems';
-import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/engine';
-import { isEnemyVisible } from '../game/damage';
+import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/boardQueries';
+import { buildDetectionGems } from '../game/detection';
 import { getGemCombatStats } from '../game/gems';
+import { canPlaceAtBoardPoint, isPlanningPhase } from './boardInput';
+import { isEnemyVisible } from '../game/damage';
 import { areAdjacentGems } from '../game/recipes';
 import { hexPixelCorners, worldToHex } from '../game/hexGrid';
 import type {
@@ -171,18 +173,12 @@ export class CosmicBoardScene extends Phaser.Scene {
     const bridge = tryGetBridge();
     if (!bridge) return;
     const state = bridge.getState();
-    const planning = state.status === 'idle' || state.status === 'betweenWaves';
+    const planning = isPlanningPhase(state.status);
     const canvasPoint = this.pointerCanvasPoint(pointer);
     this.hoverCell = screenToCell(this.layout, canvasPoint.x, canvasPoint.y);
     const boardPoint = this.hoverCell ? cellCenter(this.hoverCell) : null;
     const canPlace =
-      boardPoint !== null &&
-      state.status !== 'running' &&
-      (state.placementMode === 'rock'
-        ? canPlaceRockAt(state, boardPoint.x, boardPoint.y)
-        : state.placementMode === 'hold'
-          ? canPlaceHoldGemAt(state, boardPoint.x, boardPoint.y)
-          : state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y));
+      boardPoint !== null && canPlaceAtBoardPoint(state, boardPoint.x, boardPoint.y);
     if (
       planning &&
       state.buildStep === 'rocks' &&
@@ -213,7 +209,7 @@ export class CosmicBoardScene extends Phaser.Scene {
       return;
     }
 
-    const planning = state.status === 'idle' || state.status === 'betweenWaves';
+    const planning = isPlanningPhase(state.status);
     if (planning && state.buildStep === 'upgrade') {
       const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
       if (rock && state.claimedOffer) {
@@ -339,12 +335,11 @@ export class CosmicBoardScene extends Phaser.Scene {
       if (canPlaceGemAt(state, boardPoint.x, boardPoint.y)) {
         const inv = state.inventory.find((item) => item.id === state.selectedInventoryGemId);
         if (inv) {
-          const stats = gemDefinitions[inv.family];
+          const stats = getGemCombatStats(state.save, inv.family, inv.level);
           const point = cellToScreen(this.layout, this.hoverCell);
           const color = Phaser.Display.Color.HexStringToColor(stats.color).color;
           g.lineStyle(2, color, 0.34);
-          const range = stats.baseRange + (inv.level - 1) * 0.12;
-          g.strokeCircle(point.x, point.y, rangeToPixels(this.layout, range));
+          g.strokeCircle(point.x, point.y, rangeToPixels(this.layout, stats.range));
         }
       }
     }
@@ -503,11 +498,7 @@ export class CosmicBoardScene extends Phaser.Scene {
 
   private updateEnemySprites(state: GameState): void {
     const enemies = state.enemies;
-    const detectionGems = state.gems.map((gem) => ({
-      x: gem.x,
-      y: gem.y,
-      range: getGemCombatStats(state.save, gem.family, gem.level).range,
-    }));
+    const detectionGems = buildDetectionGems(state);
     const liveIds = new Set<number>();
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
@@ -590,7 +581,7 @@ function handleRightClick(
   state: GameState,
   cell: Vec2,
 ): void {
-  const planning = state.status === 'idle' || state.status === 'betweenWaves';
+  const planning = isPlanningPhase(state.status);
   const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
   if (rock) {
     const center = cellCenter(cell);
@@ -705,11 +696,8 @@ function drawPlacementPreview(
   if (!hoverCell || state.status === 'running') return;
   const boardPoint = cellCenter(hoverCell);
   const corners = hexScreenCorners(layout, hoverCell);
-  if (state.placementMode === 'rock' && canPlaceRockAt(state, boardPoint.x, boardPoint.y)) {
+  if (canPlaceAtBoardPoint(state, boardPoint.x, boardPoint.y)) {
     drawHexShape(g, corners, COLORS.green, 0.25, COLORS.green, 0.85);
-  }
-  if (state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y)) {
-    drawHexShape(g, corners, COLORS.green, 0.18, COLORS.green, 0.75);
   }
 }
 
