@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { BOARD_HEIGHT, BOARD_WIDTH, gemDefinitions } from '../game/content';
 import { cellParity } from '../game/boardParity';
-import { canPlaceGemAt, canPlaceRockAt } from '../game/engine';
+import { canPlaceGemAt, canPlaceHoldGemAt, canPlaceRockAt } from '../game/engine';
 import { hexPixelCorners, worldToHex } from '../game/hexGrid';
 import type {
   EnemyState,
@@ -135,7 +135,9 @@ export class CosmicBoardScene extends Phaser.Scene {
   }
 
   private handlePointerMove(pointer: Phaser.Input.Pointer): void {
-    const state = getBridge().getState();
+    const bridge = getBridge();
+    const state = bridge.getState();
+    const planning = state.status === 'idle' || state.status === 'betweenWaves';
     const canvasPoint = this.pointerCanvasPoint(pointer);
     this.hoverCell = screenToCell(this.layout, canvasPoint.x, canvasPoint.y);
     const boardPoint = this.hoverCell ? cellCenter(this.hoverCell) : null;
@@ -144,7 +146,16 @@ export class CosmicBoardScene extends Phaser.Scene {
       state.status !== 'running' &&
       (state.placementMode === 'rock'
         ? canPlaceRockAt(state, boardPoint.x, boardPoint.y)
-        : state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y));
+        : state.placementMode === 'hold'
+          ? canPlaceHoldGemAt(state, boardPoint.x, boardPoint.y)
+          : state.placementMode === 'gem' && canPlaceGemAt(state, boardPoint.x, boardPoint.y));
+    if (planning && state.buildStep === 'rocks' && this.hoverCell && boardPoint) {
+      bridge.dispatch({
+        type: 'previewRockPath',
+        x: boardPoint.x,
+        y: boardPoint.y,
+      });
+    }
     this.input.manager.canvas.style.cursor = canPlace ? 'pointer' : 'crosshair';
   }
 
@@ -161,19 +172,34 @@ export class CosmicBoardScene extends Phaser.Scene {
       return;
     }
 
-    if (state.status !== 'running' && state.placementMode === 'rock') {
+    const planning = state.status === 'idle' || state.status === 'betweenWaves';
+    if (planning && state.buildStep === 'upgrade') {
+      const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
+      if (rock && state.claimedOffer) {
+        bridge.dispatch({ type: 'upgradeRock', x: boardPoint.x, y: boardPoint.y });
+      }
+      return;
+    }
+
+    if (planning && state.buildStep === 'rocks' && state.placementMode === 'rock') {
       if (canPlaceRockAt(state, boardPoint.x, boardPoint.y)) {
         bridge.dispatch({ type: 'placeRock', x: boardPoint.x, y: boardPoint.y });
       }
       return;
     }
-    if (state.status !== 'running' && state.placementMode === 'gem') {
+    if (planning && state.placementMode === 'gem') {
       if (canPlaceGemAt(state, boardPoint.x, boardPoint.y)) {
         bridge.dispatch({ type: 'placeGem', x: boardPoint.x, y: boardPoint.y });
       }
       return;
     }
-    if (state.status !== 'running' && state.placementMode === 'merge') {
+    if (planning && state.placementMode === 'hold') {
+      if (state.holdGem) {
+        bridge.dispatch({ type: 'placeHoldGem', x: boardPoint.x, y: boardPoint.y });
+      }
+      return;
+    }
+    if (planning && state.placementMode === 'merge') {
       const gem = findGemAtCell(state, cell);
       if (gem) {
         if (state.mergeSourceGemId === null) {
@@ -444,6 +470,7 @@ function handleRightClick(
   state: GameState,
   cell: Vec2,
 ): void {
+  const planning = state.status === 'idle' || state.status === 'betweenWaves';
   const rock = state.rocks.find((r) => r.x === cell.x && r.y === cell.y);
   if (rock) {
     const center = cellCenter(cell);
@@ -452,7 +479,7 @@ function handleRightClick(
   }
   const gem = findGemAtCell(state, cell);
   if (gem) {
-    if (state.placementMode === 'gem') {
+    if (state.placementMode === 'gem' || planning) {
       bridge.dispatch({ type: 'pickUpGem', gemId: gem.id });
     } else {
       bridge.dispatch({ type: 'sellGem', gemId: gem.id });

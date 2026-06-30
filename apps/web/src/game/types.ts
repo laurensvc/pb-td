@@ -1,4 +1,7 @@
-export type PlacementMode = 'gem' | 'rock' | 'merge';
+export type PlacementMode = 'gem' | 'rock' | 'merge' | 'hold';
+export type BuildStep = 'rocks' | 'prospect' | 'upgrade' | 'ready';
+export type TargetingMode = 'first' | 'last' | 'strong' | 'weak';
+export type HoldGem = Pick<InventoryGem, 'family' | 'level'>;
 export type TierId = 'normal' | 'hard';
 export type GameStatus = 'idle' | 'running' | 'betweenWaves' | 'lost' | 'cleared';
 export type BaseGemFamilyId = 'kinetic' | 'verdant' | 'arcane' | 'nova' | 'prism';
@@ -12,6 +15,10 @@ export type HybridGemFamilyId =
   | 'shatter_star'
   | 'executioner';
 export type GemFamilyId = BaseGemFamilyId | HybridGemFamilyId;
+export interface GemOffer {
+  family: BaseGemFamilyId;
+  level: GemLevel;
+}
 export type DamageType = 'physical' | 'magic' | 'pure';
 export type GemLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type EnemyId =
@@ -209,6 +216,12 @@ export interface GemState {
   cooldownLeft: number;
   kills: number;
   damageDone: number;
+  targeting: TargetingMode;
+}
+
+export interface MergeUndoEntry {
+  gems: GemState[];
+  removedGemId: number;
 }
 
 export interface InventoryGem {
@@ -297,6 +310,16 @@ export interface GameState {
   selectedInventoryGemId: number | null;
   mergeSourceGemId: number | null;
   placementMode: PlacementMode;
+  buildStep: BuildStep;
+  runSeed: number;
+  rocksPlacedThisPhase: number;
+  rerollsThisPhase: number;
+  offers: GemOffer[];
+  claimedOffer: GemOffer | null;
+  holdGem: HoldGem | null;
+  mergeUndoStack: MergeUndoEntry[];
+  toast: string | null;
+  rockPathDelta: number | null;
   pathNav: PathNavData;
   rocks: RockState[];
   inventory: InventoryGem[];
@@ -341,11 +364,29 @@ export interface Snapshot {
   missileCooldownLeft: number;
   missileCooldown: number;
   placementMode: PlacementMode;
+  buildStep: BuildStep;
+  rocksPlacedThisPhase: number;
+  rocksRemaining: number;
+  offers: GemOffer[];
+  claimedOffer: GemOffer | null;
+  holdGem: HoldGem | null;
+  mergeUndoCount: number;
+  prospectRerollCost: number;
+  rockPathDelta: number | null;
+  nextWavePreview: { enemyId: EnemyId; count: number; name: string; tags: string[] }[];
   rockCount: number;
   inventory: InventoryGem[];
   selectedInventoryGemId: number | null;
   mergeSourceGemId: number | null;
-  placedGems: { id: number; family: GemFamilyId; level: GemLevel; x: number; y: number }[];
+  placedGems: {
+    id: number;
+    family: GemFamilyId;
+    level: GemLevel;
+    x: number;
+    y: number;
+    targeting: TargetingMode;
+  }[];
+  toast: string | null;
   unlockedGemFamilies: GemFamilyId[];
   canStartWave: boolean;
   canRetry: boolean;
@@ -367,11 +408,22 @@ export type GameAction =
   | { type: 'selectInventoryGem'; gemId: number | null }
   | { type: 'placeGem'; x: number; y: number }
   | { type: 'placeRock'; x: number; y: number }
+  | { type: 'finishRocks' }
+  | { type: 'claimOffer'; index: number }
+  | { type: 'rerollOffers' }
+  | { type: 'upgradeRock'; x: number; y: number }
   | { type: 'sellRock'; x: number; y: number }
   | { type: 'sellGem'; gemId: number }
   | { type: 'selectMergeSource'; gemId: number | null }
   | { type: 'mergeGems'; targetGemId: number }
   | { type: 'pickUpGem'; gemId: number }
+  | { type: 'selectHoldGem' }
+  | { type: 'placeHoldGem'; x: number; y: number }
+  | { type: 'swapGemWithHold'; gemId: number }
+  | { type: 'clearHold' }
+  | { type: 'undoMerge' }
+  | { type: 'cycleGemTargeting'; gemId: number }
+  | { type: 'previewRockPath'; x: number; y: number }
   | { type: 'rerollQuest'; questId: string }
   | { type: 'buyGem'; family: GemFamilyId }
   | { type: 'buyRandomGem' }

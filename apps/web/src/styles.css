@@ -409,6 +409,92 @@ button {
   opacity: calc(0.72 + var(--gem-level-opacity, 0.5) * 0.28);
 }
 
+.build-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.build-step {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 150, 200, 0.35);
+  font-size: 11px;
+  color: #9fb4d9;
+}
+
+.build-step.active {
+  border-color: rgba(125, 255, 178, 0.65);
+  color: var(--green);
+  background: rgba(18, 48, 38, 0.65);
+}
+
+.build-step.done {
+  color: #c8d8f0;
+  opacity: 0.85;
+}
+
+.game-button.gem-buy.selected {
+  border-color: rgba(125, 255, 178, 0.75);
+  box-shadow: 0 0 0 1px rgba(125, 255, 178, 0.35);
+}
+
+.hold-card .hold-slot {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 10px;
+  border: 2px dashed rgba(120, 150, 200, 0.45);
+  background: rgba(8, 14, 26, 0.75);
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.hold-slot.filled {
+  border-style: solid;
+}
+
+.hold-slot.selected {
+  border-color: rgba(125, 255, 178, 0.75);
+}
+
+.game-toast {
+  margin: 8px 10px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(120, 30, 40, 0.85);
+  color: #ffd0da;
+  font-size: 12px;
+}
+
+.wave-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.wave-preview-list li {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.path-delta {
+  color: var(--gold);
+}
+
+.game-button.small,
+.game-button.ghost.small {
+  min-height: 30px;
+  font-size: 11px;
+}
+
 .result-banner {
   margin: 10px 10px 0;
   display: grid;
