@@ -109,17 +109,17 @@ Use lowercase kebab-case IDs:
 
 These sizes define the generation target, not necessarily the rendered size.
 
-| Asset type | Generation size | Render size | Notes |
-| --- | ---: | ---: | --- |
-| Ground enemy | 64x64 | 32-48px | Low top-down, clear body shape |
-| Flying enemy | 64x64 | 32-48px | Include small separate shadow if needed |
-| Boss enemy | 96x96 or 128x128 | 64-96px | Must still fit board cells visually |
-| Basic tower/gem | 64x64 | 40-56px | Bottom-center anchor |
-| Special tower | 96x96 | 56-72px | Bigger, but not visually blocking paths |
-| Projectile | 32x32 or 64x64 | 12-32px | Strong color family match |
-| Particle/FX sheet | 64x64 or 128x128 | 24-64px | Short loops or one-shot bursts |
-| Terrain tile | 32x32 | 32px | Seamless tile or atlas |
-| Environment object | 64x64 or 96x96 | 32-72px | Transparent object sprite |
+| Asset type         |  Generation size | Render size | Notes                                   |
+| ------------------ | ---------------: | ----------: | --------------------------------------- |
+| Ground enemy       |            64x64 |     32-48px | Low top-down, clear body shape          |
+| Flying enemy       |            64x64 |     32-48px | Include small separate shadow if needed |
+| Boss enemy         | 96x96 or 128x128 |     64-96px | Must still fit board cells visually     |
+| Basic tower/gem    |            64x64 |     40-56px | Bottom-center anchor                    |
+| Special tower      |            96x96 |     56-72px | Bigger, but not visually blocking paths |
+| Projectile         |   32x32 or 64x64 |     12-32px | Strong color family match               |
+| Particle/FX sheet  | 64x64 or 128x128 |     24-64px | Short loops or one-shot bursts          |
+| Terrain tile       |            32x32 |        32px | Seamless tile or atlas                  |
+| Environment object |   64x64 or 96x96 |     32-72px | Transparent object sprite               |
 
 ## 5. MCP Tool Sequence
 
@@ -212,15 +212,15 @@ Monsters are gameplay pieces first. Their art must communicate speed, durability
 
 Start with this minimum set:
 
-| ID | Role | Visual read | Required animations |
-| --- | --- | --- | --- |
-| `crystal-runner` | Fast light ground | Lean, narrow, bright feet | `walk`, `hit`, `death` |
-| `stone-grunt` | Standard ground | Broad, simple, readable torso | `walk`, `hit`, `death` |
-| `shield-bulwark` | Armored ground | Large frontal shield or shell | `walk`, `hit`, `death` |
-| `thorn-splitter` | Splitter/summoner | Pod or cracked body | `walk`, `hit`, `death`, `split` |
-| `arcane-mystic` | Resistant caster | Robe, glow, staff shape | `walk`, `hit`, `death` |
-| `sky-warden` | Flying enemy | Wings or hover body | `fly`, `hit`, `death` |
-| `gate-colossus` | Boss | Large crown/horns/core | `walk`, `hit`, `death`, `spawn` |
+| ID               | Role              | Visual read                   | Required animations             |
+| ---------------- | ----------------- | ----------------------------- | ------------------------------- |
+| `crystal-runner` | Fast light ground | Lean, narrow, bright feet     | `walk`, `hit`, `death`          |
+| `stone-grunt`    | Standard ground   | Broad, simple, readable torso | `walk`, `hit`, `death`          |
+| `shield-bulwark` | Armored ground    | Large frontal shield or shell | `walk`, `hit`, `death`          |
+| `thorn-splitter` | Splitter/summoner | Pod or cracked body           | `walk`, `hit`, `death`, `split` |
+| `arcane-mystic`  | Resistant caster  | Robe, glow, staff shape       | `walk`, `hit`, `death`          |
+| `sky-warden`     | Flying enemy      | Wings or hover body           | `fly`, `hit`, `death`           |
+| `gate-colossus`  | Boss              | Large crown/horns/core        | `walk`, `hit`, `death`, `spawn` |
 
 ### 6.2 Monster Prompt Template
 
@@ -236,14 +236,14 @@ top-down pixel art monster sprite for a GemTD-inspired fantasy crystal maze towe
 
 ### 6.3 Monster Animation Requirements
 
-| Animation | Frames | FPS | Loop | Phaser use |
-| --- | ---: | ---: | --- | --- |
-| `walk` | 6-8 | 8-10 | yes | Ground movement |
-| `fly` | 6-8 | 8-12 | yes | Flying movement |
-| `hit` | 2-4 | 12-16 | no | Brief damage flash or recoil |
-| `death` | 6-10 | 10-14 | no | Cleanup after final frame |
-| `split` | 6-8 | 10-14 | no | Spawn child enemies |
-| `spawn` | 6-10 | 8-12 | no | Boss/portal entry |
+| Animation | Frames |   FPS | Loop | Phaser use                   |
+| --------- | -----: | ----: | ---- | ---------------------------- |
+| `walk`    |    6-8 |  8-10 | yes  | Ground movement              |
+| `fly`     |    6-8 |  8-12 | yes  | Flying movement              |
+| `hit`     |    2-4 | 12-16 | no   | Brief damage flash or recoil |
+| `death`   |   6-10 | 10-14 | no   | Cleanup after final frame    |
+| `split`   |    6-8 | 10-14 | no   | Spawn child enemies          |
+| `spawn`   |   6-10 |  8-12 | no   | Boss/portal entry            |
 
 Movement itself is not baked into animation. Phaser moves the sprite along the path while the `walk` or `fly` loop plays in place.
 
@@ -286,13 +286,13 @@ Towers are GemTD gems first and fantasy weapons second. The board must remain re
 
 Art batches use five visual families. Canonical gameplay gem types (Amethyst, Ruby, etc.) map to these families — see [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md) §16.
 
-| Family | Color | Combat identity | Visual motif |
-| --- | --- | --- | --- |
-| `flame` | Red/orange | Splash, burn | Ember crystal, magma core |
-| `stone` | Grey/gold | Slow heavy hits | Granite shard, hammer crystal |
-| `thorn` | Green | Poison, damage over time | Thorn gem, vine lens |
-| `arcane` | Violet/blue | Pierce, magic | Floating rune crystal |
-| `radiant` | Gold/white | Support, chain, aura | Prism, halo facets |
+| Family    | Color       | Combat identity          | Visual motif                  |
+| --------- | ----------- | ------------------------ | ----------------------------- |
+| `flame`   | Red/orange  | Splash, burn             | Ember crystal, magma core     |
+| `stone`   | Grey/gold   | Slow heavy hits          | Granite shard, hammer crystal |
+| `thorn`   | Green       | Poison, damage over time | Thorn gem, vine lens          |
+| `arcane`  | Violet/blue | Pierce, magic            | Floating rune crystal         |
+| `radiant` | Gold/white  | Support, chain, aura     | Prism, halo facets            |
 
 ### 7.2 Tower Prompt Template
 
@@ -310,27 +310,27 @@ top-down pixel art GemTD-inspired crystal tower, tier 3 flame gem tower with jag
 
 Each family should have visually distinct tiers:
 
-| Tier | Visual increase |
-| ---: | --- |
-| 1 | Small chipped gem, minimal glow |
-| 2 | Larger crystal, clearer color identity |
-| 3 | Multiple facets or small base ornament |
-| 4 | Strong glow, more angular shape |
-| 5 | Elite silhouette, visible power core |
-| 6 | Large perfect crystal, strong identity |
-| Great | Rare oversized premium form |
+|  Tier | Visual increase                        |
+| ----: | -------------------------------------- |
+|     1 | Small chipped gem, minimal glow        |
+|     2 | Larger crystal, clearer color identity |
+|     3 | Multiple facets or small base ornament |
+|     4 | Strong glow, more angular shape        |
+|     5 | Elite silhouette, visible power core   |
+|     6 | Large perfect crystal, strong identity |
+| Great | Rare oversized premium form            |
 
 Do not make tier differences only brighter. Change shape, scale, base detail, and glow pattern.
 
 ### 7.4 Tower Animation Requirements
 
-| Animation | Frames | FPS | Loop | Notes |
-| --- | ---: | ---: | --- | --- |
-| `idle` | 4-6 | 4-8 | yes | Subtle pulse only |
-| `attack` | 4-8 | 10-16 | no | Charge, flash, recoil, or beam start |
-| `build` | 6-10 | 10-14 | no | Used when chosen raw gem becomes tower |
-| `merge` | 6-10 | 10-14 | no | Optional, can share particle FX |
-| `impact` | 4-8 | 12-18 | no | Optional tower-local flash |
+| Animation | Frames |   FPS | Loop | Notes                                  |
+| --------- | -----: | ----: | ---- | -------------------------------------- |
+| `idle`    |    4-6 |   4-8 | yes  | Subtle pulse only                      |
+| `attack`  |    4-8 | 10-16 | no   | Charge, flash, recoil, or beam start   |
+| `build`   |   6-10 | 10-14 | no   | Used when chosen raw gem becomes tower |
+| `merge`   |   6-10 | 10-14 | no   | Optional, can share particle FX        |
+| `impact`  |    4-8 | 12-18 | no   | Optional tower-local flash             |
 
 Tower animations should be mostly in-place. Phaser handles targeting, projectiles, range checks, and damage timing.
 
@@ -358,14 +358,14 @@ Projectiles and particles must communicate damage type quickly without covering 
 
 ### 8.1 Projectile Families
 
-| ID | Used by | Visual |
-| --- | --- | --- |
-| `flame-bolt` | Flame towers | Orange ember orb with short trail |
-| `stone-shard` | Stone towers | Grey-gold shard, heavy arc |
-| `thorn-spore` | Thorn towers | Green seed/spore, poison flecks |
-| `arcane-lance` | Arcane towers | Violet-blue piercing needle |
-| `radiant-prism` | Radiant towers | Gold-white prism ray or bead |
-| `magma-core-shot` | Magma Core | Larger molten shell |
+| ID                | Used by        | Visual                            |
+| ----------------- | -------------- | --------------------------------- |
+| `flame-bolt`      | Flame towers   | Orange ember orb with short trail |
+| `stone-shard`     | Stone towers   | Grey-gold shard, heavy arc        |
+| `thorn-spore`     | Thorn towers   | Green seed/spore, poison flecks   |
+| `arcane-lance`    | Arcane towers  | Violet-blue piercing needle       |
+| `radiant-prism`   | Radiant towers | Gold-white prism ray or bead      |
+| `magma-core-shot` | Magma Core     | Larger molten shell               |
 
 ### 8.2 Projectile Prompt Template
 
@@ -393,14 +393,14 @@ top-down pixel art tower defense impact effect spritesheet, green poison spore b
 
 ### 8.4 FX Animation Requirements
 
-| FX | Frames | FPS | Loop | Notes |
-| --- | ---: | ---: | --- | --- |
-| Projectile idle/travel | 1-4 | 12-16 | yes | Often one static sprite is enough |
-| Hit spark | 4-6 | 16-24 | no | Destroy after completion |
-| Splash burst | 6-8 | 16-24 | no | Must show radius without blocking board |
-| Poison tick | 4-6 | 8-12 | yes | Very subtle, low opacity in Phaser |
-| Merge burst | 8-12 | 16-24 | no | Bigger celebratory effect |
-| Leak warning | 6-10 | 10-14 | no | UI/gameplay alert |
+| FX                     | Frames |   FPS | Loop | Notes                                   |
+| ---------------------- | -----: | ----: | ---- | --------------------------------------- |
+| Projectile idle/travel |    1-4 | 12-16 | yes  | Often one static sprite is enough       |
+| Hit spark              |    4-6 | 16-24 | no   | Destroy after completion                |
+| Splash burst           |    6-8 | 16-24 | no   | Must show radius without blocking board |
+| Poison tick            |    4-6 |  8-12 | yes  | Very subtle, low opacity in Phaser      |
+| Merge burst            |   8-12 | 16-24 | no   | Bigger celebratory effect               |
+| Leak warning           |   6-10 | 10-14 | no   | UI/gameplay alert                       |
 
 ### 8.5 Projectile Export Paths
 
@@ -428,17 +428,17 @@ Environment art defines the board but must never obscure pathing.
 
 ### 9.1 Required Environment Assets
 
-| ID | Type | Purpose |
-| --- | --- | --- |
-| `grass-floor` | Terrain tile | Buildable meadow (primary v1 terrain) |
-| `path-floor` | Terrain tile | **Debug/editor only** — creep path is not visible in-game |
-| `blocked-floor` | Terrain tile | Unbuildable board cells |
-| `rock` | Object | Converted unused gems / maze walls |
-| `spawn-gate` | Object | Enemy start |
-| `goal-nexus` | Object | Enemy finish |
-| `checkpoint-1` to `checkpoint-5` | Tile/object | Ordered route points |
-| `selection-ring` | FX/object | Legal build hover |
-| `invalid-ring` | FX/object | Illegal build hover |
+| ID                               | Type         | Purpose                                                   |
+| -------------------------------- | ------------ | --------------------------------------------------------- |
+| `grass-floor`                    | Terrain tile | Buildable meadow (primary v1 terrain)                     |
+| `path-floor`                     | Terrain tile | **Debug/editor only** — creep path is not visible in-game |
+| `blocked-floor`                  | Terrain tile | Unbuildable board cells                                   |
+| `rock`                           | Object       | Converted unused gems / maze walls                        |
+| `spawn-gate`                     | Object       | Enemy start                                               |
+| `goal-nexus`                     | Object       | Enemy finish                                              |
+| `checkpoint-1` to `checkpoint-5` | Tile/object  | Ordered route points                                      |
+| `selection-ring`                 | FX/object    | Legal build hover                                         |
+| `invalid-ring`                   | FX/object    | Illegal build hover                                       |
 
 ### 9.2 Terrain Prompt Template
 
@@ -501,15 +501,15 @@ Every accepted spritesheet needs a small metadata record.
 
 ```ts
 type SpriteAnimationMeta = {
-  key: string;
-  path: string;
-  frameWidth: number;
-  frameHeight: number;
-  frames: number;
-  fps: number;
-  repeat: -1 | 0;
-  origin: [number, number];
-};
+  key: string
+  path: string
+  frameWidth: number
+  frameHeight: number
+  frames: number
+  fps: number
+  repeat: -1 | 0
+  origin: [number, number]
+}
 ```
 
 Example:
@@ -554,7 +554,7 @@ render: {
 Recommended texture settings:
 
 ```ts
-this.textures.get("asset.key").setFilter(Phaser.Textures.FilterMode.NEAREST);
+this.textures.get('asset.key').setFilter(Phaser.Textures.FilterMode.NEAREST)
 ```
 
 ## 12. Batch Execution Order

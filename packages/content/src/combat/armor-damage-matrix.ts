@@ -1,0 +1,67 @@
+import type { ArmorDamageMatrix } from '../schemas/armor-damage-matrix.js'
+
+/** Baseline matrix from MONSTER-SYSTEMS-DEEP-DIVE.md §4.2.3 */
+export const armorDamageMatrix: ArmorDamageMatrix = {
+  multipliers: {
+    normal: {
+      unarmored: 100,
+      light: 90,
+      medium: 100,
+      heavy: 150,
+      fortified: 70,
+      hero: 100,
+    },
+    pierce: {
+      unarmored: 150,
+      light: 200,
+      medium: 175,
+      heavy: 75,
+      fortified: 35,
+      hero: 50,
+    },
+    siege: {
+      unarmored: 100,
+      light: 50,
+      medium: 75,
+      heavy: 100,
+      fortified: 150,
+      hero: 50,
+    },
+    magic: {
+      unarmored: 100,
+      light: 125,
+      medium: 125,
+      heavy: 75,
+      fortified: 35,
+      hero: 50,
+    },
+    chaos: {
+      unarmored: 100,
+      light: 100,
+      medium: 100,
+      heavy: 100,
+      fortified: 100,
+      hero: 100,
+    },
+    pure: {
+      unarmored: 100,
+      light: 100,
+      medium: 100,
+      heavy: 100,
+      fortified: 100,
+      hero: 100,
+    },
+  },
+  armorValue: {
+    positiveFactor: 0.06,
+    negativeBase: 2,
+    negativeFactor: 0.94,
+    minPositiveMultiplier: 0.06,
+    minArmorFloor: -50,
+  },
+  magicResist: {
+    min: 0,
+    max: 100,
+  },
+  bypassAttackTypes: ['chaos', 'pure'],
+}

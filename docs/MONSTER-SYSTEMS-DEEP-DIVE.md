@@ -33,14 +33,14 @@ Monsters in Gem TD are not generic fodder. They are the **primary puzzle constra
 
 ### 1.1 Core Principles
 
-| Principle | Meaning |
-| --- | --- |
-| **Mazing is the defense** | Ground monsters must be slowed by path length. Flying monsters bypass the maze but follow a fixed aerial route that still passes high-value tower zones twice. |
-| **Content drives behavior** | Speed, HP, armor, abilities, and wave tables live in `@facet/content` JSON — never hardcoded in Phaser scenes or attack loops. |
-| **Movement ≠ animation** | Sprites play `walk`/`fly` loops in place. World position advances from simulation tick + content `speed`. Animation FPS is cosmetic only. |
-| **Announce before punish** | Wave type, mobility class, and key defensive skills are revealed during the build phase so players can prepare. |
-| **Stacking waves are a feature** | Long mazes mean Wave N+1 can spawn while Wave N creeps are still walking. The sim must handle concurrent active creeps from multiple waves. |
-| **Defense is readable** | Silhouette, color, and animation cues communicate speed tier, armor tier, flying status, and special abilities without UI labels. |
+| Principle                        | Meaning                                                                                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mazing is the defense**        | Ground monsters must be slowed by path length. Flying monsters bypass the maze but follow a fixed aerial route that still passes high-value tower zones twice. |
+| **Content drives behavior**      | Speed, HP, armor, abilities, and wave tables live in `@facet/content` JSON — never hardcoded in Phaser scenes or attack loops.                                 |
+| **Movement ≠ animation**         | Sprites play `walk`/`fly` loops in place. World position advances from simulation tick + content `speed`. Animation FPS is cosmetic only.                      |
+| **Announce before punish**       | Wave type, mobility class, and key defensive skills are revealed during the build phase so players can prepare.                                                |
+| **Stacking waves are a feature** | Long mazes mean Wave N+1 can spawn while Wave N creeps are still walking. The sim must handle concurrent active creeps from multiple waves.                    |
+| **Defense is readable**          | Silhouette, color, and animation cues communicate speed tier, armor tier, flying status, and special abilities without UI labels.                              |
 
 ### 1.2 What Makes This Different From Standard TD
 
@@ -96,12 +96,12 @@ flowchart TB
 
 ### 2.1 Layer Responsibilities
 
-| Layer | Owns | Must NOT own |
-| --- | --- | --- |
-| **Content** | Stat tables, wave schedules, ability definitions, asset key references | Frame-by-frame movement, rendering depth |
-| **Simulation** | Path cache, creep entities, damage math, status effects, wave timing | Sprite origins, animation FPS, UI gold display |
-| **Protocol** | Serializable creep/wave state for Colyseus sync | Gameplay formulas |
-| **Phaser** | Sprites, animations, interpolation, depth sorting, hit FX | Authoritative HP, path validity, damage resolution |
+| Layer          | Owns                                                                   | Must NOT own                                       |
+| -------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| **Content**    | Stat tables, wave schedules, ability definitions, asset key references | Frame-by-frame movement, rendering depth           |
+| **Simulation** | Path cache, creep entities, damage math, status effects, wave timing   | Sprite origins, animation FPS, UI gold display     |
+| **Protocol**   | Serializable creep/wave state for Colyseus sync                        | Gameplay formulas                                  |
+| **Phaser**     | Sprites, animations, interpolation, depth sorting, hit FX              | Authoritative HP, path validity, damage resolution |
 
 ---
 
@@ -119,40 +119,40 @@ This is a simplification of classic Gem TD maps, which often use 5–7 waypoints
 
 #### 3.1.1 Leg Decomposition
 
-The full route decomposes into **legs**. Each leg is an independent A* query:
+The full route decomposes into **legs**. Each leg is an independent A\* query:
 
-| Leg | From | To |
-| ---: | --- | --- |
-| 0 | `spawn` | `waypoint[0]` |
-| 1 | `waypoint[0]` | `waypoint[1]` |
-| … | … | … |
+| Leg | From            | To              |
+| --: | --------------- | --------------- |
+|   0 | `spawn`         | `waypoint[0]`   |
+|   1 | `waypoint[0]`   | `waypoint[1]`   |
+|   … | …               | …               |
 | N-1 | `waypoint[N-2]` | `waypoint[N-1]` |
-| N | `waypoint[N-1]` | `goal` |
+|   N | `waypoint[N-1]` | `goal`          |
 
-**Anti-blocking rule:** During the build phase, when a player hovers a gem/rock placement, temporarily mark that tile blocked and run A* for **every leg**. If any leg returns `null`, placement is illegal. Players cannot fully seal off a waypoint.
+**Anti-blocking rule:** During the build phase, when a player hovers a gem/rock placement, temporarily mark that tile blocked and run A\* for **every leg**. If any leg returns `null`, placement is illegal. Players cannot fully seal off a waypoint.
 
 #### 3.1.2 Shortest-Path Behavior
 
 Creeps always take the **shortest walkable path** between consecutive checkpoints. They do not wander, backtrack arbitrarily, or choose alternate routes. Mazing works because blocking tiles force the shortest path to become longer.
 
-Classic Gem TD also has **unbuildable border zones** near spawn walls and diagonal edges where creeps can bypass partial mazes. Model these as permanently blocked *build* tiles but permanently walkable *path* tiles in the grid definition.
+Classic Gem TD also has **unbuildable border zones** near spawn walls and diagonal edges where creeps can bypass partial mazes. Model these as permanently blocked _build_ tiles but permanently walkable _path_ tiles in the grid definition.
 
-### 3.2 Pathfinding — EasyStar.js A*
+### 3.2 Pathfinding — EasyStar.js A\*
 
 #### 3.2.1 Grid Representation
 
 ```ts
-type GridCell = 0 | 1; // 0 = walkable, 1 = blocked (rock, gem, permanent obstacle)
+type GridCell = 0 | 1 // 0 = walkable, 1 = blocked (rock, gem, permanent obstacle)
 
 interface BoardGrid {
-  width: number;
-  height: number;
-  cells: GridCell[];           // row-major flat array
-  spawn: GridCoord;
-  goal: GridCoord;
-  waypoints: GridCoord[];     // ordered
-  unbuildable: GridCoord[];   // cannot place gems/rocks
-  forcedWalkable: GridCoord[]; // border bypass corridors
+  width: number
+  height: number
+  cells: GridCell[] // row-major flat array
+  spawn: GridCoord
+  goal: GridCoord
+  waypoints: GridCoord[] // ordered
+  unbuildable: GridCoord[] // cannot place gems/rocks
+  forcedWalkable: GridCoord[] // border bypass corridors
 }
 ```
 
@@ -160,14 +160,14 @@ interface BoardGrid {
 
 > Calculate the path **once** when the maze changes. Save it as an array of world coordinates. Creeps follow array indices.
 
-**Never** run A* per creep per frame. With 100+ active creeps and 60 ticks/sec, uncached pathfinding will freeze the browser.
+**Never** run A\* per creep per frame. With 100+ active creeps and 60 ticks/sec, uncached pathfinding will freeze the browser.
 
 ```ts
 interface PathCache {
-  version: number;              // increments on maze change
-  legs: WorldCoord[][];         // concatenated when cached
-  totalLength: number;          // sum of leg lengths in world units
-  legBoundaries: number[];      // index into concatenated path where each leg starts
+  version: number // increments on maze change
+  legs: WorldCoord[][] // concatenated when cached
+  totalLength: number // sum of leg lengths in world units
+  legBoundaries: number[] // index into concatenated path where each leg starts
 }
 ```
 
@@ -182,42 +182,38 @@ interface PathCache {
 
 ```ts
 interface CreepMovementState {
-  pathIndex: number;           // current index into PathCache.legs (concatenated)
-  legIndex: number;            // which waypoint leg
-  distanceAlongSegment: number; // 0..1 between path[index] and path[index+1]
-  facing: 'east' | 'west';      // for horizontal flip, not free rotation
+  pathIndex: number // current index into PathCache.legs (concatenated)
+  legIndex: number // which waypoint leg
+  distanceAlongSegment: number // 0..1 between path[index] and path[index+1]
+  facing: 'east' | 'west' // for horizontal flip, not free rotation
 }
 
-function advanceCreep(
-  creep: CreepRuntime,
-  path: WorldCoord[],
-  dt: number
-): void {
-  const effectiveSpeed = creep.speed * creep.speedMultiplier; // slow/haste
-  let remaining = effectiveSpeed * dt;
+function advanceCreep(creep: CreepRuntime, path: WorldCoord[], dt: number): void {
+  const effectiveSpeed = creep.speed * creep.speedMultiplier // slow/haste
+  let remaining = effectiveSpeed * dt
 
   while (remaining > 0 && creep.pathIndex < path.length - 1) {
-    const a = path[creep.pathIndex];
-    const b = path[creep.pathIndex + 1];
-    const segmentLength = distance(a, b);
-    const distLeft = segmentLength * (1 - creep.distanceAlongSegment);
+    const a = path[creep.pathIndex]
+    const b = path[creep.pathIndex + 1]
+    const segmentLength = distance(a, b)
+    const distLeft = segmentLength * (1 - creep.distanceAlongSegment)
 
     if (remaining < distLeft) {
-      creep.distanceAlongSegment += remaining / segmentLength;
-      remaining = 0;
+      creep.distanceAlongSegment += remaining / segmentLength
+      remaining = 0
     } else {
-      remaining -= distLeft;
-      creep.pathIndex++;
-      creep.distanceAlongSegment = 0;
-      updateLegIndex(creep);
+      remaining -= distLeft
+      creep.pathIndex++
+      creep.distanceAlongSegment = 0
+      updateLegIndex(creep)
     }
   }
 
   creep.worldPos = interpolate(
     path[creep.pathIndex],
     path[creep.pathIndex + 1] ?? path[creep.pathIndex],
-    creep.distanceAlongSegment
-  );
+    creep.distanceAlongSegment,
+  )
 }
 ```
 
@@ -233,16 +229,16 @@ Higher `pathProgress` = closer to goal. When comparing creeps on different waves
 
 ### 3.3 Ground vs Flying Movement
 
-| Property | Ground | Flying |
-| --- | --- | --- |
-| **Path source** | Cached A* through maze | Fixed spline: `spawn → … → goal` |
-| **Blocked by rocks/gems** | Yes | No |
-| **Waypoint legs** | All legs via pathfinding | Direct aerial route (may pass center twice) |
-| **Animation** | `walk` loop | `fly` loop |
-| **Shadow** | None (ground contact implied) | Separate `shadow.png` sprite, lower depth |
-| **Depth sort** | `setDepth(sprite.y)` | `setDepth(sprite.y + FLYING_DEPTH_OFFSET)` |
-| **Typical cadence** | Most waves | Every 4th–5th wave (configurable) |
-| **Counter gems** | Slow (Sapphire), maze length | Anti-Air (Amethyst), Quartz anti-fly |
+| Property                  | Ground                        | Flying                                      |
+| ------------------------- | ----------------------------- | ------------------------------------------- |
+| **Path source**           | Cached A\* through maze       | Fixed spline: `spawn → … → goal`            |
+| **Blocked by rocks/gems** | Yes                           | No                                          |
+| **Waypoint legs**         | All legs via pathfinding      | Direct aerial route (may pass center twice) |
+| **Animation**             | `walk` loop                   | `fly` loop                                  |
+| **Shadow**                | None (ground contact implied) | Separate `shadow.png` sprite, lower depth   |
+| **Depth sort**            | `setDepth(sprite.y)`          | `setDepth(sprite.y + FLYING_DEPTH_OFFSET)`  |
+| **Typical cadence**       | Most waves                    | Every 4th–5th wave (configurable)           |
+| **Counter gems**          | Slow (Sapphire), maze length  | Anti-Air (Amethyst), Quartz anti-fly        |
 
 #### 3.3.1 Flying Route Geometry
 
@@ -250,37 +246,37 @@ Flying creeps ignore the maze but **do not ignore engagement geometry**. Classic
 
 ```ts
 interface FlyingRoute {
-  id: string;
-  controlPoints: WorldCoord[];  // Catmull-Rom or linear spline
-  totalLength: number;
+  id: string
+  controlPoints: WorldCoord[] // Catmull-Rom or linear spline
+  totalLength: number
 }
 ```
 
-Flying creeps use the same `pathIndex` / `distanceAlongSegment` model, but the path array is computed once per map from `FlyingRoute`, not from A*.
+Flying creeps use the same `pathIndex` / `distanceAlongSegment` model, but the path array is computed once per map from `FlyingRoute`, not from A\*.
 
 ### 3.4 Speed System
 
 #### 3.4.1 Speed Sources
 
-| Source | Applies to | Example |
-| --- | --- | --- |
-| **Base speed** (content) | All | `crystal-runner`: 320 units/sec |
-| **Wave scaling** | All | +3% per wave number |
-| **Slow debuff** | Ground + flying | Sapphire: −60 to −480 MS |
-| **Anti-fly slow** | Flying only | Quartz: −150 to −500 MS |
-| **Rush ability** | Specific waves | Burst speed on spawn or at HP threshold |
-| **Stone Gaze / root** | Ground | Speed → 0 for duration |
-| **Haste aura** | Rare (enemy buff) | Multiplier > 1 |
+| Source                   | Applies to        | Example                                 |
+| ------------------------ | ----------------- | --------------------------------------- |
+| **Base speed** (content) | All               | `crystal-runner`: 320 units/sec         |
+| **Wave scaling**         | All               | +3% per wave number                     |
+| **Slow debuff**          | Ground + flying   | Sapphire: −60 to −480 MS                |
+| **Anti-fly slow**        | Flying only       | Quartz: −150 to −500 MS                 |
+| **Rush ability**         | Specific waves    | Burst speed on spawn or at HP threshold |
+| **Stone Gaze / root**    | Ground            | Speed → 0 for duration                  |
+| **Haste aura**           | Rare (enemy buff) | Multiplier > 1                          |
 
 #### 3.4.2 Speed Tiers (v1 Archetypes)
 
-| Tier | Archetype | Relative speed | Design intent |
-| ---: | --- | ---: | --- |
-| Fast | `crystal-runner` | 1.35× | Punishes short mazes; dies quickly to focused fire |
-| Standard | `stone-grunt` | 1.00× | Baseline for tuning all other stats |
-| Slow | `shield-bulwark` | 0.80× | Armored; more tower exposure time |
-| Boss | `gate-colossus` | 0.55× | High HP; long time on path |
-| Flying | `sky-warden` | 1.15× | Faster than standard ground; bypasses maze |
+|     Tier | Archetype        | Relative speed | Design intent                                      |
+| -------: | ---------------- | -------------: | -------------------------------------------------- |
+|     Fast | `crystal-runner` |          1.35× | Punishes short mazes; dies quickly to focused fire |
+| Standard | `stone-grunt`    |          1.00× | Baseline for tuning all other stats                |
+|     Slow | `shield-bulwark` |          0.80× | Armored; more tower exposure time                  |
+|     Boss | `gate-colossus`  |          0.55× | High HP; long time on path                         |
+|   Flying | `sky-warden`     |          1.15× | Faster than standard ground; bypasses maze         |
 
 Absolute values are tuned in content. Start with `stone-grunt` at **270 world-units/sec** on a 32px tile grid and scale from there.
 
@@ -313,12 +309,12 @@ stateDiagram-v2
 
 ```ts
 type CreepLifecycleState =
-  | 'spawning'    // boss entry animation playing
-  | 'moving'      // normal path follow
-  | 'hit'         // brief damage recoil (non-blocking for movement in v1)
+  | 'spawning' // boss entry animation playing
+  | 'moving' // normal path follow
+  | 'hit' // brief damage recoil (non-blocking for movement in v1)
   | 'dying'
   | 'splitting'
-  | 'leaked';
+  | 'leaked'
 ```
 
 **v1 decision:** Movement continues during `hit` state (hit is cosmetic overlay). Root/stun/gaze abilities set `speedMultiplier = 0` while active.
@@ -329,18 +325,18 @@ type CreepLifecycleState =
 
 ```ts
 interface WaveSpawnConfig {
-  waveNumber: number;
-  entries: WaveEntry[];
-  spawnInterval: number;    // ms between individual creeps
-  groupDelay: number;       // ms before first creep spawns
-  concurrent: boolean;      // can overlap with prior wave
+  waveNumber: number
+  entries: WaveEntry[]
+  spawnInterval: number // ms between individual creeps
+  groupDelay: number // ms before first creep spawns
+  concurrent: boolean // can overlap with prior wave
 }
 
 interface WaveEntry {
-  enemyId: string;
-  count: number;
-  hpMultiplier?: number;
-  speedMultiplier?: number;
+  enemyId: string
+  count: number
+  hpMultiplier?: number
+  speedMultiplier?: number
 }
 ```
 
@@ -354,14 +350,14 @@ If `concurrent: true` (default after wave 10), the spawner does not wait for the
 
 Abilities that alter movement (mapped from classic Gem TD):
 
-| Ability ID | Movement effect | Ground | Flying |
-| --- | --- | --- | --- |
-| `blink` | Teleport forward along path by X% progress | ✓ | ✓ |
-| `rush` | ×1.5–2.0 speed for 3s on spawn or interval | ✓ | ✓ |
-| `permanent_invisibility` | No direct movement change; targeting penalty | ✓ | ✓ |
-| `cloak_and_dagger` | Invisible until damaged; then normal | ✓ | ✓ |
-| `disarm` | No movement change; disables **tower** attacks in aura range | ✓ | ✓ |
-| `stone_gaze` | Root + massive slow in radius | ✓ | — |
+| Ability ID               | Movement effect                                              | Ground | Flying |
+| ------------------------ | ------------------------------------------------------------ | ------ | ------ |
+| `blink`                  | Teleport forward along path by X% progress                   | ✓      | ✓      |
+| `rush`                   | ×1.5–2.0 speed for 3s on spawn or interval                   | ✓      | ✓      |
+| `permanent_invisibility` | No direct movement change; targeting penalty                 | ✓      | ✓      |
+| `cloak_and_dagger`       | Invisible until damaged; then normal                         | ✓      | ✓      |
+| `disarm`                 | No movement change; disables **tower** attacks in aura range | ✓      | ✓      |
+| `stone_gaze`             | Root + massive slow in radius                                | ✓      | —      |
 
 **Blink implementation:** Add `pathIndex += floor(pathLength * blinkFraction)` clamped to path end. Play optional VFX; no collision check needed because path is pre-validated.
 
@@ -407,38 +403,38 @@ flowchart TD
 
 #### 4.2.1 Armor Types
 
-| Armor type | Typical creeps | Character |
-| --- | --- | --- |
-| `unarmored` | Early fodder, split children | Takes bonus from most types |
-| `light` | Fast creeps (`crystal-runner`) | Weak to pierce/normal |
-| `medium` | Standard (`stone-grunt`) | Neutral baseline |
-| `heavy` | Armored (`shield-bulwark`), high-armor waves | Strong vs normal, weak to magic |
-| `fortified` | Boss (`gate-colossus`), structures | Strong vs pierce, weak to siege |
-| `hero` | Boss variants, wave 50+ | Balanced; used for endgame scaling |
+| Armor type  | Typical creeps                               | Character                          |
+| ----------- | -------------------------------------------- | ---------------------------------- |
+| `unarmored` | Early fodder, split children                 | Takes bonus from most types        |
+| `light`     | Fast creeps (`crystal-runner`)               | Weak to pierce/normal              |
+| `medium`    | Standard (`stone-grunt`)                     | Neutral baseline                   |
+| `heavy`     | Armored (`shield-bulwark`), high-armor waves | Strong vs normal, weak to magic    |
+| `fortified` | Boss (`gate-colossus`), structures           | Strong vs pierce, weak to siege    |
+| `hero`      | Boss variants, wave 50+                      | Balanced; used for endgame scaling |
 
 #### 4.2.2 Attack Types (from gem/tower damage)
 
-| Attack type | Primary gems | Notes |
-| --- | --- | --- |
-| `normal` | Diamond (partial), basic attacks | Default physical |
-| `pierce` | Amethyst | Also applies armor reduction debuff |
-| `siege` | Future siege specials | Anti-fortified |
-| `magic` | Emerald poison ticks, arcane specials | Checks magic resist |
-| `chaos` | Rare endgame towers | Ignores armor type |
-| `pure` | Ruby cleave splash portion | Ignores armor entirely |
+| Attack type | Primary gems                          | Notes                               |
+| ----------- | ------------------------------------- | ----------------------------------- |
+| `normal`    | Diamond (partial), basic attacks      | Default physical                    |
+| `pierce`    | Amethyst                              | Also applies armor reduction debuff |
+| `siege`     | Future siege specials                 | Anti-fortified                      |
+| `magic`     | Emerald poison ticks, arcane specials | Checks magic resist                 |
+| `chaos`     | Rare endgame towers                   | Ignores armor type                  |
+| `pure`      | Ruby cleave splash portion            | Ignores armor entirely              |
 
 #### 4.2.3 Damage Multiplier Matrix (baseline)
 
 Values are **percentage modifiers** (100 = normal). Tune in `armor-damage-matrix.json`.
 
 | Attack ↓ / Armor → | Unarmored | Light | Medium | Heavy | Fortified | Hero |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Normal | 100 | 90 | 100 | 150 | 70 | 100 |
-| Pierce | 150 | 200 | 175 | 75 | 35 | 50 |
-| Siege | 100 | 50 | 75 | 100 | 150 | 50 |
-| Magic | 100 | 125 | 125 | 75 | 35 | 50 |
-| Chaos | 100 | 100 | 100 | 100 | 100 | 100 |
-| Pure | 100 | 100 | 100 | 100 | 100 | 100 |
+| ------------------ | --------: | ----: | -----: | ----: | --------: | ---: |
+| Normal             |       100 |    90 |    100 |   150 |        70 |  100 |
+| Pierce             |       150 |   200 |    175 |    75 |        35 |   50 |
+| Siege              |       100 |    50 |     75 |   100 |       150 |   50 |
+| Magic              |       100 |   125 |    125 |    75 |        35 |   50 |
+| Chaos              |       100 |   100 |    100 |   100 |       100 |  100 |
+| Pure               |       100 |   100 |    100 |   100 |       100 |  100 |
 
 #### 4.2.4 Armor Value Formula
 
@@ -446,14 +442,14 @@ After type multiplier, apply WC3-style armor reduction:
 
 ```ts
 function armorDamageMultiplier(armor: number, attackType: AttackType): number {
-  if (attackType === 'chaos' || attackType === 'pure') return 1.0;
+  if (attackType === 'chaos' || attackType === 'pure') return 1.0
 
   // WC3: damage * (1 - 0.06 * armor) for positive armor
   // damage * (2 - 0.94^(-armor)) for negative armor (corrupt/pierce debuff)
   if (armor >= 0) {
-    return 1 - 0.06 * armor; // clamped to min 0.06 (94% reduction cap)
+    return 1 - 0.06 * armor // clamped to min 0.06 (94% reduction cap)
   }
-  return 2 - Math.pow(0.94, -armor);
+  return 2 - Math.pow(0.94, -armor)
 }
 ```
 
@@ -464,15 +460,15 @@ function armorDamageMultiplier(armor: number, attackType: AttackType): number {
 Magic resistance is a **percentage reduction** applied after armor type multiplier for `magic`-tagged damage:
 
 ```ts
-magicDamageDealt = baseDamage * armorTypeMultiplier * (1 - magicResist / 100);
+magicDamageDealt = baseDamage * armorTypeMultiplier * (1 - magicResist / 100)
 ```
 
-| Creep profile | Typical magic resist |
-| --- | ---: |
-| Standard ground | 0% |
-| `arcane-mystic` | 35% |
-| High-resist wave (classic wave 26+) | 50–75% |
-| Boss | 25% base, scaling per wave |
+| Creep profile                       |       Typical magic resist |
+| ----------------------------------- | -------------------------: |
+| Standard ground                     |                         0% |
+| `arcane-mystic`                     |                        35% |
+| High-resist wave (classic wave 26+) |                     50–75% |
+| Boss                                | 25% base, scaling per wave |
 
 **Magic resistance debuffs:** Charming Lazurite anti-fly (−50% MR to flying), Elaborately Carved Tourmaline decadent (−20 MR aura). Debuffs apply before damage calculation.
 
@@ -482,26 +478,26 @@ Full catalog mapped from classic Gem TD waves. Each ability is a **composable mo
 
 #### 4.4.1 Evasion
 
-| Property | Value |
-| --- | --- |
-| **Effect** | Percent chance to negate an attack entirely |
-| **Stacks** | No — take highest source |
-| **Bypass** | Monkey King Bar equivalent tower aura |
-| **Classic waves** | 9 (Dusky), 29, 34, 39, 43, 48 |
+| Property          | Value                                       |
+| ----------------- | ------------------------------------------- |
+| **Effect**        | Percent chance to negate an attack entirely |
+| **Stacks**        | No — take highest source                    |
+| **Bypass**        | Monkey King Bar equivalent tower aura       |
+| **Classic waves** | 9 (Dusky), 29, 34, 39, 43, 48               |
 
 ```ts
 if (roll() < creep.evasion) {
-  emit('attackMissed', { creepId, towerId });
-  return 0;
+  emit('attackMissed', { creepId, towerId })
+  return 0
 }
 ```
 
 #### 4.4.2 Magic Immunity / Physical Immunity
 
-| Flag | Blocks | Does not block |
-| --- | --- | --- |
-| `magicImmune` | `magic`, `chaos` (configurable) | `normal`, `pierce`, `pure` |
-| `physicalImmune` | `normal`, `pierce`, `siege` | `magic`, `pure` |
+| Flag             | Blocks                          | Does not block             |
+| ---------------- | ------------------------------- | -------------------------- |
+| `magicImmune`    | `magic`, `chaos` (configurable) | `normal`, `pierce`, `pure` |
+| `physicalImmune` | `normal`, `pierce`, `siege`     | `magic`, `pure`            |
 
 Some late-game towers gain `ignoreMagicImmune` (Tourmaline line). Check tower flags before immunity.
 
@@ -513,9 +509,9 @@ Absorbs a **fixed number of attack instances** or **total damage pool** before b
 
 ```ts
 interface RefractionShield {
-  charges: number;        // e.g. 3 attacks
-  damagePool?: number;    // alternative: 500 total damage
-  regenPerSecond?: number;
+  charges: number // e.g. 3 attacks
+  damagePool?: number // alternative: 500 total damage
+  regenPerSecond?: number
 }
 ```
 
@@ -529,11 +525,11 @@ Each time the creep is hit, it gains **stacking armor and/or HP regen** for a sh
 
 ```ts
 interface ReactiveArmor {
-  stacksPerHit: number;
-  maxStacks: number;
-  armorPerStack: number;
-  regenPerStack: number;   // HP/sec
-  stackDuration: number;   // seconds; refreshes on hit
+  stacksPerHit: number
+  maxStacks: number
+  armorPerStack: number
+  regenPerStack: number // HP/sec
+  stackDuration: number // seconds; refreshes on hit
 }
 ```
 
@@ -546,8 +542,8 @@ Blocks **critical strike bonus damage** and reduces **burst damage** over a thre
 ```ts
 // If single-hit damage > threshold, reduce excess by 50%
 function krakenShellMitigate(damage: number, threshold: number): number {
-  if (damage <= threshold) return damage;
-  return threshold + (damage - threshold) * 0.5;
+  if (damage <= threshold) return damage
+  return threshold + (damage - threshold) * 0.5
 }
 ```
 
@@ -559,8 +555,8 @@ Reduces attack speed of towers that attack this creep (aura debuff on the **atta
 
 ```ts
 interface Untouchable {
-  radius: number;
-  attackSpeedReduction: number; // e.g. 0.45 = −45% AS to attackers in range
+  radius: number
+  attackSpeedReduction: number // e.g. 0.45 = −45% AS to attackers in range
 }
 ```
 
@@ -594,14 +590,14 @@ Creeps with disarm apply a debuff to towers in radius, preventing attacks. This 
 
 ### 4.5 Status Effect Defenses
 
-| Status | Applied by | Resist rule |
-| --- | --- | --- |
-| **Poison (DoT)** | Emerald line | `poisonResist` % reduces tick damage |
-| **Slow** | Sapphire line | `slowResist` %; `slowImmune` flag on untouchable waves |
-| **Stun** | Dark Emerald line | `stunResist` %; bosses halve stun duration |
-| **Burn** | Ruby/Volcano line | Treated as magic DoT; checks MR |
-| **Armor corrupt** | Gold line | No resist; reduces armor value |
-| **Root (Stone Gaze)** | Emerald Golem | `rootImmune` on flying and select bosses |
+| Status                | Applied by        | Resist rule                                            |
+| --------------------- | ----------------- | ------------------------------------------------------ |
+| **Poison (DoT)**      | Emerald line      | `poisonResist` % reduces tick damage                   |
+| **Slow**              | Sapphire line     | `slowResist` %; `slowImmune` flag on untouchable waves |
+| **Stun**              | Dark Emerald line | `stunResist` %; bosses halve stun duration             |
+| **Burn**              | Ruby/Volcano line | Treated as magic DoT; checks MR                        |
+| **Armor corrupt**     | Gold line         | No resist; reduces armor value                         |
+| **Root (Stone Gaze)** | Emerald Golem     | `rootImmune` on flying and select bosses               |
 
 ### 4.6 Split-on-Death (`thorn-splitter`)
 
@@ -609,12 +605,12 @@ Not armor — but a defensive **pressure mechanic** that punishes overkill.
 
 ```ts
 interface SplitBehavior {
-  childEnemyId: string;
-  childCount: number;
-  childHpFraction: number;   // e.g. 0.35 of parent max HP
-  childSpeedMultiplier: number; // e.g. 1.2×
-  spawnSpread: number;       // path progress offset for each child
-  maxSplitDepth: number;       // prevent infinite recursion; default 1
+  childEnemyId: string
+  childCount: number
+  childHpFraction: number // e.g. 0.35 of parent max HP
+  childSpeedMultiplier: number // e.g. 1.2×
+  spawnSpread: number // path progress offset for each child
+  maxSplitDepth: number // prevent infinite recursion; default 1
 }
 ```
 
@@ -636,29 +632,29 @@ Monsters vary across **seven independent axes**:
 Identity = Archetype × WaveScaling × MobilityClass × AbilityLoadout × VisualVariant × SpawnModifier × BossFlag
 ```
 
-| Axis | What varies | Data source |
-| --- | --- | --- |
-| **Archetype** | Base stats, silhouette, animation set | `enemy-definitions.json` |
-| **Wave scaling** | HP/speed/reward multipliers per wave # | `wave-scaling.json` |
-| **Mobility class** | Ground vs flying | `mobility` field |
-| **Ability loadout** | 0–3 special abilities | `wave-tables.json` per wave |
-| **Visual variant** | Palette swap, size, optional skin ID | `visual-variant` field |
-| **Spawn modifier** | Group size, interval, concurrent stacking | `WaveSpawnConfig` |
-| **Boss flag** | Larger scale, spawn anim, HP spike | `isBoss: true` |
+| Axis                | What varies                               | Data source                 |
+| ------------------- | ----------------------------------------- | --------------------------- |
+| **Archetype**       | Base stats, silhouette, animation set     | `enemy-definitions.json`    |
+| **Wave scaling**    | HP/speed/reward multipliers per wave #    | `wave-scaling.json`         |
+| **Mobility class**  | Ground vs flying                          | `mobility` field            |
+| **Ability loadout** | 0–3 special abilities                     | `wave-tables.json` per wave |
+| **Visual variant**  | Palette swap, size, optional skin ID      | `visual-variant` field      |
+| **Spawn modifier**  | Group size, interval, concurrent stacking | `WaveSpawnConfig`           |
+| **Boss flag**       | Larger scale, spawn anim, HP spike        | `isBoss: true`              |
 
 ### 5.2 Archetype Catalog (v1)
 
 Full set from `PIXELLAB-ASSET-GENERATION.md` §6.1:
 
-| ID | Role | Mobility | HP tier | Armor profile | Speed tier | Special |
-| --- | --- | --- | --- | --- | --- | --- |
-| `crystal-runner` | Fast light | Ground | Low | Light, low armor | Fast | — |
-| `stone-grunt` | Standard | Ground | Medium | Medium | Standard | Baseline tuning reference |
-| `shield-bulwark` | Armored | Ground | High | Heavy, +armor | Slow | Visual shield read |
-| `thorn-splitter` | Splitter | Ground | Medium | Medium | Standard | `split` on death |
-| `arcane-mystic` | Resistant caster | Ground | Medium | Medium, +MR | Standard | Magic resist profile |
-| `sky-warden` | Flying | Flying | Medium | Medium | Fast | Ignores maze |
-| `gate-colossus` | Boss | Ground | Very high | Fortified, +armor | Slow | `spawn` entry anim |
+| ID               | Role             | Mobility | HP tier   | Armor profile     | Speed tier | Special                   |
+| ---------------- | ---------------- | -------- | --------- | ----------------- | ---------- | ------------------------- |
+| `crystal-runner` | Fast light       | Ground   | Low       | Light, low armor  | Fast       | —                         |
+| `stone-grunt`    | Standard         | Ground   | Medium    | Medium            | Standard   | Baseline tuning reference |
+| `shield-bulwark` | Armored          | Ground   | High      | Heavy, +armor     | Slow       | Visual shield read        |
+| `thorn-splitter` | Splitter         | Ground   | Medium    | Medium            | Standard   | `split` on death          |
+| `arcane-mystic`  | Resistant caster | Ground   | Medium    | Medium, +MR       | Standard   | Magic resist profile      |
+| `sky-warden`     | Flying           | Flying   | Medium    | Medium            | Fast       | Ignores maze              |
+| `gate-colossus`  | Boss             | Ground   | Very high | Fortified, +armor | Slow       | `spawn` entry anim        |
 
 ### 5.3 Vertical Slice Subset
 
@@ -674,12 +670,12 @@ Defer `thorn-splitter` and `arcane-mystic` to slice 2.
 
 ### 5.4 Visual Variation Rules
 
-| Variation type | When used | Implementation |
-| --- | --- | --- |
-| **Size scale** | Boss vs normal | `renderScale` in content; boss 1.5–2× |
-| **Palette swap** | Wave 50+ repeats | Alternate texture key `enemy.stone-grunt.wave50` |
-| **Elite glow** | Optional affix | Additive shader or pre-rendered glow layer |
-| **Candidate pick** | Art pipeline | Multiple PixelLab candidates per batch; one canonical |
+| Variation type     | When used        | Implementation                                        |
+| ------------------ | ---------------- | ----------------------------------------------------- |
+| **Size scale**     | Boss vs normal   | `renderScale` in content; boss 1.5–2×                 |
+| **Palette swap**   | Wave 50+ repeats | Alternate texture key `enemy.stone-grunt.wave50`      |
+| **Elite glow**     | Optional affix   | Additive shader or pre-rendered glow layer            |
+| **Candidate pick** | Art pipeline     | Multiple PixelLab candidates per batch; one canonical |
 
 Visual variants **never** change hitbox without updating `collisionRadius` in content.
 
@@ -689,12 +685,12 @@ Classic Gem TD rolls **alternative opponents** on some waves (e.g. Baby Panda OR
 
 ```ts
 interface WaveVariant {
-  waveNumber: number;
+  waveNumber: number
   alternatives: {
-    enemyId: string;
-    weight: number;
-    abilityOverrides?: AbilityId[];
-  }[];
+    enemyId: string
+    weight: number
+    abilityOverrides?: AbilityId[]
+  }[]
 }
 ```
 
@@ -702,10 +698,10 @@ RNG seed is **per-match deterministic** so multiplayer stays in sync.
 
 ### 5.6 Split Children & Summoned Adds
 
-| Type | Parent | Child | Depth limit |
-| --- | --- | --- | --- |
-| Split | `thorn-splitter` | `crystal-runner` (smaller) | 1 |
-| Boss add | `gate-colossus` at 50% HP | `stone-grunt` ×2 | 0 (no nested split) |
+| Type     | Parent                    | Child                      | Depth limit         |
+| -------- | ------------------------- | -------------------------- | ------------------- |
+| Split    | `thorn-splitter`          | `crystal-runner` (smaller) | 1                   |
+| Boss add | `gate-colossus` at 50% HP | `stone-grunt` ×2           | 0 (no nested split) |
 
 ---
 
@@ -715,28 +711,28 @@ RNG seed is **per-match deterministic** so multiplayer stays in sync.
 
 Gem TD uses **50 waves** to "beat" the game, then repeats with escalated skills. Boss every **10 waves**. Flying every **~4–5 waves**.
 
-| Wave band | Difficulty | Typical abilities introduced |
-| --- | --- | --- |
-| 1–5 | Tutorial | Pure stats; wave 5 flying |
-| 6–10 | Early | Invisibility (8), evasion (9), boss (10) |
-| 11–20 | Mid-early | Disarm, refraction, magic immune |
-| 21–30 | Mid | High armor, physical immune, reactive armor, boss |
-| 31–40 | Late | Blink, recharge, kraken shell, multi-ability |
-| 41–50 | Endgame | Stacked immunities, untouchable, rush, boss |
+| Wave band | Difficulty | Typical abilities introduced                      |
+| --------- | ---------- | ------------------------------------------------- |
+| 1–5       | Tutorial   | Pure stats; wave 5 flying                         |
+| 6–10      | Early      | Invisibility (8), evasion (9), boss (10)          |
+| 11–20     | Mid-early  | Disarm, refraction, magic immune                  |
+| 21–30     | Mid        | High armor, physical immune, reactive armor, boss |
+| 31–40     | Late       | Blink, recharge, kraken shell, multi-ability      |
+| 41–50     | Endgame    | Stacked immunities, untouchable, rush, boss       |
 
 ### 6.2 Scaling Formulas (recommended starting point)
 
 ```ts
 function waveHpMultiplier(wave: number): number {
-  return 1 + 0.12 * wave + 0.004 * wave * wave;
+  return 1 + 0.12 * wave + 0.004 * wave * wave
 }
 
 function waveSpeedMultiplier(wave: number): number {
-  return 1 + 0.02 * wave;
+  return 1 + 0.02 * wave
 }
 
 function goldRewardMultiplier(wave: number): number {
-  return 1 + 0.08 * wave;
+  return 1 + 0.08 * wave
 }
 ```
 
@@ -746,7 +742,7 @@ Boss waves: additional **×2.5 HP**, **×1.5 gold**.
 
 ```ts
 function isFlyingWave(wave: number): boolean {
-  return wave % 5 === 0; // waves 5, 10, 15, 20, ...
+  return wave % 5 === 0 // waves 5, 10, 15, 20, ...
 }
 ```
 
@@ -758,12 +754,12 @@ During build phase, UI shows:
 
 ```ts
 interface WavePreview {
-  waveNumber: number;
-  displayName: string;
-  mobility: 'ground' | 'flying' | 'mixed';
-  abilities: AbilityPreview[];  // icons + short labels
-  threatLevel: 1 | 2 | 3 | 4 | 5;
-  isBoss: boolean;
+  waveNumber: number
+  displayName: string
+  mobility: 'ground' | 'flying' | 'mixed'
+  abilities: AbilityPreview[] // icons + short labels
+  threatLevel: 1 | 2 | 3 | 4 | 5
+  isBoss: boolean
 }
 ```
 
@@ -775,17 +771,17 @@ Players must see flying status and immunity icons **before** selecting which gem
 
 How tower damage types interact with monster defenses (summary for designers).
 
-| Tower/gem line | Primary counter | Weak vs |
-| --- | --- | --- |
-| Amethyst (pierce + corrupt) | High armor, fortified | Magic immune |
-| Diamond (raw damage) | Low armor, medium creeps | Heavy/fortified |
-| Emerald (poison) | Vitality regen creeps (slowly) | Magic immune, high MR |
-| Ruby (splash/pure) | Grouped creeps, refraction charges | Physical immune |
-| Sapphire (slow) | Fast creeps | Slow-immune, flying (partial) |
-| Topaz (multi-target) | Swarm waves, invisibility groups | Single high-HP boss |
-| Quartz (anti-fly) | Flying waves | Ground-only waves |
-| Gold (corrupt) | High armor | Low-armor fodder (overkill) |
-| Monkey King Bar tower | Evasion waves | No special counter needed |
+| Tower/gem line              | Primary counter                    | Weak vs                       |
+| --------------------------- | ---------------------------------- | ----------------------------- |
+| Amethyst (pierce + corrupt) | High armor, fortified              | Magic immune                  |
+| Diamond (raw damage)        | Low armor, medium creeps           | Heavy/fortified               |
+| Emerald (poison)            | Vitality regen creeps (slowly)     | Magic immune, high MR         |
+| Ruby (splash/pure)          | Grouped creeps, refraction charges | Physical immune               |
+| Sapphire (slow)             | Fast creeps                        | Slow-immune, flying (partial) |
+| Topaz (multi-target)        | Swarm waves, invisibility groups   | Single high-HP boss           |
+| Quartz (anti-fly)           | Flying waves                       | Ground-only waves             |
+| Gold (corrupt)              | High armor                         | Low-armor fodder (overkill)   |
+| Monkey King Bar tower       | Evasion waves                      | No special counter needed     |
 
 ### 7.1 Targeting Priority
 
@@ -810,55 +806,48 @@ From `HANDOVER.md` §6.1 — default sort:
 // packages/content/src/enemies/enemy-definition.ts
 
 interface EnemyDefinition {
-  id: string;                          // kebab-case: "shield-bulwark"
-  displayName: string;
-  archetype: EnemyArchetype;
-  mobility: 'ground' | 'flying';
+  id: string // kebab-case: "shield-bulwark"
+  displayName: string
+  archetype: EnemyArchetype
+  mobility: 'ground' | 'flying'
 
   stats: {
-    baseHp: number;
-    baseSpeed: number;                 // world-units per second
-    armorType: ArmorType;
-    baseArmor: number;
-    magicResist: number;                 // 0-100
-    goldReward: number;
-    lifeCost: number;                  // lives lost on leak
-  };
+    baseHp: number
+    baseSpeed: number // world-units per second
+    armorType: ArmorType
+    baseArmor: number
+    magicResist: number // 0-100
+    goldReward: number
+    lifeCost: number // lives lost on leak
+  }
 
   resistances?: {
-    poison?: number;
-    slow?: number;
-    stun?: number;
-  };
+    poison?: number
+    slow?: number
+    stun?: number
+  }
 
   flags?: {
-    slowImmune?: boolean;
-    magicImmune?: boolean;
-    physicalImmune?: boolean;
-    rootImmune?: boolean;
-  };
+    slowImmune?: boolean
+    magicImmune?: boolean
+    physicalImmune?: boolean
+    rootImmune?: boolean
+  }
 
   behaviors?: {
-    split?: SplitBehavior;
-    onSpawn?: AbilityId[];
-  };
+    split?: SplitBehavior
+    onSpawn?: AbilityId[]
+  }
 
   visuals: {
-    renderScale: number;
-    collisionRadius: number;
-    animations: Record<string, string>; // anim key → asset manifest key
-    shadowKey?: string;                 // flying only
-  };
+    renderScale: number
+    collisionRadius: number
+    animations: Record<string, string> // anim key → asset manifest key
+    shadowKey?: string // flying only
+  }
 }
 
-type EnemyArchetype =
-  | 'fast'
-  | 'standard'
-  | 'armored'
-  | 'resistant'
-  | 'flying'
-  | 'boss'
-  | 'splitter';
+type EnemyArchetype = 'fast' | 'standard' | 'armored' | 'resistant' | 'flying' | 'boss' | 'splitter'
 ```
 
 ### 8.2 Wave Table Entry
@@ -867,27 +856,27 @@ type EnemyArchetype =
 // packages/content/src/waves/wave-definition.ts
 
 interface WaveDefinition {
-  waveNumber: number;
-  displayName: string;
-  announcement: string;               // flavor text for UI
+  waveNumber: number
+  displayName: string
+  announcement: string // flavor text for UI
 
-  spawn: WaveSpawnConfig;
+  spawn: WaveSpawnConfig
 
   // Default enemy for all entries unless overridden per entry
-  defaultEnemyId: string;
+  defaultEnemyId: string
 
-  abilities: AbilityId[];
+  abilities: AbilityId[]
 
   modifiers?: {
-    hpMultiplier?: number;
-    speedMultiplier?: number;
-    armorBonus?: number;
-  };
+    hpMultiplier?: number
+    speedMultiplier?: number
+    armorBonus?: number
+  }
 
-  isBoss: boolean;
-  isFlying: boolean;
+  isBoss: boolean
+  isFlying: boolean
 
-  variants?: WaveVariant;             // alternative opponent roll
+  variants?: WaveVariant // alternative opponent roll
 }
 ```
 
@@ -895,13 +884,13 @@ interface WaveDefinition {
 
 ```ts
 interface AbilityDefinition {
-  id: AbilityId;
-  displayName: string;
-  description: string;
-  icon: string;                       // ui icon asset key
+  id: AbilityId
+  displayName: string
+  description: string
+  icon: string // ui icon asset key
 
-  params: Record<string, number | boolean | string>;
-  tags: ('defensive' | 'offensive' | 'movement')[];
+  params: Record<string, number | boolean | string>
+  tags: ('defensive' | 'offensive' | 'movement')[]
 }
 ```
 
@@ -955,67 +944,64 @@ Per simulation tick (20–60 Hz, authoritative on server):
 
 ```ts
 interface CreepRuntime {
-  instanceId: string;
-  enemyId: string;
-  waveNumber: number;
+  instanceId: string
+  enemyId: string
+  waveNumber: number
 
-  hp: number;
-  maxHp: number;
-  speed: number;
-  speedMultiplier: number;
+  hp: number
+  maxHp: number
+  speed: number
+  speedMultiplier: number
 
-  pathIndex: number;
-  distanceAlongSegment: number;
-  legIndex: number;
-  pathProgress: number;
-  worldPos: { x: number; y: number };
+  pathIndex: number
+  distanceAlongSegment: number
+  legIndex: number
+  pathProgress: number
+  worldPos: { x: number; y: number }
 
-  armor: number;               // current (base + reactive stacks + debuffs)
-  magicResist: number;
-  abilities: ActiveAbility[];
+  armor: number // current (base + reactive stacks + debuffs)
+  magicResist: number
+  abilities: ActiveAbility[]
 
-  state: CreepLifecycleState;
-  mobility: 'ground' | 'flying';
+  state: CreepLifecycleState
+  mobility: 'ground' | 'flying'
 
   // Targeting helpers
-  isInvisible: boolean;
-  hasBeenRevealed: boolean;
+  isInvisible: boolean
+  hasBeenRevealed: boolean
 }
 ```
 
 ### 9.3 Damage Resolution Pseudocode
 
 ```ts
-function resolveDamage(
-  creep: CreepRuntime,
-  attack: AttackPacket
-): number {
-  if (attack.type === 'magic' && creep.flags.magicImmune) return 0;
-  if (attack.type !== 'magic' && attack.type !== 'pure' && creep.flags.physicalImmune) return 0;
+function resolveDamage(creep: CreepRuntime, attack: AttackPacket): number {
+  if (attack.type === 'magic' && creep.flags.magicImmune) return 0
+  if (attack.type !== 'magic' && attack.type !== 'pure' && creep.flags.physicalImmune) return 0
 
-  if (roll() < creep.evasion) return 0;
+  if (roll() < creep.evasion) return 0
 
-  let damage = attack.baseDamage;
+  let damage = attack.baseDamage
 
   if (attack.type !== 'pure' && attack.type !== 'chaos') {
-    damage *= armorTypeMatrix[attack.type][creep.armorType];
-    damage *= armorDamageMultiplier(creep.armor, attack.type);
+    damage *= armorTypeMatrix[attack.type][creep.armorType]
+    damage *= armorDamageMultiplier(creep.armor, attack.type)
   }
 
   if (attack.type === 'magic') {
-    damage *= 1 - creep.magicResist / 100;
+    damage *= 1 - creep.magicResist / 100
   }
 
   if (creep.krakenShell) {
-    damage = krakenShellMitigate(damage, creep.krakenShell.threshold);
+    damage = krakenShellMitigate(damage, creep.krakenShell.threshold)
   }
 
   if (creep.refraction?.charges > 0) {
-    creep.refraction.charges--;
-    return 0;
+    creep.refraction.charges--
+    return 0
   }
 
-  return Math.max(0, Math.floor(damage));
+  return Math.max(0, Math.floor(damage))
 }
 ```
 
@@ -1027,26 +1013,26 @@ function resolveDamage(
 
 ```ts
 // Ground creep
-sprite.setOrigin(0.5, 0.75);
-sprite.setDepth(sprite.y);
+sprite.setOrigin(0.5, 0.75)
+sprite.setDepth(sprite.y)
 
 // Flying creep
-body.setOrigin(0.5, 0.75);
-body.setDepth(sprite.y + 10000);
-shadow.setOrigin(0.5, 0.5);
-shadow.setDepth(sprite.y - 1); // always below body
+body.setOrigin(0.5, 0.75)
+body.setDepth(sprite.y + 10000)
+shadow.setOrigin(0.5, 0.5)
+shadow.setDepth(sprite.y - 1) // always below body
 ```
 
 ### 10.2 Animation Controller
 
-| Sim state | Animation | Notes |
-| --- | --- | --- |
-| `moving` (ground) | `walk` loop | Speed from sim, not FPS |
-| `moving` (flying) | `fly` loop | Shadow follows X, fixed Y offset |
-| `hit` | `hit` one-shot | Can overlay on walk |
-| `dying` | `death` one-shot | Destroy on complete |
-| `splitting` | `split` one-shot | Spawn children on frame 3–4 |
-| `spawning` (boss) | `spawn` one-shot | Gate-colossus entry |
+| Sim state         | Animation        | Notes                            |
+| ----------------- | ---------------- | -------------------------------- |
+| `moving` (ground) | `walk` loop      | Speed from sim, not FPS          |
+| `moving` (flying) | `fly` loop       | Shadow follows X, fixed Y offset |
+| `hit`             | `hit` one-shot   | Can overlay on walk              |
+| `dying`           | `death` one-shot | Destroy on complete              |
+| `splitting`       | `split` one-shot | Spawn children on frame 3–4      |
+| `spawning` (boss) | `spawn` one-shot | Gate-colossus entry              |
 
 ### 10.3 Interpolation
 
@@ -1071,16 +1057,16 @@ Client owns: sprite interpolation, animation phase, cosmetic FX.
 ```ts
 // @colyseus/schema compatible
 class CreepState extends Schema {
-  @type('string') instanceId: string;
-  @type('string') enemyId: string;
-  @type('number') waveNumber: number;
-  @type('number') hp: number;
-  @type('number') pathProgress: number;
-  @type('number') worldX: number;
-  @type('number') worldY: number;
-  @type('string') state: string;
-  @type('number') armor: number;
-  @type(['string']) activeAbilityIds: string[];
+  @type('string') instanceId: string
+  @type('string') enemyId: string
+  @type('number') waveNumber: number
+  @type('number') hp: number
+  @type('number') pathProgress: number
+  @type('number') worldX: number
+  @type('number') worldY: number
+  @type('string') state: string
+  @type('number') armor: number
+  @type(['string']) activeAbilityIds: string[]
 }
 ```
 
@@ -1095,16 +1081,16 @@ class CreepState extends Schema {
 
 ## 12. Classic Gem TD Fidelity Notes
 
-| Classic behavior | Clone implementation |
-| --- | --- |
-| 5–7 waypoints, shortest path | Configurable `waypoints[]` + per-leg A* |
-| Flying every ~4–5 waves | `wave % 5 === 0` default |
-| Boss every 10 waves | `isBoss` flag + `gate-colossus` |
-| 50 waves then repeat | `wave > 50` → `effectiveWave = ((wave - 1) % 50) + 1` with scaling |
-| Cannot block checkpoints | Anti-blocking validation on all legs |
-| Alternative opponents | `WaveVariant` weighted roll |
-| MVP tower bonuses | Out of scope for this doc; see HANDOVER §attack phase |
-| Gem-type counters | §7 combat matrix |
+| Classic behavior             | Clone implementation                                               |
+| ---------------------------- | ------------------------------------------------------------------ |
+| 5–7 waypoints, shortest path | Configurable `waypoints[]` + per-leg A\*                           |
+| Flying every ~4–5 waves      | `wave % 5 === 0` default                                           |
+| Boss every 10 waves          | `isBoss` flag + `gate-colossus`                                    |
+| 50 waves then repeat         | `wave > 50` → `effectiveWave = ((wave - 1) % 50) + 1` with scaling |
+| Cannot block checkpoints     | Anti-blocking validation on all legs                               |
+| Alternative opponents        | `WaveVariant` weighted roll                                        |
+| MVP tower bonuses            | Out of scope for this doc; see HANDOVER §attack phase              |
+| Gem-type counters            | §7 combat matrix                                                   |
 
 ---
 
@@ -1161,29 +1147,29 @@ class CreepState extends Schema {
 
 These require team sign-off before implementation:
 
-| # | Question | Options |
-| ---: | --- | --- |
-| 1 | Exact waypoint count for default map | 3 (HANDOVER simplified) vs 5–7 (classic) |
-| 2 | Flying wave cadence | Every 4 vs every 5 waves |
-| 3 | Path tick rate | 30 Hz sim vs 60 Hz sim |
-| 4 | Evasion vs RNG feel | True random vs pseudo-random per creep |
-| 5 | Split child enemy type | Always `crystal-runner` vs parent-dependent |
-| 6 | Invisibility reveal duration | Permanent after first hit vs timed reveal |
-| 7 | Armor formula variant | WC3 classic vs simplified linear |
-| 8 | Wave 50+ repeat | Full ability remix vs pure stat scaling |
-| 9 | Anti-air tower gate | Can non-anti-air target flying at reduced damage? |
-| 10 | Disarm aura | Disable all towers in radius vs closest N towers |
+|   # | Question                             | Options                                           |
+| --: | ------------------------------------ | ------------------------------------------------- |
+|   1 | Exact waypoint count for default map | 3 (HANDOVER simplified) vs 5–7 (classic)          |
+|   2 | Flying wave cadence                  | Every 4 vs every 5 waves                          |
+|   3 | Path tick rate                       | 30 Hz sim vs 60 Hz sim                            |
+|   4 | Evasion vs RNG feel                  | True random vs pseudo-random per creep            |
+|   5 | Split child enemy type               | Always `crystal-runner` vs parent-dependent       |
+|   6 | Invisibility reveal duration         | Permanent after first hit vs timed reveal         |
+|   7 | Armor formula variant                | WC3 classic vs simplified linear                  |
+|   8 | Wave 50+ repeat                      | Full ability remix vs pure stat scaling           |
+|   9 | Anti-air tower gate                  | Can non-anti-air target flying at reduced damage? |
+|  10 | Disarm aura                          | Disable all towers in radius vs closest N towers  |
 
 ---
 
 ## Related Documents
 
-| Document | Relevance |
-| --- | --- |
-| [`HANDOVER.md`](./HANDOVER.md) | Core loop, pathfinding perf, targeting, armor type recommendation |
-| [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) | Archetype art, animation frames, export paths, Phaser manifest |
-| [`CODEX-PIXELLAB-MCP.md`](./CODEX-PIXELLAB-MCP.md) | MCP wiring for asset generation |
+| Document                                                         | Relevance                                                         |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [`HANDOVER.md`](./HANDOVER.md)                                   | Core loop, pathfinding perf, targeting, armor type recommendation |
+| [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) | Archetype art, animation frames, export paths, Phaser manifest    |
+| [`CODEX-PIXELLAB-MCP.md`](./CODEX-PIXELLAB-MCP.md)               | MCP wiring for asset generation                                   |
 
 ---
 
-*Last updated: design spec for `pb-td` v0.2.x. Update this document when `packages/content` schemas land in the repo.*
+_Last updated: design spec for `pb-td` v0.2.x. Update this document when `packages/content` schemas land in the repo._

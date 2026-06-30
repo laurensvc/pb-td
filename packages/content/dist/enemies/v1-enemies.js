@@ -1,0 +1,128 @@
+const STONE_GRUNT_SPEED = 270;
+export const v1EnemyDefinitions = [
+    {
+        id: 'crystal-runner',
+        displayName: 'Crystal Runner',
+        archetype: 'fast',
+        mobility: 'ground',
+        stats: {
+            baseHp: 80,
+            baseSpeed: STONE_GRUNT_SPEED * 1.35,
+            armorType: 'light',
+            baseArmor: 0,
+            magicResist: 0,
+            goldReward: 3,
+            lifeCost: 1,
+        },
+        visuals: {
+            renderScale: 1,
+            collisionRadius: 12,
+            animations: {
+                walk: 'enemy.crystal-runner.walk',
+                hit: 'enemy.crystal-runner.hit',
+                death: 'enemy.crystal-runner.death',
+            },
+        },
+    },
+    {
+        id: 'stone-grunt',
+        displayName: 'Stone Grunt',
+        archetype: 'standard',
+        mobility: 'ground',
+        stats: {
+            baseHp: 120,
+            baseSpeed: STONE_GRUNT_SPEED,
+            armorType: 'medium',
+            baseArmor: 1,
+            magicResist: 0,
+            goldReward: 4,
+            lifeCost: 1,
+        },
+        visuals: {
+            renderScale: 1,
+            collisionRadius: 14,
+            animations: {
+                walk: 'enemy.stone-grunt.walk',
+                hit: 'enemy.stone-grunt.hit',
+                death: 'enemy.stone-grunt.death',
+            },
+        },
+    },
+    {
+        id: 'shield-bulwark',
+        displayName: 'Shield Bulwark',
+        archetype: 'armored',
+        mobility: 'ground',
+        stats: {
+            baseHp: 220,
+            baseSpeed: STONE_GRUNT_SPEED * 0.8,
+            armorType: 'heavy',
+            baseArmor: 5,
+            magicResist: 0,
+            goldReward: 6,
+            lifeCost: 1,
+        },
+        visuals: {
+            renderScale: 1.1,
+            collisionRadius: 16,
+            animations: {
+                walk: 'enemy.shield-bulwark.walk',
+                hit: 'enemy.shield-bulwark.hit',
+                death: 'enemy.shield-bulwark.death',
+            },
+        },
+    },
+    {
+        id: 'sky-warden',
+        displayName: 'Sky Warden',
+        archetype: 'flying',
+        mobility: 'flying',
+        stats: {
+            baseHp: 100,
+            baseSpeed: STONE_GRUNT_SPEED * 1.15,
+            armorType: 'medium',
+            baseArmor: 0,
+            magicResist: 10,
+            goldReward: 5,
+            lifeCost: 1,
+        },
+        flags: {
+            rootImmune: true,
+        },
+        visuals: {
+            renderScale: 1,
+            collisionRadius: 12,
+            animations: {
+                fly: 'enemy.sky-warden.fly',
+                hit: 'enemy.sky-warden.hit',
+                death: 'enemy.sky-warden.death',
+            },
+            shadowKey: 'enemy.sky-warden.shadow',
+        },
+    },
+    {
+        id: 'gate-colossus',
+        displayName: 'Gate Colossus',
+        archetype: 'boss',
+        mobility: 'ground',
+        stats: {
+            baseHp: 900,
+            baseSpeed: STONE_GRUNT_SPEED * 0.55,
+            armorType: 'fortified',
+            baseArmor: 8,
+            magicResist: 25,
+            goldReward: 25,
+            lifeCost: 1,
+        },
+        visuals: {
+            renderScale: 1.75,
+            collisionRadius: 24,
+            animations: {
+                walk: 'enemy.gate-colossus.walk',
+                hit: 'enemy.gate-colossus.hit',
+                death: 'enemy.gate-colossus.death',
+                spawn: 'enemy.gate-colossus.spawn',
+            },
+        },
+    },
+];

@@ -33,31 +33,31 @@ Extends [`HANDOVER.md`](./HANDOVER.md) §2.1–2.2, §6–7 and ties into [`BOAR
 
 ## 1. Design goals
 
-| Goal | Spec |
-| --- | --- |
-| **Gems are the maze** | Unselected gems become rocks; selected gems become towers — both block paths. |
-| **RNG with agency** | Random gem rolls, but player chooses placement and which gem to keep. |
-| **Type = role** | Each of 8 gem types has a distinct combat identity (slow, splash, poison, etc.). |
-| **Quality = power** | Tier upgrades stats and ability potency within a type. |
-| **Recipes reward planning** | Combining specific gems/towers creates special towers with unique kits. |
-| **Content-driven** | All stats, recipes, and ability params live in JSON — not hardcoded in Phaser. |
-| **Readable at scale** | On a grass board with hundreds of structures, silhouette and color identify type. |
+| Goal                        | Spec                                                                              |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| **Gems are the maze**       | Unselected gems become rocks; selected gems become towers — both block paths.     |
+| **RNG with agency**         | Random gem rolls, but player chooses placement and which gem to keep.             |
+| **Type = role**             | Each of 8 gem types has a distinct combat identity (slow, splash, poison, etc.).  |
+| **Quality = power**         | Tier upgrades stats and ability potency within a type.                            |
+| **Recipes reward planning** | Combining specific gems/towers creates special towers with unique kits.           |
+| **Content-driven**          | All stats, recipes, and ability params live in JSON — not hardcoded in Phaser.    |
+| **Readable at scale**       | On a grass board with hundreds of structures, silhouette and color identify type. |
 
 ---
 
 ## 2. Classic Gem TD reference
 
-| Mechanic | Classic behavior | Clone adoption |
-| --- | --- | --- |
-| Base gem types | **8** types × **6** quality levels | Same 8 types; 6 qualities + optional **Great** tier |
-| Placement | **5** gems per build round, **2×2** each | Same |
-| Selection | Keep **1** as tower; **4** become rocks | Same |
-| Combine | 3 specific gems/towers → special tower | Same pattern; v1 ships subset of recipes |
-| Range | ~500 base units (varies by tower) | **160 px** base at tier 1 (5 tiles @ 32px), scales per tier |
-| Attack speed | Type-dependent (Aquamarine fastest) | Defined per gem in content |
-| MVP | Top damage tower per round gets buff; 10 MVPs → aura | Adopt simplified v1 MVP (see §11) |
-| Manual control | Stop/hold fire, focus targeting | v1: targeting mode + hold fire |
-| Aura stacking | Same aura level does not stack | Enforce by aura `stackGroup` |
+| Mechanic       | Classic behavior                                     | Clone adoption                                              |
+| -------------- | ---------------------------------------------------- | ----------------------------------------------------------- |
+| Base gem types | **8** types × **6** quality levels                   | Same 8 types; 6 qualities + optional **Great** tier         |
+| Placement      | **5** gems per build round, **2×2** each             | Same                                                        |
+| Selection      | Keep **1** as tower; **4** become rocks              | Same                                                        |
+| Combine        | 3 specific gems/towers → special tower               | Same pattern; v1 ships subset of recipes                    |
+| Range          | ~500 base units (varies by tower)                    | **160 px** base at tier 1 (5 tiles @ 32px), scales per tier |
+| Attack speed   | Type-dependent (Aquamarine fastest)                  | Defined per gem in content                                  |
+| MVP            | Top damage tower per round gets buff; 10 MVPs → aura | Adopt simplified v1 MVP (see §11)                           |
+| Manual control | Stop/hold fire, focus targeting                      | v1: targeting mode + hold fire                              |
+| Aura stacking  | Same aura level does not stack                       | Enforce by aura `stackGroup`                                |
 
 **Gem type letters (classic):** Amethyst **P**, Aquamarine **Q**, Diamond **D**, Emerald **G**, Opal **E**, Ruby **R**, Sapphire **B**, Topaz **Y**.
 
@@ -98,12 +98,12 @@ flowchart LR
 
 ### 3.1 Entity kinds on the board
 
-| Kind | Created when | Blocks path | Attacks |
-| --- | --- | :---: | :---: |
-| **Placement gem** | Build — before select | ✓ (temporary) | ✗ |
-| **Tower** | Resolve — chosen gem | ✓ | ✓ |
-| **Rock** | Resolve — unchosen gems | ✓ | ✗ |
-| **Special tower** | Combine recipe | ✓ | ✓ |
+| Kind              | Created when            |  Blocks path  | Attacks |
+| ----------------- | ----------------------- | :-----------: | :-----: |
+| **Placement gem** | Build — before select   | ✓ (temporary) |    ✗    |
+| **Tower**         | Resolve — chosen gem    |       ✓       |    ✓    |
+| **Rock**          | Resolve — unchosen gems |       ✓       |    ✗    |
+| **Special tower** | Combine recipe          |       ✓       |    ✓    |
 
 All structures use **2×2** footprints per [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md).
 
@@ -113,28 +113,28 @@ All structures use **2×2** footprints per [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AN
 
 ### 4.1 The eight gem types
 
-| ID | Classic name | Color | Combat role | Attack type | Primary counter |
-| --- | --- | --- | --- | --- | --- |
-| `amethyst` | Amethyst | Violet | Armor pierce / corrupt | `pierce` | High armor, fortified |
-| `aquamarine` | Aquamarine | Cyan | Attack speed (self + aura later) | `normal` | Single-target DPS checks |
-| `diamond` | Diamond | White/clear | Raw high damage | `normal` | Medium creeps, bosses |
-| `emerald` | Emerald | Green | Poison DoT | `magic` | High HP, regen (vitality) |
-| `opal` | Opal | Iridescent | Attack speed aura | `normal` | Supporting maze DPS |
-| `ruby` | Ruby | Red | Splash / cleave (`pure` portion) | `normal` + `pure` splash | Grouped waves |
-| `sapphire` | Sapphire | Blue | Slow | `magic` | Fast creeps, flying |
-| `topaz` | Topaz | Yellow | Multi-target split shot | `normal` | Swarms, invisibility groups |
+| ID           | Classic name | Color       | Combat role                      | Attack type              | Primary counter             |
+| ------------ | ------------ | ----------- | -------------------------------- | ------------------------ | --------------------------- |
+| `amethyst`   | Amethyst     | Violet      | Armor pierce / corrupt           | `pierce`                 | High armor, fortified       |
+| `aquamarine` | Aquamarine   | Cyan        | Attack speed (self + aura later) | `normal`                 | Single-target DPS checks    |
+| `diamond`    | Diamond      | White/clear | Raw high damage                  | `normal`                 | Medium creeps, bosses       |
+| `emerald`    | Emerald      | Green       | Poison DoT                       | `magic`                  | High HP, regen (vitality)   |
+| `opal`       | Opal         | Iridescent  | Attack speed aura                | `normal`                 | Supporting maze DPS         |
+| `ruby`       | Ruby         | Red         | Splash / cleave (`pure` portion) | `normal` + `pure` splash | Grouped waves               |
+| `sapphire`   | Sapphire     | Blue        | Slow                             | `magic`                  | Fast creeps, flying         |
+| `topaz`      | Topaz        | Yellow      | Multi-target split shot          | `normal`                 | Swarms, invisibility groups |
 
 ### 4.2 Quality tiers
 
-| Tier | ID | Classic prefix | Relative power | Roll weight (start) |
-| ---: | --- | --- | --- | --- |
-| 1 | `chipped` | ×1 | Baseline | 100% at prob level 1 |
-| 2 | `flawed` | ×2 | +~80% stats | Unlocked via upgrades |
-| 3 | `normal` | ×3 | +~60% over flawed | |
-| 4 | `flawless` | ×4 | Strong mid-game | |
-| 5 | `perfect` | ×5 | Late-game | |
-| 6 | `great` | ×6 | Rare peak tier | Very low weight |
-| — | `great` (named) | Great | Event/quest only (optional) | Defer post-v1 |
+| Tier | ID              | Classic prefix | Relative power              | Roll weight (start)   |
+| ---: | --------------- | -------------- | --------------------------- | --------------------- |
+|    1 | `chipped`       | ×1             | Baseline                    | 100% at prob level 1  |
+|    2 | `flawed`        | ×2             | +~80% stats                 | Unlocked via upgrades |
+|    3 | `normal`        | ×3             | +~60% over flawed           |                       |
+|    4 | `flawless`      | ×4             | Strong mid-game             |                       |
+|    5 | `perfect`       | ×5             | Late-game                   |                       |
+|    6 | `great`         | ×6             | Rare peak tier              | Very low weight       |
+|    — | `great` (named) | Great          | Event/quest only (optional) | Defer post-v1         |
 
 **Canonical gem ID:** `{type}-{quality}` — e.g. `ruby-flawless`, `sapphire-chipped`.
 
@@ -144,10 +144,10 @@ During placement, a gem is not yet a tower:
 
 ```ts
 interface PlacedGem {
-  instanceId: string;
-  gemId: string;              // "emerald-normal"
-  grid: { gx: number; gy: number };  // 2x2 top-left, even-aligned
-  phase: 'placed' | 'selected' | 'consumed' | 'rock';
+  instanceId: string
+  gemId: string // "emerald-normal"
+  grid: { gx: number; gy: number } // 2x2 top-left, even-aligned
+  phase: 'placed' | 'selected' | 'consumed' | 'rock'
 }
 ```
 
@@ -171,10 +171,10 @@ During select, if board satisfies a **recipe**, show **COMBINE** action (§7).
 
 ### 5.3 Resolve
 
-| Placed gem | Result |
-| --- | --- |
-| Selected | Becomes **tower** at same footprint; play `build` animation |
-| Other 4 | Become **rocks** permanently |
+| Placed gem | Result                                                      |
+| ---------- | ----------------------------------------------------------- |
+| Selected   | Becomes **tower** at same footprint; play `build` animation |
+| Other 4    | Become **rocks** permanently                                |
 
 Path cache invalidates after resolve. Gold income from prior wave already applied.
 
@@ -196,17 +196,17 @@ Classic allows combine **during build phase** before or instead of simple select
 
 ```ts
 interface TowerInstance {
-  instanceId: string;
-  towerId: string;            // "diamond-normal" or "silver" (special)
-  grid: { gx: number; gy: number };
-  world: { x: number; y: number };
+  instanceId: string
+  towerId: string // "diamond-normal" or "silver" (special)
+  grid: { gx: number; gy: number }
+  world: { x: number; y: number }
 
-  stats: TowerCombatStats;      // resolved from content + MVP + auras
-  state: 'idle' | 'attacking' | 'held';  // held = player disabled fire
+  stats: TowerCombatStats // resolved from content + MVP + auras
+  state: 'idle' | 'attacking' | 'held' // held = player disabled fire
 
-  mvpCount: number;
-  targetingMode: TargetingMode;
-  lastAttackAt: number;
+  mvpCount: number
+  targetingMode: TargetingMode
+  lastAttackAt: number
 }
 ```
 
@@ -214,9 +214,9 @@ interface TowerInstance {
 
 ```ts
 interface RockInstance {
-  instanceId: string;
-  grid: { gx: number; gy: number };
-  assetKey: 'env.rock';
+  instanceId: string
+  grid: { gx: number; gy: number }
+  assetKey: 'env.rock'
 }
 ```
 
@@ -236,32 +236,37 @@ Rocks are passive blockers — no HP, no interaction. One rock sprite regardless
 
 ```ts
 interface RecipeDefinition {
-  id: string;                   // "silver"
-  displayName: string;
-  tier: 'basic' | 'intermediate' | 'advanced' | 'top' | 'secret';
+  id: string // "silver"
+  displayName: string
+  tier: 'basic' | 'intermediate' | 'advanced' | 'top' | 'secret'
 
-  inputs: RecipeInput[];        // exactly 3 for standard recipes
-  outputTowerId: string;
+  inputs: RecipeInput[] // exactly 3 for standard recipes
+  outputTowerId: string
 
   // If all 3 placed in ONE build round → instant combine offered
-  instantCombineInSingleRound: boolean;
+  instantCombineInSingleRound: boolean
 }
 
 type RecipeInput =
-  | { kind: 'gem'; gemId: string }           // "sapphire-chipped"
-  | { kind: 'tower'; towerId: string };     // "silver"
+  | { kind: 'gem'; gemId: string } // "sapphire-chipped"
+  | { kind: 'tower'; towerId: string } // "silver"
 ```
 
 ### 7.2 Resolution algorithm
 
 ```ts
 function findAvailableRecipes(board: BoardState): RecipeDefinition[] {
-  return recipes.filter(r => r.inputs.every(input => board.has(input)));
+  return recipes.filter((r) => r.inputs.every((input) => board.has(input)))
 }
 
-function applyRecipe(board: BoardState, recipe: RecipeDefinition, anchorGx: number, anchorGy: number) {
-  for (const input of recipe.inputs) board.consume(input);
-  board.placeTower(recipe.outputTowerId, anchorGx, anchorGy);
+function applyRecipe(
+  board: BoardState,
+  recipe: RecipeDefinition,
+  anchorGx: number,
+  anchorGy: number,
+) {
+  for (const input of recipe.inputs) board.consume(input)
+  board.placeTower(recipe.outputTowerId, anchorGx, anchorGy)
 }
 ```
 
@@ -269,24 +274,24 @@ Inputs must be **exact** tier and type unless recipe specifies `tower` lineage (
 
 ### 7.3 v1 recipe catalog (ship first)
 
-| Output | Tier | Inputs | Notes |
-| --- | --- | --- | --- |
-| `silver` | basic | `sapphire-chipped` + `diamond-chipped` + `topaz-chipped` | Slow + damage baseline |
-| `malachite` | basic | `opal-chipped` + `emerald-chipped` + `aquamarine-chipped` | Multi-target 4 |
-| `quartz` | basic | `emerald-flawless` + `ruby-normal` + `amethyst-flawed` | Anti-fly debuff |
-| `jade` | basic | `emerald-normal` + `opal-normal` + `sapphire-flawed` | Strong poison |
-| `asteriated-ruby` | basic | `ruby-flawed` + `ruby-chipped` + `amethyst-chipped` | Burn aura |
+| Output            | Tier  | Inputs                                                    | Notes                  |
+| ----------------- | ----- | --------------------------------------------------------- | ---------------------- |
+| `silver`          | basic | `sapphire-chipped` + `diamond-chipped` + `topaz-chipped`  | Slow + damage baseline |
+| `malachite`       | basic | `opal-chipped` + `emerald-chipped` + `aquamarine-chipped` | Multi-target 4         |
+| `quartz`          | basic | `emerald-flawless` + `ruby-normal` + `amethyst-flawed`    | Anti-fly debuff        |
+| `jade`            | basic | `emerald-normal` + `opal-normal` + `sapphire-flawed`      | Strong poison          |
+| `asteriated-ruby` | basic | `ruby-flawed` + `ruby-chipped` + `amethyst-chipped`       | Burn aura              |
 
 ### 7.4 Slice 2+ recipes (defer)
 
-| Output | Tier | Inputs |
-| --- | --- | --- |
-| `silver-knight` | intermediate | `silver` + `aquamarine-flawed` + `ruby-normal` |
-| `pink-diamond` | intermediate | `diamond-perfect` + `diamond-normal` + `topaz-normal` |
-| `vivid-malachite` | intermediate | `malachite` + `diamond-flawed` + `topaz-normal` |
-| `volcano` | intermediate | `asteriated-ruby` + `ruby-flawless` + `amethyst-normal` |
-| `gold` | intermediate | `amethyst-perfect` ×2 + `diamond-flawed` | Corrupt armor |
-| `dark-emerald` | intermediate | `emerald-perfect` + `sapphire-flawless` + `topaz-flawed` | Stun chance |
+| Output            | Tier         | Inputs                                                   |
+| ----------------- | ------------ | -------------------------------------------------------- | ------------- |
+| `silver-knight`   | intermediate | `silver` + `aquamarine-flawed` + `ruby-normal`           |
+| `pink-diamond`    | intermediate | `diamond-perfect` + `diamond-normal` + `topaz-normal`    |
+| `vivid-malachite` | intermediate | `malachite` + `diamond-flawed` + `topaz-normal`          |
+| `volcano`         | intermediate | `asteriated-ruby` + `ruby-flawless` + `amethyst-normal`  |
+| `gold`            | intermediate | `amethyst-perfect` ×2 + `diamond-flawed`                 | Corrupt armor |
+| `dark-emerald`    | intermediate | `emerald-perfect` + `sapphire-flawless` + `topaz-flawed` | Stun chance   |
 
 Full classic catalog (50+ specials) lives in `recipes-full.json` — import incrementally.
 
@@ -304,14 +309,14 @@ Full classic catalog (50+ specials) lives in `recipes-full.json` — import incr
 
 ```ts
 interface TowerCombatStats {
-  range: number;              // pixels (world space)
-  baseDamage: number;         // per primary hit
-  attackInterval: number;     // seconds between attacks
-  projectileSpeed?: number;   // pixels/sec; omit for instant ray
-  targets: number;            // 1 default; topaz splits higher
+  range: number // pixels (world space)
+  baseDamage: number // per primary hit
+  attackInterval: number // seconds between attacks
+  projectileSpeed?: number // pixels/sec; omit for instant ray
+  targets: number // 1 default; topaz splits higher
 
-  critChance?: number;
-  critMultiplier?: number;
+  critChance?: number
+  critMultiplier?: number
 }
 ```
 
@@ -319,13 +324,13 @@ interface TowerCombatStats {
 
 Classic Gem TD treats range as a large internal value (~500). This project maps to pixels on a **32px tile** grid:
 
-| Reference | Pixels | Tiles (approx.) |
-| --- | ---: | ---: |
-| Tier 1 base | 160 | 5 |
-| Tier 3 mid | 200 | 6.25 |
-| Special basic | 240 | 7.5 |
-| Advanced | 280–320 | 9–10 |
-| Top / siege | 400+ | 12.5+ |
+| Reference     |  Pixels | Tiles (approx.) |
+| ------------- | ------: | --------------: |
+| Tier 1 base   |     160 |               5 |
+| Tier 3 mid    |     200 |            6.25 |
+| Special basic |     240 |             7.5 |
+| Advanced      | 280–320 |            9–10 |
+| Top / siege   |    400+ |           12.5+ |
 
 **Rule of thumb:** 1 tile ≈ 32px ≈ classic “one range unit” for player intuition (per SC2 Gem TD wiki).
 
@@ -333,35 +338,35 @@ Classic Gem TD treats range as a large internal value (~500). This project maps 
 
 Tuned from classic P1/Q1/D1… values, scaled to clone units:
 
-| Gem ID | Range | Damage | Interval (s) | Targets | Notes |
-| --- | ---: | ---: | ---: | ---: | --- |
-| `amethyst-chipped` | 160 | 2 | 0.60 | 1 | + pierce 2 armor |
-| `aquamarine-chipped` | 128 | 2 | 0.25 | 1 | High AS baseline |
-| `diamond-chipped` | 160 | 5 | 1.00 | 1 | Pure damage focus |
-| `emerald-chipped` | 160 | 2 | 1.00 | 1 | + poison 2 DPS × 5s |
-| `opal-chipped` | 160 | 1 | 1.00 | 1 | Aura +20 AS (§12) |
-| `ruby-chipped` | 160 | 4 | 1.00 | 1 | 30% pure splash @ 96px |
-| `sapphire-chipped` | 192 | 2 | 1.00 | 1 | Slow −60 speed |
-| `topaz-chipped` | 192 | 3 | 1.30 | 3 | Split shot |
+| Gem ID               | Range | Damage | Interval (s) | Targets | Notes                  |
+| -------------------- | ----: | -----: | -----------: | ------: | ---------------------- |
+| `amethyst-chipped`   |   160 |      2 |         0.60 |       1 | + pierce 2 armor       |
+| `aquamarine-chipped` |   128 |      2 |         0.25 |       1 | High AS baseline       |
+| `diamond-chipped`    |   160 |      5 |         1.00 |       1 | Pure damage focus      |
+| `emerald-chipped`    |   160 |      2 |         1.00 |       1 | + poison 2 DPS × 5s    |
+| `opal-chipped`       |   160 |      1 |         1.00 |       1 | Aura +20 AS (§12)      |
+| `ruby-chipped`       |   160 |      4 |         1.00 |       1 | 30% pure splash @ 96px |
+| `sapphire-chipped`   |   192 |      2 |         1.00 |       1 | Slow −60 speed         |
+| `topaz-chipped`      |   192 |      3 |         1.30 |       3 | Split shot             |
 
 ### 8.4 Quality scaling multipliers
 
 Apply per stat category:
 
-| Quality | Damage | DoT / debuff | Range | Attack speed |
-| --- | ---: | ---: | ---: | ---: |
-| chipped | 1.00 | 1.00 | 1.00 | 1.00 |
-| flawed | 2.00 | 1.75 | 1.00 | 1.00 |
-| normal | 3.00 | 2.50 | 1.05 | 1.00 |
-| flawless | 4.50 | 3.50 | 1.10 | 1.05 |
-| perfect | 7.00 | 5.00 | 1.15 | 1.10 |
-| great | 12.00 | 8.00 | 1.20 | 1.15 |
+| Quality  | Damage | DoT / debuff | Range | Attack speed |
+| -------- | -----: | -----------: | ----: | -----------: |
+| chipped  |   1.00 |         1.00 |  1.00 |         1.00 |
+| flawed   |   2.00 |         1.75 |  1.00 |         1.00 |
+| normal   |   3.00 |         2.50 |  1.05 |         1.00 |
+| flawless |   4.50 |         3.50 |  1.10 |         1.05 |
+| perfect  |   7.00 |         5.00 |  1.15 |         1.10 |
+| great    |  12.00 |         8.00 |  1.20 |         1.15 |
 
 ```ts
 function resolveStats(gemId: string): TowerCombatStats {
-  const base = gemBaseTable[gemId];
-  const quality = parseQuality(gemId);
-  return applyMultipliers(base, qualityMultipliers[quality]);
+  const base = gemBaseTable[gemId]
+  const quality = parseQuality(gemId)
+  return applyMultipliers(base, qualityMultipliers[quality])
 }
 ```
 
@@ -371,12 +376,12 @@ Special towers **replace** base gem stats entirely (do not stack on prior gem). 
 
 **Example — `silver` (basic):**
 
-| Stat | Value |
-| --- | ---: |
-| Range | 192 |
-| Damage | 40 |
-| Interval | 1.00s |
-| Slow | −90 speed on hit |
+| Stat     |            Value |
+| -------- | ---------------: |
+| Range    |              192 |
+| Damage   |               40 |
+| Interval |            1.00s |
+| Slow     | −90 speed on hit |
 
 ---
 
@@ -399,22 +404,28 @@ type TowerAbility =
   | { type: 'aura_attack_speed'; bonus: number; radius: number; stackGroup: string }
   | { type: 'aura_range'; bonus: number; radius: number }
   | { type: 'inspire'; damagePercent: number; radius: number }
-  | { type: 'monkey_king_bar'; radius: number }   // true strike vs evasion
-  | { type: 'decadent'; armorReduction: number; mrReduction: number; radius: number; ignoreMagicImmune?: boolean };
+  | { type: 'monkey_king_bar'; radius: number } // true strike vs evasion
+  | {
+      type: 'decadent'
+      armorReduction: number
+      mrReduction: number
+      radius: number
+      ignoreMagicImmune?: boolean
+    }
 ```
 
 ### 9.1 Per-type ability progression
 
-| Type | Tier 1 ability | Max tier (classic ref) |
-| --- | --- | --- |
-| Amethyst | Pierce −2 armor | Pierce −64 armor |
-| Aquamarine | Self AS +200 | AS +500, faster interval |
-| Diamond | — | +320 bonus damage (D6) |
-| Emerald | Poison 2 DPS / 5s | Poison 128 DPS / 5s |
-| Opal | Aura +20 AS | Aura +70 AS |
-| Ruby | Cleave 30% @ 300 | Cleave 100% @ 700 |
-| Sapphire | Slow −60 | Slow −480 + small AoE slow |
-| Topaz | 3 targets | 3 targets (Y6 adds huge range) |
+| Type       | Tier 1 ability    | Max tier (classic ref)         |
+| ---------- | ----------------- | ------------------------------ |
+| Amethyst   | Pierce −2 armor   | Pierce −64 armor               |
+| Aquamarine | Self AS +200      | AS +500, faster interval       |
+| Diamond    | —                 | +320 bonus damage (D6)         |
+| Emerald    | Poison 2 DPS / 5s | Poison 128 DPS / 5s            |
+| Opal       | Aura +20 AS       | Aura +70 AS                    |
+| Ruby       | Cleave 30% @ 300  | Cleave 100% @ 700              |
+| Sapphire   | Slow −60          | Slow −480 + small AoE slow     |
+| Topaz      | 3 targets         | 3 targets (Y6 adds huge range) |
 
 ### 9.2 Effect application order
 
@@ -433,11 +444,11 @@ On projectile impact:
 
 ### 9.3 Projectile vs instant
 
-| Delivery | Used by | Sim |
-| --- | --- | --- |
-| **Projectile** | Most gems | Arcade `moveToObject`, impact radius 10px |
-| **Instant ray** | Optional diamond tier 6 | Immediate damage after attack anim frame |
-| **Aura tick** | Burn, decadent | Periodic AoE pulse from tower center |
+| Delivery        | Used by                 | Sim                                       |
+| --------------- | ----------------------- | ----------------------------------------- |
+| **Projectile**  | Most gems               | Arcade `moveToObject`, impact radius 10px |
+| **Instant ray** | Optional diamond tier 6 | Immediate damage after attack anim frame  |
+| **Aura tick**   | Burn, decadent          | Periodic AoE pulse from tower center      |
 
 ---
 
@@ -448,9 +459,9 @@ On projectile impact:
 ```ts
 type TargetingMode =
   | 'closest_to_tower'
-  | 'closest_to_goal'      // uses creep pathProgress
+  | 'closest_to_goal' // uses creep pathProgress
   | 'highest_hp'
-  | 'first_in_range';
+  | 'first_in_range'
 ```
 
 Default: **`closest_to_goal`** (classic maze optimization).
@@ -461,12 +472,14 @@ Player can set per-tower or global default in UI.
 
 ```ts
 function acquireTarget(tower: TowerInstance, creeps: CreepRuntime[]): CreepRuntime | null {
-  let candidates = creeps.filter(c => inRange(tower, c) && c.state === 'moving');
+  let candidates = creeps.filter((c) => inRange(tower, c) && c.state === 'moving')
 
-  if (tower.requiresAntiAir && c.mobility === 'flying') { /* amethyst anti-air gate — see §13 */ }
-  if (c.isInvisible && !c.hasBeenRevealed && !tower.hasTrueStrike) candidates = exclude(c);
+  if (tower.requiresAntiAir && c.mobility === 'flying') {
+    /* amethyst anti-air gate — see §13 */
+  }
+  if (c.isInvisible && !c.hasBeenRevealed && !tower.hasTrueStrike) candidates = exclude(c)
 
-  return sortByMode(candidates, tower.targetingMode)[0] ?? null;
+  return sortByMode(candidates, tower.targetingMode)[0] ?? null
 }
 ```
 
@@ -477,11 +490,11 @@ function acquireTarget(tower: TowerInstance, creeps: CreepRuntime[]): CreepRunti
 
 ### 10.4 Player control (classic)
 
-| Action | Effect |
-| --- | --- |
-| **Hold fire** | Tower `state = held'` — no acquisition |
-| **Resume** | Returns to `idle` |
-| **Targeting mode** | Per-tower dropdown |
+| Action             | Effect                                 |
+| ------------------ | -------------------------------------- |
+| **Hold fire**      | Tower `state = held'` — no acquisition |
+| **Resume**         | Returns to `idle`                      |
+| **Targeting mode** | Per-tower dropdown                     |
 
 Defer: manual focus fire on specific creep.
 
@@ -497,19 +510,19 @@ Classic MVP rewards the tower dealing the most damage each combat round.
 
 ### 11.1 v1 MVP rules
 
-| Event | Effect |
-| --- | --- |
-| Highest damage tower **this wave** | +1 MVP stack (max 10) |
-| Each MVP stack | +10% damage on that tower |
-| Each MVP stack | Enemies within 64px take −10% MR (debuff) |
-| **10 MVP stacks** | Unlock **MVP Aura**: +75% damage to allies within 192px (6 tiles) |
+| Event                              | Effect                                                            |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| Highest damage tower **this wave** | +1 MVP stack (max 10)                                             |
+| Each MVP stack                     | +10% damage on that tower                                         |
+| Each MVP stack                     | Enemies within 64px take −10% MR (debuff)                         |
+| **10 MVP stacks**                  | Unlock **MVP Aura**: +75% damage to allies within 192px (6 tiles) |
 
 ### 11.2 MVP tracking
 
 ```ts
 interface MvpTracker {
-  damageByTower: Map<string, number>;
-  mvpStacks: Map<string, number>;   // tower instanceId → 0..10
+  damageByTower: Map<string, number>
+  mvpStacks: Map<string, number> // tower instanceId → 0..10
 }
 ```
 
@@ -525,13 +538,13 @@ Players **hold fire** on strong towers early in a wave to feed MVP to a carry to
 
 ### 12.1 Aura types
 
-| Aura | Source | Effect |
-| --- | --- | --- |
-| Attack speed | Opal, Aquamarine (late), specials | +flat AS to allies in radius |
-| Range | Grey Jade line | +range px |
-| Inspire | Cat's Eye line | +% damage |
-| Resist | Deepsea Pearl line | Towers resist disarm/slow (defer mechanic) |
-| MVP | 10-stack tower | +75% damage |
+| Aura         | Source                            | Effect                                     |
+| ------------ | --------------------------------- | ------------------------------------------ |
+| Attack speed | Opal, Aquamarine (late), specials | +flat AS to allies in radius               |
+| Range        | Grey Jade line                    | +range px                                  |
+| Inspire      | Cat's Eye line                    | +% damage                                  |
+| Resist       | Deepsea Pearl line                | Towers resist disarm/slow (defer mechanic) |
+| MVP          | 10-stack tower                    | +75% damage                                |
 
 ### 12.2 Stacking rules (classic)
 
@@ -543,12 +556,12 @@ function resolveAuraBonus(tower: TowerInstance, sources: AuraSource[]): number {
 }
 ```
 
-| stackGroup | Stacks with |
-| --- | --- |
-| `opal_attack_speed` | Higher tier only (same group) |
-| `aquamarine_self_as` | Self only |
-| `mvp_aura` | Unique per tower with 10 stacks |
-| `inspire_damage` | Highest % only |
+| stackGroup           | Stacks with                     |
+| -------------------- | ------------------------------- |
+| `opal_attack_speed`  | Higher tier only (same group)   |
+| `aquamarine_self_as` | Self only                       |
+| `mvp_aura`           | Unique per tower with 10 stacks |
+| `inspire_damage`     | Highest % only                  |
 
 ### 12.3 Aura radius
 
@@ -560,15 +573,15 @@ Default aura radius: **160px** (5 tiles). Advanced towers: **192–320px**.
 
 Cross-reference monster armor in [`MONSTER-SYSTEMS-DEEP-DIVE.md`](./MONSTER-SYSTEMS-DEEP-DIVE.md).
 
-| Gem / tower | Primary damage type | Splash type |
-| --- | --- | --- |
-| Amethyst | `pierce` | — |
-| Diamond | `normal` | — |
-| Emerald poison | `magic` | — |
-| Ruby hit | `normal` | `pure` (cleave) |
-| Sapphire slow | `magic` (minimal damage) | — |
-| Topaz | `normal` | — |
-| Burn auras | `magic` | — |
+| Gem / tower    | Primary damage type      | Splash type     |
+| -------------- | ------------------------ | --------------- |
+| Amethyst       | `pierce`                 | —               |
+| Diamond        | `normal`                 | —               |
+| Emerald poison | `magic`                  | —               |
+| Ruby hit       | `normal`                 | `pure` (cleave) |
+| Sapphire slow  | `magic` (minimal damage) | —               |
+| Topaz          | `normal`                 | —               |
+| Burn auras     | `magic`                  | —               |
 
 **Anti-air:** Amethyst and Quartz lines apply extra debuffs to `mobility: flying`. v1: all towers **can** target flying creeps; anti-air gems are counter picks via debuffs, not hard target restriction.
 
@@ -585,13 +598,13 @@ Player spends gold to raise **Gem Probability Level** (React UI → sim).
 ### 14.1 Quality weights (from HANDOVER)
 
 | Level | Chipped | Flawed | Normal | Flawless | Perfect | Great |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 100% | 0% | 0% | 0% | 0% | 0% |
-| 2 | 70% | 30% | 0% | 0% | 0% | 0% |
-| 3 | 40% | 40% | 20% | 0% | 0% | 0% |
-| 4 | 25% | 35% | 25% | 15% | 0% | 0% |
-| 5 | 15% | 25% | 30% | 20% | 10% | 0% |
-| 6 | 10% | 20% | 25% | 25% | 15% | 5% |
+| ----: | ------: | -----: | -----: | -------: | ------: | ----: |
+|     1 |    100% |     0% |     0% |       0% |      0% |    0% |
+|     2 |     70% |    30% |     0% |       0% |      0% |    0% |
+|     3 |     40% |    40% |    20% |       0% |      0% |    0% |
+|     4 |     25% |    35% |    25% |      15% |      0% |    0% |
+|     5 |     15% |    25% |    30% |      20% |     10% |    0% |
+|     6 |     10% |    20% |    25% |      25% |     15% |    5% |
 
 _Extend table in `gem-probability.json`; levels 4–6 are proposed for clone._
 
@@ -601,9 +614,9 @@ Uniform 1/8 per type at v1. Future: **gem pray** skill biases one type (+40% wei
 
 ```ts
 function rollGem(level: number, bias?: GemType): GemRoll {
-  const type = weightedTypeRoll(bias);
-  const quality = weightedQualityRoll(level);
-  return { gemId: `${type}-${quality}` };
+  const type = weightedTypeRoll(bias)
+  const quality = weightedQualityRoll(level)
+  return { gemId: `${type}-${quality}` }
 }
 ```
 
@@ -617,18 +630,18 @@ function rollGem(level: number, bias?: GemType): GemRoll {
 // packages/content/src/gems/gem-definition.ts
 
 interface GemDefinition {
-  id: string;                         // "ruby-flawless"
-  type: GemType;
-  quality: QualityTier;
-  displayName: string;
+  id: string // "ruby-flawless"
+  type: GemType
+  quality: QualityTier
+  displayName: string
 
-  combat: TowerCombatStats;
-  abilities: TowerAbility[];
-  projectileKey?: string;
-  assetKey: string;                   // "tower.ruby.flawless.idle"
+  combat: TowerCombatStats
+  abilities: TowerAbility[]
+  projectileKey?: string
+  assetKey: string // "tower.ruby.flawless.idle"
 
-  footprint: 2;
-  blocksPath: true;
+  footprint: 2
+  blocksPath: true
 }
 ```
 
@@ -636,17 +649,17 @@ interface GemDefinition {
 
 ```ts
 interface TowerDefinition {
-  id: string;                         // "silver"
-  displayName: string;
-  classification: 'basic' | 'intermediate' | 'advanced' | 'top' | 'secret';
+  id: string // "silver"
+  displayName: string
+  classification: 'basic' | 'intermediate' | 'advanced' | 'top' | 'secret'
 
-  combat: TowerCombatStats;
-  abilities: TowerAbility[];
-  projectileKey?: string;
-  assetKey: string;
+  combat: TowerCombatStats
+  abilities: TowerAbility[]
+  projectileKey?: string
+  assetKey: string
 
-  recipeId?: string;                  // back-link
-  footprint: 2;
+  recipeId?: string // back-link
+  footprint: 2
 }
 ```
 
@@ -681,9 +694,7 @@ packages/content/src/
     "attackInterval": 1.0,
     "targets": 1
   },
-  "abilities": [
-    { "type": "slow", "speedReduction": 90 }
-  ],
+  "abilities": [{ "type": "slow", "speedReduction": 90 }],
   "projectileKey": "projectile.arcane-lance",
   "assetKey": "tower.sapphire.flawed"
 }
@@ -695,16 +706,16 @@ packages/content/src/
 
 Gameplay uses **8 canonical gem types**. Art pipeline may batch by **visual family** (see [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md)).
 
-| Canonical type | Art family (PixelLab) | Color cue |
-| --- | --- | --- |
-| `ruby` | `flame` | Red / orange |
-| `diamond` | `stone` | White / grey-gold |
-| `emerald` | `thorn` | Green |
-| `amethyst` | `arcane` | Violet |
-| `opal` | `radiant` | Gold / prismatic |
-| `sapphire` | `arcane` (cool variant) | Blue |
-| `topaz` | `radiant` (warm variant) | Yellow |
-| `aquamarine` | `stone` (cool variant) | Cyan |
+| Canonical type | Art family (PixelLab)    | Color cue         |
+| -------------- | ------------------------ | ----------------- |
+| `ruby`         | `flame`                  | Red / orange      |
+| `diamond`      | `stone`                  | White / grey-gold |
+| `emerald`      | `thorn`                  | Green             |
+| `amethyst`     | `arcane`                 | Violet            |
+| `opal`         | `radiant`                | Gold / prismatic  |
+| `sapphire`     | `arcane` (cool variant)  | Blue              |
+| `topaz`        | `radiant` (warm variant) | Yellow            |
+| `aquamarine`   | `stone` (cool variant)   | Cyan              |
 
 Content `assetKey` points to manifest entry; manifest may reuse family sprites with **tint** for type distinction in v1 if needed.
 
@@ -716,15 +727,15 @@ Content `assetKey` points to manifest entry; manifest may reuse family sprites w
 
 ### 17.1 Ship in v1
 
-| Category | Scope |
-| --- | --- |
-| **Gem types** | All 8 types |
-| **Qualities** | chipped, flawed, normal (prob levels 1–3) |
-| **Special towers** | `silver`, `malachite`, `quartz` |
-| **Recipes** | 3 basic recipes above |
-| **Abilities** | pierce, slow, poison, cleave, split_shot, anti_fly, aura AS (opal) |
-| **MVP** | Simplified §11 |
-| **Control** | 3 targeting modes + hold fire |
+| Category           | Scope                                                              |
+| ------------------ | ------------------------------------------------------------------ |
+| **Gem types**      | All 8 types                                                        |
+| **Qualities**      | chipped, flawed, normal (prob levels 1–3)                          |
+| **Special towers** | `silver`, `malachite`, `quartz`                                    |
+| **Recipes**        | 3 basic recipes above                                              |
+| **Abilities**      | pierce, slow, poison, cleave, split_shot, anti_fly, aura AS (opal) |
+| **MVP**            | Simplified §11                                                     |
+| **Control**        | 3 targeting modes + hold fire                                      |
 
 ### 17.2 Slice 2
 
@@ -743,32 +754,32 @@ Content `assetKey` points to manifest entry; manifest may reuse family sprites w
 
 ## 18. Open decisions
 
-| # | Question | Recommendation |
-| ---: | --- | --- |
-| 1 | Anti-air hard gate vs debuff-only | Debuff-only for v1 |
-| 2 | 48 separate gem sprites vs family tint | Family base + quality scale; tint by type |
-| 3 | Instant combine when 3 recipe gems placed same round | Yes — classic QoL |
-| 4 | Rock sprite variety by source gem | No — single `env.rock` |
-| 5 | Tower sell / undo | No — classic has no sell |
-| 6 | Range shown as tile rings in UI | Optional build-phase toggle |
-| 7 | Aquamarine aura vs self-only AS | Self-only v1; aura in slice 2 |
+|   # | Question                                             | Recommendation                            |
+| --: | ---------------------------------------------------- | ----------------------------------------- |
+|   1 | Anti-air hard gate vs debuff-only                    | Debuff-only for v1                        |
+|   2 | 48 separate gem sprites vs family tint               | Family base + quality scale; tint by type |
+|   3 | Instant combine when 3 recipe gems placed same round | Yes — classic QoL                         |
+|   4 | Rock sprite variety by source gem                    | No — single `env.rock`                    |
+|   5 | Tower sell / undo                                    | No — classic has no sell                  |
+|   6 | Range shown as tile rings in UI                      | Optional build-phase toggle               |
+|   7 | Aquamarine aura vs self-only AS                      | Self-only v1; aura in slice 2             |
 
 ---
 
 ## Related documents
 
-| Document | Relevance |
-| --- | --- |
-| [`HANDOVER.md`](./HANDOVER.md) | Core loop, combat basics, probability table |
-| [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md) | 2×2 placement, rocks block path |
-| [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) | Tower sprites, projectiles, FX |
-| [`ASSET-GENERATION-TRACKER.md`](./ASSET-GENERATION-TRACKER.md) | Per-tower asset checklist |
-| [`MONSTER-SYSTEMS-DEEP-DIVE.md`](./MONSTER-SYSTEMS-DEEP-DIVE.md) | Armor, MR, immunities |
+| Document                                                         | Relevance                                   |
+| ---------------------------------------------------------------- | ------------------------------------------- |
+| [`HANDOVER.md`](./HANDOVER.md)                                   | Core loop, combat basics, probability table |
+| [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md)             | 2×2 placement, rocks block path             |
+| [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) | Tower sprites, projectiles, FX              |
+| [`ASSET-GENERATION-TRACKER.md`](./ASSET-GENERATION-TRACKER.md)   | Per-tower asset checklist                   |
+| [`MONSTER-SYSTEMS-DEEP-DIVE.md`](./MONSTER-SYSTEMS-DEEP-DIVE.md) | Armor, MR, immunities                       |
 
 ---
 
 ## Changelog
 
-| Date | Change |
-| --- | --- |
+| Date       | Change                                                                             |
+| ---------- | ---------------------------------------------------------------------------------- |
 | 2026-06-30 | Initial spec: 8 gem types, 6 qualities, recipes, combat stats, MVP, auras, schemas |

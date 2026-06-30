@@ -51,23 +51,23 @@ This loop is the core of Gem TD. The random roll creates tactical options, but t
 
 ### 1.2 What makes it different from a normal TD
 
-| Standard TD | Gem TD-style app |
-| --- | --- |
-| Player buys a known tower. | Player places unknown/random candidates. |
-| Tower slots are often fixed. | The player builds the maze layout. |
+| Standard TD                             | Gem TD-style app                                      |
+| --------------------------------------- | ----------------------------------------------------- |
+| Player buys a known tower.              | Player places unknown/random candidates.              |
+| Tower slots are often fixed.            | The player builds the maze layout.                    |
 | Bad tower choices can often be skipped. | Bad candidates still become rocks and affect pathing. |
-| Upgrades are mostly direct power buys. | Probability upgrades change future roll quality. |
-| Recipes are usually menu actions. | Recipes depend on rolled candidates and kept towers. |
+| Upgrades are mostly direct power buys.  | Probability upgrades change future roll quality.      |
+| Recipes are usually menu actions.       | Recipes depend on rolled candidates and kept towers.  |
 
 ### 1.3 Design principles
 
-| Principle | Meaning |
-| --- | --- |
-| RNG with agency | The player cannot control every roll, but can choose where candidates appear and which outcome to commit. |
-| Maze pressure | Every committed tower and rock changes monster pathing. |
-| Recipes reward memory | The player should remember which pieces are on the board and plan future keeps. |
-| Selection clarity | After five placements, all legal actions must be obvious and deterministic. |
-| Per-player independence | Each player can have a separate level, maze, wave state, and probability table. |
+| Principle               | Meaning                                                                                                   |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| RNG with agency         | The player cannot control every roll, but can choose where candidates appear and which outcome to commit. |
+| Maze pressure           | Every committed tower and rock changes monster pathing.                                                   |
+| Recipes reward memory   | The player should remember which pieces are on the board and plan future keeps.                           |
+| Selection clarity       | After five placements, all legal actions must be obvious and deterministic.                               |
+| Per-player independence | Each player can have a separate level, maze, wave state, and probability table.                           |
 
 ---
 
@@ -77,28 +77,28 @@ The JavaScript app should not copy old map scripting concepts directly. It shoul
 
 ### 2.1 Recommended layers
 
-| Layer | Owns |
-| --- | --- |
-| Content data | Gem definitions, quality table, recipe definitions, slate definitions, wave definitions, monster definitions. |
-| Simulation | Round phase, path validation, weighted rolls, tower commitment, monster movement, damage, leak/clear logic. |
-| Presentation | Phaser sprites, animations, effects, tooltips, candidate markers, path overlays. |
-| UI | Build/selection controls, probability upgrades, Extra Chance menus, recipe dictionary, scoreboard. |
-| Persistence/network | Save state, replay seed, multiplayer sync, leaderboard validation. |
+| Layer               | Owns                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Content data        | Gem definitions, quality table, recipe definitions, slate definitions, wave definitions, monster definitions. |
+| Simulation          | Round phase, path validation, weighted rolls, tower commitment, monster movement, damage, leak/clear logic.   |
+| Presentation        | Phaser sprites, animations, effects, tooltips, candidate markers, path overlays.                              |
+| UI                  | Build/selection controls, probability upgrades, Extra Chance menus, recipe dictionary, scoreboard.            |
+| Persistence/network | Save state, replay seed, multiplayer sync, leaderboard validation.                                            |
 
 ### 2.2 System ownership
 
-| System | Responsibility |
-| --- | --- |
-| `RoundController` | Moves a player through placement, selection, combat, clear, loss, and finish. |
-| `PlacementSystem` | Validates build cells, consumes placement charges, creates candidate gems. |
-| `GemRoller` | Uses player probability state and Extra Chance overrides to roll gem candidates. |
-| `SelectionResolver` | Computes legal keep, downgrade, duplicate combine, one-hit, and slate actions. |
-| `RecipeSystem` | Tracks persistent recipe parts and creates special towers. |
-| `SlateSystem` | Detects slate opportunities and handles slate combinations. |
-| `WaveSpawner` | Spawns monsters for a player's current level. |
-| `PathingSystem` | Validates placement and computes routes for ground monsters. |
-| `CombatSystem` | Resolves targeting, projectiles, damage, status effects, and kill credit. |
-| `ScoreboardSystem` | Computes level, gold, DPS, progress, rank, and finish state. |
+| System              | Responsibility                                                                   |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `RoundController`   | Moves a player through placement, selection, combat, clear, loss, and finish.    |
+| `PlacementSystem`   | Validates build cells, consumes placement charges, creates candidate gems.       |
+| `GemRoller`         | Uses player probability state and Extra Chance overrides to roll gem candidates. |
+| `SelectionResolver` | Computes legal keep, downgrade, duplicate combine, one-hit, and slate actions.   |
+| `RecipeSystem`      | Tracks persistent recipe parts and creates special towers.                       |
+| `SlateSystem`       | Detects slate opportunities and handles slate combinations.                      |
+| `WaveSpawner`       | Spawns monsters for a player's current level.                                    |
+| `PathingSystem`     | Validates placement and computes routes for ground monsters.                     |
+| `CombatSystem`      | Resolves targeting, projectiles, damage, status effects, and kill credit.        |
+| `ScoreboardSystem`  | Computes level, gold, DPS, progress, rank, and finish state.                     |
 
 ### 2.3 Determinism requirement
 
@@ -123,33 +123,33 @@ Each player needs an independent run state. Even in multiplayer, players are rac
 
 ```ts
 type PlayerRunState = {
-  playerId: string;
-  phase: "countdown" | "placement" | "selection" | "combat" | "finished" | "lost";
-  level: number;
-  gold: number;
-  placementCharges: number;
-  chanceLevel: number;
-  noMazeMode: boolean;
-  extraChance: ExtraChanceState;
-  candidates: CandidateGem[];
-  towers: TowerEntity[];
-  rocks: RockEntity[];
-  activeCreeps: CreepEntity[];
-  roundStats: RoundStats;
-  history: LevelHistory[];
-};
+  playerId: string
+  phase: 'countdown' | 'placement' | 'selection' | 'combat' | 'finished' | 'lost'
+  level: number
+  gold: number
+  placementCharges: number
+  chanceLevel: number
+  noMazeMode: boolean
+  extraChance: ExtraChanceState
+  candidates: CandidateGem[]
+  towers: TowerEntity[]
+  rocks: RockEntity[]
+  activeCreeps: CreepEntity[]
+  roundStats: RoundStats
+  history: LevelHistory[]
+}
 ```
 
 ### 3.2 Board entities
 
-| Entity | Created when | Blocks path | Attacks | Temporary |
-| --- | --- | :---: | :---: | :---: |
-| Candidate gem | During placement | Yes | No | Yes |
-| Tower | Selection commits a gem | Yes | Yes | No |
-| Rock | Candidate is rejected | Yes | No | No |
-| Special tower | Recipe resolves | Yes | Yes | No |
-| Slate | Slate action resolves | Usually yes | Depends on slate | No |
-| Monster | Wave spawns | No | No | Yes |
+| Entity        | Created when            | Blocks path |     Attacks      | Temporary |
+| ------------- | ----------------------- | :---------: | :--------------: | :-------: |
+| Candidate gem | During placement        |     Yes     |        No        |    Yes    |
+| Tower         | Selection commits a gem |     Yes     |       Yes        |    No     |
+| Rock          | Candidate is rejected   |     Yes     |        No        |    No     |
+| Special tower | Recipe resolves         |     Yes     |       Yes        |    No     |
+| Slate         | Slate action resolves   | Usually yes | Depends on slate |    No     |
+| Monster       | Wave spawns             |     No      |        No        |    Yes    |
 
 Candidate gems are important: they occupy board space during placement, but they are not final towers. Selection transforms the candidate set into one permanent result plus rocks.
 
@@ -161,29 +161,29 @@ Use separate fields:
 
 ```ts
 type TowerEntity = {
-  id: string;
-  ownerPlayerId: string;
-  gemType?: GemTypeId;
-  quality?: GemQualityId;
-  specialId?: SpecialTowerId;
-  slateId?: SlateId;
-  tile: TileCoord;
-  footprint: Footprint;
-  killCount: number;
-  active: boolean;
-  targetingMode: TargetingMode;
-};
+  id: string
+  ownerPlayerId: string
+  gemType?: GemTypeId
+  quality?: GemQualityId
+  specialId?: SpecialTowerId
+  slateId?: SlateId
+  tile: TileCoord
+  footprint: Footprint
+  killCount: number
+  active: boolean
+  targetingMode: TargetingMode
+}
 
 type CreepEntity = {
-  id: string;
-  ownerPlayerId: string;
-  waveLevel: number;
-  hp: number;
-  maxHp: number;
-  routeLegIndex: number;
-  pathNodeIndex: number;
-  leaked: boolean;
-};
+  id: string
+  ownerPlayerId: string
+  waveLevel: number
+  hp: number
+  maxHp: number
+  routeLegIndex: number
+  pathNodeIndex: number
+  leaked: boolean
+}
 ```
 
 ---
@@ -254,22 +254,22 @@ On clear:
 Recommended reward formula:
 
 ```ts
-const goldReward = 5 + currentLevel * 2;
+const goldReward = 5 + currentLevel * 2
 ```
 
 ### 4.6 Leaks
 
 Classic behavior allows early leaks but punishes later leaks:
 
-| Level range | Leak behavior |
-| --- | --- |
-| Levels 1-9 | Leak counts as a resolved monster and the player continues. |
-| Level 10+ | Leak causes loss. |
+| Level range | Leak behavior                                               |
+| ----------- | ----------------------------------------------------------- |
+| Levels 1-9  | Leak counts as a resolved monster and the player continues. |
+| Level 10+   | Leak causes loss.                                           |
 
 For the JavaScript app, make this a constant:
 
 ```ts
-const FIRST_LETHAL_LEAK_LEVEL = 10;
+const FIRST_LETHAL_LEAK_LEVEL = 10
 ```
 
 ---
@@ -282,10 +282,10 @@ Placement charges should be explicit state, not a visible currency.
 
 ```ts
 function startPlacement(player: PlayerRunState) {
-  player.phase = "placement";
-  player.placementCharges = 5;
-  player.candidates = [];
-  setPlayerTowersActive(player, false);
+  player.phase = 'placement'
+  player.placementCharges = 5
+  player.candidates = []
+  setPlayerTowersActive(player, false)
 }
 ```
 
@@ -313,17 +313,17 @@ When the player confirms a legal placement:
 
 ```ts
 function placeCandidate(player: PlayerRunState, tile: TileCoord) {
-  assert(player.phase === "placement");
-  assert(player.placementCharges > 0);
+  assert(player.phase === 'placement')
+  assert(player.placementCharges > 0)
 
-  const roll = gemRoller.rollForPlacement(player, player.candidates.length);
-  const candidate = createCandidateGem(player.playerId, tile, roll);
+  const roll = gemRoller.rollForPlacement(player, player.candidates.length)
+  const candidate = createCandidateGem(player.playerId, tile, roll)
 
-  player.candidates.push(candidate);
-  player.placementCharges -= 1;
+  player.candidates.push(candidate)
+  player.placementCharges -= 1
 
   if (player.placementCharges === 0) {
-    enterSelection(player);
+    enterSelection(player)
   }
 }
 ```
@@ -332,13 +332,13 @@ function placeCandidate(player: PlayerRunState, tile: TileCoord) {
 
 Candidates must not be treated as permanent towers. They should have their own entity kind and be cleaned up during selection resolution.
 
-| Candidate state | Meaning |
-| --- | --- |
-| `rolled` | Candidate exists and can be inspected. |
-| `selectable` | Candidate has one or more legal selection actions. |
-| `committed` | Candidate became the selected result. |
-| `convertedToRock` | Candidate was rejected and became a rock. |
-| `removed` | Candidate was consumed by a recipe or cleanup action. |
+| Candidate state   | Meaning                                               |
+| ----------------- | ----------------------------------------------------- |
+| `rolled`          | Candidate exists and can be inspected.                |
+| `selectable`      | Candidate has one or more legal selection actions.    |
+| `committed`       | Candidate became the selected result.                 |
+| `convertedToRock` | Candidate was rejected and became a rock.             |
+| `removed`         | Candidate was consumed by a recipe or cleanup action. |
 
 ---
 
@@ -348,16 +348,16 @@ Selection begins after exactly 5 candidates have been placed.
 
 ### 6.1 Available actions
 
-| Action | Condition | Result |
-| --- | --- | --- |
-| Keep | Any candidate. | Keeps the candidate as a tower. |
-| Downgrade | Candidate is not the lowest quality. | Keeps same gem type one quality lower. |
-| Duplicate combine x2 | Two matching candidates in the current roll. | Creates same type one quality higher. |
-| Duplicate combine x3 | Three matching candidates in the current roll. | Creates same type two qualities higher. |
-| Duplicate combine x4 | Four or more matching candidates in the current roll. | Creates same type two qualities higher. |
-| One-hit special | Current roll contains all parts of a special recipe. | Creates that special immediately. |
-| Basic slate | Current roll contains a normal anchor and a matching flawed companion. | Creates that slate. |
-| Advanced slate | Current roll contains both basic slate opportunities for an advanced pair. | Creates the advanced slate immediately. |
+| Action               | Condition                                                                  | Result                                  |
+| -------------------- | -------------------------------------------------------------------------- | --------------------------------------- |
+| Keep                 | Any candidate.                                                             | Keeps the candidate as a tower.         |
+| Downgrade            | Candidate is not the lowest quality.                                       | Keeps same gem type one quality lower.  |
+| Duplicate combine x2 | Two matching candidates in the current roll.                               | Creates same type one quality higher.   |
+| Duplicate combine x3 | Three matching candidates in the current roll.                             | Creates same type two qualities higher. |
+| Duplicate combine x4 | Four or more matching candidates in the current roll.                      | Creates same type two qualities higher. |
+| One-hit special      | Current roll contains all parts of a special recipe.                       | Creates that special immediately.       |
+| Basic slate          | Current roll contains a normal anchor and a matching flawed companion.     | Creates that slate.                     |
+| Advanced slate       | Current roll contains both basic slate opportunities for an advanced pair. | Creates the advanced slate immediately. |
 
 ### 6.2 Selection action model
 
@@ -365,12 +365,17 @@ Represent each possible action explicitly. The UI should not infer legality from
 
 ```ts
 type SelectionAction =
-  | { kind: "keep"; candidateId: string }
-  | { kind: "downgrade"; candidateId: string; resultGem: GemRoll }
-  | { kind: "duplicate-combine"; candidateId: string; count: 2 | 3 | 4; resultGem: GemRoll | SpecialResult }
-  | { kind: "one-hit-special"; candidateId: string; recipeId: SpecialTowerId }
-  | { kind: "basic-slate"; candidateId: string; slateId: SlateId }
-  | { kind: "advanced-slate"; candidateId: string; slateId: SlateId };
+  | { kind: 'keep'; candidateId: string }
+  | { kind: 'downgrade'; candidateId: string; resultGem: GemRoll }
+  | {
+      kind: 'duplicate-combine'
+      candidateId: string
+      count: 2 | 3 | 4
+      resultGem: GemRoll | SpecialResult
+    }
+  | { kind: 'one-hit-special'; candidateId: string; recipeId: SpecialTowerId }
+  | { kind: 'basic-slate'; candidateId: string; slateId: SlateId }
+  | { kind: 'advanced-slate'; candidateId: string; slateId: SlateId }
 ```
 
 ### 6.3 Finalization rule
@@ -395,8 +400,8 @@ Unselected candidates become rocks at their existing positions. This preserves t
 ```ts
 function convertUnselectedCandidatesToRocks(player: PlayerRunState, selectedIds: Set<string>) {
   for (const candidate of player.candidates) {
-    if (selectedIds.has(candidate.id)) continue;
-    player.rocks.push(createRockFromCandidate(candidate));
+    if (selectedIds.has(candidate.id)) continue
+    player.rocks.push(createRockFromCandidate(candidate))
   }
 }
 ```
@@ -409,32 +414,32 @@ function convertUnselectedCandidatesToRocks(player: PlayerRunState, selectedIds:
 
 The standard catalog is 8 gem types times 6 qualities.
 
-| Type | Suggested ID | Role |
-| --- | --- | --- |
-| Amethyst | `amethyst` | Anti-armor, pierce, or anti-air depending on final design. |
-| Aquamarine | `aquamarine` | Speed or high attack rate identity. |
-| Diamond | `diamond` | Raw damage identity. |
-| Emerald | `emerald` | Poison or damage-over-time identity. |
-| Opal | `opal` | Aura/support identity. |
-| Ruby | `ruby` | Splash or area damage identity. |
-| Sapphire | `sapphire` | Slow/control identity. |
-| Topaz | `topaz` | Multi-target or utility identity. |
+| Type       | Suggested ID | Role                                                       |
+| ---------- | ------------ | ---------------------------------------------------------- |
+| Amethyst   | `amethyst`   | Anti-armor, pierce, or anti-air depending on final design. |
+| Aquamarine | `aquamarine` | Speed or high attack rate identity.                        |
+| Diamond    | `diamond`    | Raw damage identity.                                       |
+| Emerald    | `emerald`    | Poison or damage-over-time identity.                       |
+| Opal       | `opal`       | Aura/support identity.                                     |
+| Ruby       | `ruby`       | Splash or area damage identity.                            |
+| Sapphire   | `sapphire`   | Slow/control identity.                                     |
+| Topaz      | `topaz`      | Multi-target or utility identity.                          |
 
 ### 7.2 Quality ladder
 
 | Rank | Quality ID |
-| ---: | --- |
-| 0 | `chipped` |
-| 1 | `flawed` |
-| 2 | `normal` |
-| 3 | `flawless` |
-| 4 | `perfect` |
-| 5 | `great` |
+| ---: | ---------- |
+|    0 | `chipped`  |
+|    1 | `flawed`   |
+|    2 | `normal`   |
+|    3 | `flawless` |
+|    4 | `perfect`  |
+|    5 | `great`    |
 
 Quality should be an ordered enum. Duplicate combines depend on quality index arithmetic.
 
 ```ts
-const GEM_QUALITY_ORDER = ["chipped", "flawed", "normal", "flawless", "perfect", "great"] as const;
+const GEM_QUALITY_ORDER = ['chipped', 'flawed', 'normal', 'flawless', 'perfect', 'great'] as const
 ```
 
 ### 7.3 Probability upgrade table
@@ -442,16 +447,16 @@ const GEM_QUALITY_ORDER = ["chipped", "flawed", "normal", "flawless", "perfect",
 Each player has a chance level. The chance level changes quality distribution but should keep gem type distribution even unless Extra Chance is active.
 
 | Chance level | Chipped | Flawed | Normal | Flawless | Perfect | Great |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0 | 100 | 0 | 0 | 0 | 0 | 0 |
-| 1 | 70 | 30 | 0 | 0 | 0 | 0 |
-| 2 | 60 | 30 | 10 | 0 | 0 | 0 |
-| 3 | 50 | 30 | 20 | 0 | 0 | 0 |
-| 4 | 40 | 30 | 20 | 10 | 0 | 0 |
-| 5 | 30 | 30 | 30 | 10 | 0 | 0 |
-| 6 | 20 | 30 | 30 | 20 | 0 | 0 |
-| 7 | 10 | 30 | 30 | 30 | 0 | 0 |
-| 8 | 0 | 30 | 30 | 30 | 10 | 0 |
+| -----------: | ------: | -----: | -----: | -------: | ------: | ----: |
+|            0 |     100 |      0 |      0 |        0 |       0 |     0 |
+|            1 |      70 |     30 |      0 |        0 |       0 |     0 |
+|            2 |      60 |     30 |     10 |        0 |       0 |     0 |
+|            3 |      50 |     30 |     20 |        0 |       0 |     0 |
+|            4 |      40 |     30 |     20 |       10 |       0 |     0 |
+|            5 |      30 |     30 |     30 |       10 |       0 |     0 |
+|            6 |      20 |     30 |     30 |       20 |       0 |     0 |
+|            7 |      10 |     30 |     30 |       30 |       0 |     0 |
+|            8 |       0 |     30 |     30 |       30 |      10 |     0 |
 
 Great gems should not be part of the normal random table. They are reached through duplicate combines or special transformation rules.
 
@@ -459,9 +464,9 @@ Great gems should not be part of the normal random table. They are reached throu
 
 ```ts
 function rollGem(player: PlayerRunState, rng: Rng): GemRoll {
-  const type = rng.pickUniform(GEM_TYPES);
-  const quality = rng.pickWeighted(CHANCE_TABLE[player.chanceLevel]);
-  return { type, quality };
+  const type = rng.pickUniform(GEM_TYPES)
+  const quality = rng.pickWeighted(CHANCE_TABLE[player.chanceLevel])
+  return { type, quality }
 }
 ```
 
@@ -486,18 +491,18 @@ Targeting costs gold. The target affects the next placement phase by precomputin
 
 ```ts
 type ExtraChanceState = {
-  enabled: boolean;
-  currentTarget?: ExtraChanceTarget;
-  currentBonus: number;
-  previousTarget?: ExtraChanceTarget;
-  previousBonus: number;
-  generatedRolls: (GemRoll | undefined)[];
-  activatedThisRound: boolean;
-};
+  enabled: boolean
+  currentTarget?: ExtraChanceTarget
+  currentBonus: number
+  previousTarget?: ExtraChanceTarget
+  previousBonus: number
+  generatedRolls: (GemRoll | undefined)[]
+  activatedThisRound: boolean
+}
 
 type ExtraChanceTarget =
-  | { kind: "perfect-gem"; type: GemTypeId }
-  | { kind: "slate"; slateId: SlateId };
+  | { kind: 'perfect-gem'; type: GemTypeId }
+  | { kind: 'slate'; slateId: SlateId }
 ```
 
 ### 8.3 Bonus behavior
@@ -537,9 +542,9 @@ After each placement:
 Recommended starting values:
 
 ```ts
-const EXTRA_CHANCE_PERFECT_GEM_COST = 175;
-const EXTRA_CHANCE_SLATE_COST = 125;
-const EXTRA_CHANCE_MAX_BONUS = 10;
+const EXTRA_CHANCE_PERFECT_GEM_COST = 175
+const EXTRA_CHANCE_SLATE_COST = 125
+const EXTRA_CHANCE_MAX_BONUS = 10
 ```
 
 ---
@@ -552,24 +557,24 @@ There are three separate recipe systems. Keep them separate in code because thei
 
 Duplicate combines only use the current five candidates.
 
-| Copies of exact same gem | Result |
-| ---: | --- |
-| 2 | Same type, quality +1 |
-| 3 | Same type, quality +2 |
-| 4 or more | Same type, quality +2 |
+| Copies of exact same gem | Result                |
+| -----------------------: | --------------------- |
+|                        2 | Same type, quality +1 |
+|                        3 | Same type, quality +2 |
+|                4 or more | Same type, quality +2 |
 
 If a duplicate combine would go above `great`, create a rare overflow special such as `stone_of_bryvx`.
 
 ```ts
 function resolveDuplicateCombine(gem: GemRoll, count: 2 | 3 | 4): GemRoll | SpecialResult {
-  const jump = count === 2 ? 1 : 2;
-  const nextQualityIndex = qualityIndex(gem.quality) + jump;
+  const jump = count === 2 ? 1 : 2
+  const nextQualityIndex = qualityIndex(gem.quality) + jump
 
   if (nextQualityIndex >= GEM_QUALITY_ORDER.length) {
-    return { kind: "special", specialId: "stone_of_bryvx" };
+    return { kind: 'special', specialId: 'stone_of_bryvx' }
   }
 
-  return { type: gem.type, quality: GEM_QUALITY_ORDER[nextQualityIndex] };
+  return { type: gem.type, quality: GEM_QUALITY_ORDER[nextQualityIndex] }
 }
 ```
 
@@ -601,27 +606,27 @@ Persistent recipes should be tracked per player.
 
 ```ts
 type PersistentRecipeTracker = {
-  byPlayer: Map<string, Map<RecipePartId, TowerEntity[]>>;
-};
+  byPlayer: Map<string, Map<RecipePartId, TowerEntity[]>>
+}
 ```
 
 ### 9.4 Special recipe catalog
 
-| Result family | Parts |
-| --- | --- |
-| Malachite | Chipped Aquamarine + Chipped Emerald + Chipped Opal |
-| Silver | Chipped Diamond + Chipped Sapphire + Chipped Topaz |
-| Star Ruby | Flawed Ruby + Chipped Amethyst + Chipped Ruby |
-| Jade | Normal Emerald + Normal Opal + Flawed Sapphire |
-| Red Crystal | Flawless Emerald + Normal Ruby + Flawed Amethyst |
-| Dark Emerald | Perfect Emerald + Flawless Sapphire + Flawed Topaz |
-| Gold | Perfect Amethyst + Flawless Amethyst + Flawed Diamond |
-| Uranium | Perfect Topaz + Normal Sapphire + Flawed Opal |
-| Pink Diamond | Perfect Diamond + Normal Diamond + Normal Topaz |
+| Result family      | Parts                                                                   |
+| ------------------ | ----------------------------------------------------------------------- |
+| Malachite          | Chipped Aquamarine + Chipped Emerald + Chipped Opal                     |
+| Silver             | Chipped Diamond + Chipped Sapphire + Chipped Topaz                      |
+| Star Ruby          | Flawed Ruby + Chipped Amethyst + Chipped Ruby                           |
+| Jade               | Normal Emerald + Normal Opal + Flawed Sapphire                          |
+| Red Crystal        | Flawless Emerald + Normal Ruby + Flawed Amethyst                        |
+| Dark Emerald       | Perfect Emerald + Flawless Sapphire + Flawed Topaz                      |
+| Gold               | Perfect Amethyst + Flawless Amethyst + Flawed Diamond                   |
+| Uranium            | Perfect Topaz + Normal Sapphire + Flawed Opal                           |
+| Pink Diamond       | Perfect Diamond + Normal Diamond + Normal Topaz                         |
 | Paraiba Tourmaline | Perfect Aquamarine + Flawless Opal + Flawed Aquamarine + Flawed Emerald |
-| Black Opal | Perfect Opal + Flawless Diamond + Normal Aquamarine |
-| Blood Stone | Perfect Ruby + Flawless Aquamarine + Normal Amethyst |
-| Yellow Sapphire | Perfect Sapphire + Flawless Ruby + Flawless Topaz |
+| Black Opal         | Perfect Opal + Flawless Diamond + Normal Aquamarine                     |
+| Blood Stone        | Perfect Ruby + Flawless Aquamarine + Normal Amethyst                    |
+| Yellow Sapphire    | Perfect Sapphire + Flawless Ruby + Flawless Topaz                       |
 
 ### 9.5 Special upgrades
 
@@ -629,11 +634,11 @@ Many special families have upgrade chains. Model these separately from creation 
 
 ```ts
 type SpecialUpgrade = {
-  from: SpecialTowerId;
-  to: SpecialTowerId;
-  cost?: number;
-  requirements?: Requirement[];
-};
+  from: SpecialTowerId
+  to: SpecialTowerId
+  cost?: number
+  requirements?: Requirement[]
+}
 ```
 
 Recommended chains:
@@ -665,27 +670,27 @@ A basic slate opportunity exists when the current five candidates contain:
 - one specific Normal gem, and
 - at least one matching Flawed companion.
 
-| Slate | Normal anchor | Flawed companions |
-| --- | --- | --- |
-| Air | Normal Amethyst | Flawed Emerald, Flawed Opal, Flawed Ruby |
-| Spell | Normal Aquamarine | Flawed Amethyst, Flawed Diamond |
-| Damage | Normal Diamond | Flawed Opal, Flawed Sapphire |
-| Poison | Normal Emerald | Flawed Aquamarine, Flawed Opal, Flawed Topaz |
-| Opal Vein | Normal Opal | Flawed Ruby, Flawed Topaz |
-| Range | Normal Ruby | Flawed Amethyst, Flawed Ruby, Flawed Topaz |
-| Slow | Normal Sapphire | Flawed Aquamarine, Flawed Diamond, Flawed Emerald |
-| Hold | Normal Topaz | Flawed Amethyst, Flawed Sapphire |
+| Slate     | Normal anchor     | Flawed companions                                 |
+| --------- | ----------------- | ------------------------------------------------- |
+| Air       | Normal Amethyst   | Flawed Emerald, Flawed Opal, Flawed Ruby          |
+| Spell     | Normal Aquamarine | Flawed Amethyst, Flawed Diamond                   |
+| Damage    | Normal Diamond    | Flawed Opal, Flawed Sapphire                      |
+| Poison    | Normal Emerald    | Flawed Aquamarine, Flawed Opal, Flawed Topaz      |
+| Opal Vein | Normal Opal       | Flawed Ruby, Flawed Topaz                         |
+| Range     | Normal Ruby       | Flawed Amethyst, Flawed Ruby, Flawed Topaz        |
+| Slow      | Normal Sapphire   | Flawed Aquamarine, Flawed Diamond, Flawed Emerald |
+| Hold      | Normal Topaz      | Flawed Amethyst, Flawed Sapphire                  |
 
 When a slate opportunity exists, the normal anchor candidate receives a slate action. Selecting it creates the slate at the anchor candidate's position.
 
 ### 10.2 Advanced slate recipes
 
-| Advanced slate | Parts |
-| --- | --- |
-| Ancient | Hold + Air |
-| Wraith | Opal Vein + Slow |
-| Elder | Spell + Poison |
-| Viper | Damage + Range |
+| Advanced slate | Parts            |
+| -------------- | ---------------- |
+| Ancient        | Hold + Air       |
+| Wraith         | Opal Vein + Slow |
+| Elder          | Spell + Poison   |
+| Viper          | Damage + Range   |
 
 Advanced slates can be created in two ways:
 
@@ -696,13 +701,13 @@ Advanced slates can be created in two ways:
 
 ```ts
 type SlateDefinition = {
-  id: SlateId;
-  name: string;
-  normalAnchor?: GemRoll;
-  flawedCompanions?: GemRoll[];
-  combinesInto?: SlateId;
-  behavior: SlateBehaviorId;
-};
+  id: SlateId
+  name: string
+  normalAnchor?: GemRoll
+  flawedCompanions?: GemRoll[]
+  combinesInto?: SlateId
+  behavior: SlateBehaviorId
+}
 ```
 
 Slate behaviors should be implemented as tower behaviors or aura/status systems, not as special cases in selection code.
@@ -725,19 +730,19 @@ Recommended wave content:
 
 ```ts
 type WaveDefinition = {
-  level: number;
-  entries: WaveSpawnEntry[];
-  clearCount: number;
-  rewardGold: number;
-};
+  level: number
+  entries: WaveSpawnEntry[]
+  clearCount: number
+  rewardGold: number
+}
 
 type WaveSpawnEntry = {
-  monsterId: MonsterId;
-  count: number;
-  delayMs: number;
-  intervalMs: number;
-  boss?: boolean;
-};
+  monsterId: MonsterId
+  count: number
+  delayMs: number
+  intervalMs: number
+  boss?: boolean
+}
 ```
 
 Use `clearCount = 10` for normal levels and `clearCount = 11` for the final boss level.
@@ -748,8 +753,8 @@ Ground monsters should follow ordered route legs:
 
 ```ts
 type RouteDefinition = {
-  waypoints: WaypointId[];
-};
+  waypoints: WaypointId[]
+}
 ```
 
 For each leg, compute a path through current blockers:
@@ -779,7 +784,7 @@ Flying monsters should ignore maze blockers but still follow a readable route th
 Model this explicitly:
 
 ```ts
-type MovementClass = "ground" | "flying";
+type MovementClass = 'ground' | 'flying'
 ```
 
 Ground route:
@@ -802,15 +807,15 @@ On leak:
 
 ```ts
 function handleLeak(player: PlayerRunState, creep: CreepEntity) {
-  creep.leaked = true;
+  creep.leaked = true
 
   if (player.level >= FIRST_LETHAL_LEAK_LEVEL) {
-    losePlayer(player);
-    return;
+    losePlayer(player)
+    return
   }
 
-  player.roundStats.resolvedCount += 1;
-  maybeClearWave(player);
+  player.roundStats.resolvedCount += 1
+  maybeClearWave(player)
 }
 ```
 
@@ -824,8 +829,8 @@ Every tower should track kills.
 
 ```ts
 function creditKill(tower: TowerEntity, creep: CreepEntity) {
-  tower.killCount += 1;
-  applyKillMilestoneBonuses(tower);
+  tower.killCount += 1
+  applyKillMilestoneBonuses(tower)
 }
 ```
 
@@ -836,7 +841,7 @@ The original behavior grants bonus abilities at kill thresholds. The JavaScript 
 Suggested thresholds:
 
 ```ts
-const KILL_MILESTONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
+const KILL_MILESTONES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
 ```
 
 Each milestone can map to:
@@ -854,11 +859,11 @@ When persistent recipe parts are combined, the resulting special should inherit 
 
 ```ts
 function createSpecialFromParts(parts: TowerEntity[], result: SpecialTowerId): TowerEntity {
-  const killCount = parts.reduce((total, part) => total + part.killCount, 0);
-  const special = createSpecialTower(result, parts[0].tile);
-  special.killCount = killCount;
-  applyKillMilestoneBonuses(special);
-  return special;
+  const killCount = parts.reduce((total, part) => total + part.killCount, 0)
+  const special = createSpecialTower(result, parts[0].tile)
+  special.killCount = killCount
+  applyKillMilestoneBonuses(special)
+  return special
 }
 ```
 
@@ -874,14 +879,14 @@ For each player and level:
 
 ```ts
 type LevelHistory = {
-  level: number;
-  startedAtMs: number;
-  stoppedAtMs?: number;
-  damageDealt: number;
-  totalWaveHp: number;
-  cleared: boolean;
-  leaked: boolean;
-};
+  level: number
+  startedAtMs: number
+  stoppedAtMs?: number
+  damageDealt: number
+  totalWaveHp: number
+  cleared: boolean
+  leaked: boolean
+}
 ```
 
 ### 13.2 Damage and DPS
@@ -889,7 +894,7 @@ type LevelHistory = {
 Track damage dealt to all monsters owned by that player's current wave. DPS is:
 
 ```ts
-const dps = damageDealt / ((stopMsOrNow - startedAtMs) / 1000);
+const dps = damageDealt / ((stopMsOrNow - startedAtMs) / 1000)
 ```
 
 During placement, show previous round DPS. During combat, show current round DPS.
@@ -905,14 +910,14 @@ Sort players by:
 
 ### 13.4 Scoreboard fields
 
-| Field | Meaning |
-| --- | --- |
-| Player | Display name and color. |
-| Level | Current level or final cleared level. |
-| Gold | Current spendable gold. |
-| DPS | Current or previous round DPS. |
-| Progress | Percent of current wave HP dealt, or final time. |
-| Rank | Current race placement. |
+| Field        | Meaning                                                 |
+| ------------ | ------------------------------------------------------- |
+| Player       | Display name and color.                                 |
+| Level        | Current level or final cleared level.                   |
+| Gold         | Current spendable gold.                                 |
+| DPS          | Current or previous round DPS.                          |
+| Progress     | Percent of current wave HP dealt, or final time.        |
+| Rank         | Current race placement.                                 |
 | Extra Chance | Current target and bonus, previous target, off, or N/A. |
 
 ---
@@ -923,63 +928,61 @@ Sort players by:
 
 ```ts
 type GemDefinition = {
-  type: GemTypeId;
-  quality: GemQualityId;
-  displayName: string;
-  towerId: TowerDefinitionId;
-  color: string;
-  role: string;
-};
+  type: GemTypeId
+  quality: GemQualityId
+  displayName: string
+  towerId: TowerDefinitionId
+  color: string
+  role: string
+}
 ```
 
 ### 14.2 Tower definitions
 
 ```ts
 type TowerDefinition = {
-  id: TowerDefinitionId;
-  displayName: string;
-  footprint: { width: number; height: number };
-  range: number;
-  attackSpeed: number;
-  damage: number;
-  damageType: DamageType;
-  targetClass: "ground" | "air" | "both";
-  behaviors: TowerBehaviorRef[];
-  assetKey: string;
-};
+  id: TowerDefinitionId
+  displayName: string
+  footprint: { width: number; height: number }
+  range: number
+  attackSpeed: number
+  damage: number
+  damageType: DamageType
+  targetClass: 'ground' | 'air' | 'both'
+  behaviors: TowerBehaviorRef[]
+  assetKey: string
+}
 ```
 
 ### 14.3 Recipe definitions
 
 ```ts
 type RecipeDefinition = {
-  id: RecipeId;
-  result:
-    | { kind: "special"; specialId: SpecialTowerId }
-    | { kind: "slate"; slateId: SlateId };
-  parts: RecipePart[];
-  timing: "current-roll" | "persistent" | "both";
-};
+  id: RecipeId
+  result: { kind: 'special'; specialId: SpecialTowerId } | { kind: 'slate'; slateId: SlateId }
+  parts: RecipePart[]
+  timing: 'current-roll' | 'persistent' | 'both'
+}
 
 type RecipePart =
-  | { kind: "gem"; type: GemTypeId; quality: GemQualityId }
-  | { kind: "slate"; slateId: SlateId }
-  | { kind: "special"; specialId: SpecialTowerId };
+  | { kind: 'gem'; type: GemTypeId; quality: GemQualityId }
+  | { kind: 'slate'; slateId: SlateId }
+  | { kind: 'special'; specialId: SpecialTowerId }
 ```
 
 ### 14.4 Wave definitions
 
 ```ts
 type MonsterDefinition = {
-  id: MonsterId;
-  displayName: string;
-  maxHp: number;
-  speed: number;
-  armorType: ArmorType;
-  movementClass: MovementClass;
-  abilities: MonsterAbilityRef[];
-  assetKey: string;
-};
+  id: MonsterId
+  displayName: string
+  maxHp: number
+  speed: number
+  armorType: ArmorType
+  movementClass: MovementClass
+  abilities: MonsterAbilityRef[]
+  assetKey: string
+}
 ```
 
 ### 14.5 Event names
@@ -988,15 +991,15 @@ Use events to connect simulation and presentation without moving gameplay author
 
 ```ts
 type GameEvent =
-  | { type: "placement.started"; playerId: string }
-  | { type: "candidate.placed"; playerId: string; candidate: CandidateGem }
-  | { type: "selection.available"; playerId: string; actions: SelectionAction[] }
-  | { type: "selection.committed"; playerId: string; result: TowerEntity }
-  | { type: "wave.started"; playerId: string; level: number }
-  | { type: "creep.leaked"; playerId: string; creepId: string }
-  | { type: "wave.cleared"; playerId: string; level: number }
-  | { type: "player.lost"; playerId: string }
-  | { type: "player.finished"; playerId: string };
+  | { type: 'placement.started'; playerId: string }
+  | { type: 'candidate.placed'; playerId: string; candidate: CandidateGem }
+  | { type: 'selection.available'; playerId: string; actions: SelectionAction[] }
+  | { type: 'selection.committed'; playerId: string; result: TowerEntity }
+  | { type: 'wave.started'; playerId: string; level: number }
+  | { type: 'creep.leaked'; playerId: string; creepId: string }
+  | { type: 'wave.cleared'; playerId: string; level: number }
+  | { type: 'player.lost'; playerId: string }
+  | { type: 'player.finished'; playerId: string }
 ```
 
 ---
@@ -1005,36 +1008,36 @@ type GameEvent =
 
 ### 15.1 Must-have mechanics
 
-| Item | Done |
-| --- | :---: |
-| Per-player run state |  |
-| 5 placement charges |  |
-| Candidate placement and path validation |  |
-| Weighted gem rolling by chance level |  |
-| Selection phase after fifth candidate |  |
-| Keep action |  |
-| Downgrade action |  |
-| Duplicate combine action |  |
-| One-hit special detection |  |
-| Basic slate detection |  |
-| Advanced slate detection |  |
-| Unselected candidates convert to rocks |  |
-| Persistent recipe tracker |  |
-| Kill count transfer into specials |  |
-| Wave spawning and clear count |  |
-| Early leak tolerance and level 10+ loss |  |
-| Scoreboard progress and ranking |  |
+| Item                                    | Done |
+| --------------------------------------- | :--: |
+| Per-player run state                    |      |
+| 5 placement charges                     |      |
+| Candidate placement and path validation |      |
+| Weighted gem rolling by chance level    |      |
+| Selection phase after fifth candidate   |      |
+| Keep action                             |      |
+| Downgrade action                        |      |
+| Duplicate combine action                |      |
+| One-hit special detection               |      |
+| Basic slate detection                   |      |
+| Advanced slate detection                |      |
+| Unselected candidates convert to rocks  |      |
+| Persistent recipe tracker               |      |
+| Kill count transfer into specials       |      |
+| Wave spawning and clear count           |      |
+| Early leak tolerance and level 10+ loss |      |
+| Scoreboard progress and ranking         |      |
 
 ### 15.2 Good implementation boundaries
 
-| Do | Avoid |
-| --- | --- |
-| Keep simulation authoritative. | Let Phaser sprites own gameplay state. |
-| Use content JSON for gems, towers, recipes, slates, monsters, waves. | Hardcode recipe logic in UI components. |
-| Use one seeded RNG service. | Use `Math.random()` across systems. |
-| Split roll recipes from persistent recipes. | Put every combine into one generic resolver. |
-| Track candidates separately from towers. | Treat candidates as committed towers before selection. |
-| Cache paths per route leg. | Run full pathfinding for every creep every frame. |
+| Do                                                                   | Avoid                                                  |
+| -------------------------------------------------------------------- | ------------------------------------------------------ |
+| Keep simulation authoritative.                                       | Let Phaser sprites own gameplay state.                 |
+| Use content JSON for gems, towers, recipes, slates, monsters, waves. | Hardcode recipe logic in UI components.                |
+| Use one seeded RNG service.                                          | Use `Math.random()` across systems.                    |
+| Split roll recipes from persistent recipes.                          | Put every combine into one generic resolver.           |
+| Track candidates separately from towers.                             | Treat candidates as committed towers before selection. |
+| Cache paths per route leg.                                           | Run full pathfinding for every creep every frame.      |
 
 ### 15.3 First vertical slice
 
@@ -1050,4 +1053,3 @@ A useful first slice should include:
 8. Wave clear into the next build phase.
 
 After that, add downgrade, duplicate combines, slates, Extra Chance, and persistent specials.
-

@@ -1,0 +1,68 @@
+import type { TowerDefinition } from '../schemas/gem.js'
+
+export const v1SpecialTowers: TowerDefinition[] = [
+  {
+    id: 'silver',
+    displayName: 'Silver',
+    classification: 'basic',
+    combat: {
+      range: 192,
+      baseDamage: 40,
+      attackInterval: 1.0,
+      targets: 1,
+      primaryAttackType: 'magic',
+      projectileSpeed: 480,
+    },
+    abilities: [{ type: 'slow', speedReduction: 90, duration: 3 }],
+    projectileKey: 'projectile.arcane-lance',
+    assetKey: 'tower.special.silver',
+    recipeId: 'silver',
+    footprint: 2,
+    blocksPath: true,
+  },
+  {
+    id: 'malachite',
+    displayName: 'Malachite',
+    classification: 'basic',
+    combat: {
+      range: 240,
+      baseDamage: 28,
+      attackInterval: 1.0,
+      targets: 4,
+      primaryAttackType: 'normal',
+      projectileSpeed: 520,
+    },
+    abilities: [{ type: 'split_shot', targets: 4 }],
+    projectileKey: 'projectile.thorn-spore',
+    assetKey: 'tower.special.malachite',
+    recipeId: 'malachite',
+    footprint: 2,
+    blocksPath: true,
+  },
+  {
+    id: 'quartz',
+    displayName: 'Quartz',
+    classification: 'basic',
+    combat: {
+      range: 240,
+      baseDamage: 32,
+      attackInterval: 1.0,
+      targets: 1,
+      primaryAttackType: 'pierce',
+      projectileSpeed: 500,
+    },
+    abilities: [
+      {
+        type: 'anti_fly',
+        armorReduction: 8,
+        speedReduction: 150,
+        mrReduction: 25,
+      },
+    ],
+    projectileKey: 'projectile.stone-shard',
+    assetKey: 'tower.special.quartz',
+    recipeId: 'quartz',
+    footprint: 2,
+    blocksPath: true,
+  },
+]

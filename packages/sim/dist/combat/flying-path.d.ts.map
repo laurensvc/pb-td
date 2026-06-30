@@ -1,0 +1,1 @@
+{"version":3,"file":"flying-path.d.ts","sourceRoot":"","sources":["../../src/combat/flying-path.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,gBAAgB,CAAA;AAErD,OAAO,EAAqB,KAAK,UAAU,EAAE,MAAM,yBAAyB,CAAA;AAE5E,MAAM,WAAW,UAAU;IACzB,WAAW,EAAE,UAAU,EAAE,CAAA;IACzB,WAAW,EAAE,MAAM,CAAA;CACpB;AAuBD,wBAAgB,eAAe,CAC7B,KAAK,EAAE,eAAe,EACtB,OAAO,EAAE,MAAM,GACd,UAAU,CAWZ"}

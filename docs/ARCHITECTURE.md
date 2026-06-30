@@ -4,13 +4,13 @@ Architecture and implementation guidance for the Gem TD-inspired tower defense c
 
 This document defines the target React + Phaser architecture and the engineering rules that should guide implementation. Existing gameplay specifications remain authoritative for their domains:
 
-| Document | Owns |
-| --- | --- |
-| [`HANDOVER.md`](./HANDOVER.md) | Project vision, gameplay loop, high-level React/Phaser split |
-| [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md) | Board dimensions, mazing, pathfinding, camera, landmarks |
-| [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md) | Gems, towers, recipes, combat abilities, economy |
-| [`MONSTER-SYSTEMS-DEEP-DIVE.md`](./MONSTER-SYSTEMS-DEEP-DIVE.md) | Creeps, waves, movement, defenses, damage resolution |
-| [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) | Asset generation, animation contracts, file naming |
+| Document                                                         | Owns                                                         |
+| ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`HANDOVER.md`](./HANDOVER.md)                                   | Project vision, gameplay loop, high-level React/Phaser split |
+| [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md)             | Board dimensions, mazing, pathfinding, camera, landmarks     |
+| [`TOWER-AND-GEM-SYSTEMS.md`](./TOWER-AND-GEM-SYSTEMS.md)         | Gems, towers, recipes, combat abilities, economy             |
+| [`MONSTER-SYSTEMS-DEEP-DIVE.md`](./MONSTER-SYSTEMS-DEEP-DIVE.md) | Creeps, waves, movement, defenses, damage resolution         |
+| [`PIXELLAB-ASSET-GENERATION.md`](./PIXELLAB-ASSET-GENERATION.md) | Asset generation, animation contracts, file naming           |
 
 **Status:** Architecture target. The root `package.json` already references workspace apps, but this checkout currently contains docs and root tooling only. Treat package paths below as the intended implementation layout unless a later code commit changes them.
 
@@ -18,15 +18,15 @@ This document defines the target React + Phaser architecture and the engineering
 
 ## 1. Architecture Goals
 
-| Goal | Rule |
-| --- | --- |
-| **Strict separation** | React owns UI. Phaser owns rendering and scene input. Simulation owns gameplay truth. |
-| **Content-driven gameplay** | Board, gem, tower, creep, wave, recipe, and armor data live in content files, not scene code. |
-| **Deterministic simulation** | Combat, pathing, RNG, waves, rewards, and leaks must be reproducible from state + seed. |
-| **Fast feedback** | Core gameplay rules are testable without opening a browser or starting Phaser. |
-| **KISS** | Prefer direct, readable modules until repeated complexity proves an abstraction is needed. |
-| **DRY where it matters** | Keep formulas, schemas, event names, and content IDs single-sourced. Do not over-abstract simple UI. |
-| **Performance by design** | Cache paths, pool projectiles, avoid React re-renders during frame loops, and load heavy code only when needed. |
+| Goal                         | Rule                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Strict separation**        | React owns UI. Phaser owns rendering and scene input. Simulation owns gameplay truth.                           |
+| **Content-driven gameplay**  | Board, gem, tower, creep, wave, recipe, and armor data live in content files, not scene code.                   |
+| **Deterministic simulation** | Combat, pathing, RNG, waves, rewards, and leaks must be reproducible from state + seed.                         |
+| **Fast feedback**            | Core gameplay rules are testable without opening a browser or starting Phaser.                                  |
+| **KISS**                     | Prefer direct, readable modules until repeated complexity proves an abstraction is needed.                      |
+| **DRY where it matters**     | Keep formulas, schemas, event names, and content IDs single-sourced. Do not over-abstract simple UI.            |
+| **Performance by design**    | Cache paths, pool projectiles, avoid React re-renders during frame loops, and load heavy code only when needed. |
 
 The most important boundary: **the Phaser scene is not the game engine**. Phaser is the presentation runtime for a game state owned by simulation modules.
 
@@ -50,14 +50,14 @@ packages/
 
 ### 2.1 Package Responsibilities
 
-| Package | Owns | Must not own |
-| --- | --- | --- |
-| `apps/web` | React screens, Phaser bootstrapping, browser input shell, HUD, panels | Combat formulas, pathfinding authority, content constants copied from JSON |
-| `packages/sim` | Board state, build validation, path cache, waves, creep movement, tower targeting, damage, RNG | React hooks, Phaser sprites, DOM, browser storage |
-| `packages/content` | JSON/data modules, schemas, IDs, balance tables, route definitions | Runtime entity state, scene objects |
-| `packages/protocol` | Typed events, serializable state snapshots, multiplayer sync shapes | Business logic or rendering logic |
-| `packages/assets` | Asset manifest, animation frame metadata, texture keys | Gameplay stats |
-| `apps/game-server` | Authoritative room/session loop if multiplayer lands | Presentation, local-only UI assumptions |
+| Package             | Owns                                                                                           | Must not own                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `apps/web`          | React screens, Phaser bootstrapping, browser input shell, HUD, panels                          | Combat formulas, pathfinding authority, content constants copied from JSON |
+| `packages/sim`      | Board state, build validation, path cache, waves, creep movement, tower targeting, damage, RNG | React hooks, Phaser sprites, DOM, browser storage                          |
+| `packages/content`  | JSON/data modules, schemas, IDs, balance tables, route definitions                             | Runtime entity state, scene objects                                        |
+| `packages/protocol` | Typed events, serializable state snapshots, multiplayer sync shapes                            | Business logic or rendering logic                                          |
+| `packages/assets`   | Asset manifest, animation frame metadata, texture keys                                         | Gameplay stats                                                             |
+| `apps/game-server`  | Authoritative room/session loop if multiplayer lands                                           | Presentation, local-only UI assumptions                                    |
 
 ### 2.2 Dependency Direction
 
@@ -95,19 +95,19 @@ flowchart TB
 
 ### 3.1 Ownership Matrix
 
-| Concern | Owner |
-| --- | --- |
-| Gold, lives, wave number as authoritative values | `packages/sim` |
-| Gold/lives/wave labels shown to player | React |
-| Board walkability and buildability | `packages/sim` using `packages/content` |
-| Placement ghost sprite and grid overlay | Phaser |
-| Placement validity | `packages/sim` |
-| Camera pan, zoom, bounds | Phaser |
-| Menu state, recipe dictionary, settings | React |
-| Projectile movement authority | `packages/sim` for hit timing; Phaser for visual interpolation |
-| Damage formulas | `packages/sim` |
-| Sprite depth, animation, particles | Phaser |
-| Asset keys and animation frame names | `packages/assets` or `packages/content` manifest |
+| Concern                                          | Owner                                                          |
+| ------------------------------------------------ | -------------------------------------------------------------- |
+| Gold, lives, wave number as authoritative values | `packages/sim`                                                 |
+| Gold/lives/wave labels shown to player           | React                                                          |
+| Board walkability and buildability               | `packages/sim` using `packages/content`                        |
+| Placement ghost sprite and grid overlay          | Phaser                                                         |
+| Placement validity                               | `packages/sim`                                                 |
+| Camera pan, zoom, bounds                         | Phaser                                                         |
+| Menu state, recipe dictionary, settings          | React                                                          |
+| Projectile movement authority                    | `packages/sim` for hit timing; Phaser for visual interpolation |
+| Damage formulas                                  | `packages/sim`                                                 |
+| Sprite depth, animation, particles               | Phaser                                                         |
+| Asset keys and animation frame names             | `packages/assets` or `packages/content` manifest               |
 
 When there is doubt, put durable gameplay truth in `packages/sim` and visual state in Phaser.
 
@@ -145,11 +145,11 @@ React does not own:
 ```ts
 useEffect(() => {
   const unsubscribe = gameBridge.onSnapshot((snapshot) => {
-    setHudState(selectHudState(snapshot));
-  });
+    setHudState(selectHudState(snapshot))
+  })
 
-  return unsubscribe;
-}, [gameBridge]);
+  return unsubscribe
+}, [gameBridge])
 ```
 
 ### 4.3 Avoid Async Waterfalls
@@ -164,7 +164,7 @@ const [board, manifest, settings] = await Promise.all([
   loadBoard(boardId),
   loadAssetManifest(),
   loadUserSettings(),
-]);
+])
 ```
 
 ### 4.4 Bundle Rules
@@ -245,7 +245,7 @@ These classes may use Phaser APIs, but they should not contain gameplay formulas
 - Pool projectiles, hit sparks, floating labels, and short-lived effects.
 - Destroy or recycle sprites when entities leave the simulation.
 - Use `Group` or custom pools for high-volume objects.
-- Recalculate A* paths only when the maze changes.
+- Recalculate A\* paths only when the maze changes.
 - Avoid per-frame allocation in `update`; reuse vectors and arrays in hot paths.
 - Depth sort by `y` for structures and units, but avoid full resort work unless positions changed.
 - Keep debug overlays behind development flags.
@@ -307,7 +307,7 @@ Use one explicit tick pipeline. Keep it readable and stable.
 
 ### 6.4 Pathfinding Rules
 
-- Use per-leg A* through ordered waypoints.
+- Use per-leg A\* through ordered waypoints.
 - Disable diagonal movement unless a future board spec changes it.
 - Validate every route leg before accepting a placement.
 - Cache paths after maze changes.
@@ -333,7 +333,7 @@ type GameCommand =
   | { type: 'tower.setTargetingMode'; towerId: string; mode: TargetingMode }
   | { type: 'tower.setHoldFire'; towerId: string; held: boolean }
   | { type: 'economy.upgradeGemChance' }
-  | { type: 'game.pause'; paused: boolean };
+  | { type: 'game.pause'; paused: boolean }
 ```
 
 Phaser sends world interaction intent:
@@ -343,7 +343,7 @@ type WorldInputCommand =
   | { type: 'pointer.hoverFootprint'; gx: number; gy: number }
   | { type: 'pointer.placeAtHoveredFootprint' }
   | { type: 'pointer.selectStructure'; structureId: string }
-  | { type: 'camera.focusLandmark'; landmarkId: string };
+  | { type: 'camera.focusLandmark'; landmarkId: string }
 ```
 
 Simulation emits snapshots and events:
@@ -355,7 +355,7 @@ type GameEvent =
   | { type: 'placement.validityChanged'; valid: boolean; reason?: string }
   | { type: 'path.rebuilt'; version: number }
   | { type: 'creep.died'; creepId: string; towerId?: string }
-  | { type: 'creep.leaked'; creepId: string; livesRemaining: number };
+  | { type: 'creep.leaked'; creepId: string; livesRemaining: number }
 ```
 
 ### 7.2 Bridge Rules
@@ -605,6 +605,6 @@ Use this checklist when adding or reviewing architecture-sensitive changes:
 
 ## 15. Changelog
 
-| Date | Change |
-| --- | --- |
+| Date       | Change                                                                |
+| ---------- | --------------------------------------------------------------------- |
 | 2026-06-30 | Initial architecture guide for React, Phaser, KISS, and DRY practices |

@@ -1,0 +1,126 @@
+/** Tier-1 (chipped) base stats from TOWER-AND-GEM-SYSTEMS.md §8.3 */
+export const gemTypeTemplates = {
+    amethyst: {
+        type: 'amethyst',
+        displayName: 'Amethyst',
+        combat: {
+            range: 160,
+            baseDamage: 2,
+            attackInterval: 0.6,
+            targets: 1,
+            primaryAttackType: 'pierce',
+        },
+        abilities: [{ type: 'pierce', armorReduction: 2 }],
+        projectileKey: 'projectile.arcane-lance',
+        assetFamily: 'arcane',
+    },
+    aquamarine: {
+        type: 'aquamarine',
+        displayName: 'Aquamarine',
+        combat: {
+            range: 128,
+            baseDamage: 2,
+            attackInterval: 0.25,
+            targets: 1,
+            primaryAttackType: 'normal',
+        },
+        abilities: [],
+        projectileKey: 'projectile.stone-shard',
+        assetFamily: 'stone',
+    },
+    diamond: {
+        type: 'diamond',
+        displayName: 'Diamond',
+        combat: {
+            range: 160,
+            baseDamage: 5,
+            attackInterval: 1.0,
+            targets: 1,
+            primaryAttackType: 'normal',
+        },
+        abilities: [],
+        projectileKey: 'projectile.stone-shard',
+        assetFamily: 'stone',
+    },
+    emerald: {
+        type: 'emerald',
+        displayName: 'Emerald',
+        combat: {
+            range: 160,
+            baseDamage: 2,
+            attackInterval: 1.0,
+            targets: 1,
+            primaryAttackType: 'magic',
+        },
+        abilities: [{ type: 'poison', dps: 2, duration: 5 }],
+        projectileKey: 'projectile.thorn-spore',
+        assetFamily: 'thorn',
+    },
+    opal: {
+        type: 'opal',
+        displayName: 'Opal',
+        combat: {
+            range: 160,
+            baseDamage: 1,
+            attackInterval: 1.0,
+            targets: 1,
+            primaryAttackType: 'normal',
+        },
+        abilities: [
+            {
+                type: 'aura_attack_speed',
+                bonus: 20,
+                radius: 160,
+                stackGroup: 'opal_attack_speed',
+            },
+        ],
+        projectileKey: 'projectile.radiant-bolt',
+        assetFamily: 'radiant',
+    },
+    ruby: {
+        type: 'ruby',
+        displayName: 'Ruby',
+        combat: {
+            range: 160,
+            baseDamage: 4,
+            attackInterval: 1.0,
+            targets: 1,
+            primaryAttackType: 'normal',
+        },
+        abilities: [
+            { type: 'cleave', percent: 30, radius: 96, damageType: 'pure' },
+        ],
+        projectileKey: 'projectile.flame-bolt',
+        assetFamily: 'flame',
+    },
+    sapphire: {
+        type: 'sapphire',
+        displayName: 'Sapphire',
+        combat: {
+            range: 192,
+            baseDamage: 2,
+            attackInterval: 1.0,
+            targets: 1,
+            primaryAttackType: 'magic',
+        },
+        abilities: [{ type: 'slow', speedReduction: 60 }],
+        projectileKey: 'projectile.arcane-lance',
+        assetFamily: 'arcane',
+    },
+    topaz: {
+        type: 'topaz',
+        displayName: 'Topaz',
+        combat: {
+            range: 192,
+            baseDamage: 3,
+            attackInterval: 1.3,
+            targets: 3,
+            primaryAttackType: 'normal',
+        },
+        abilities: [{ type: 'split_shot', targets: 3 }],
+        projectileKey: 'projectile.radiant-bolt',
+        assetFamily: 'radiant',
+    },
+};
+export const gemTypes = Object.keys(gemTypeTemplates);
+export const v1Qualities = ['chipped', 'flawed', 'normal'];
