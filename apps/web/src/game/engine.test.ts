@@ -76,6 +76,13 @@ describe('cosmic gem siege simulation', () => {
     expect(TOTAL_WAVES).toBe(50);
   });
 
+  it('honors an injected run seed for deterministic offers', () => {
+    const a = createGame(createDefaultSave(), { runSeed: 4242 });
+    const b = createGame(createDefaultSave(), { runSeed: 4242 });
+    expect(a.runSeed).toBe(4242);
+    expect(a.offers).toEqual(b.offers);
+  });
+
   it('moves enemies along the path and fails when enough enemies leak', () => {
     const game = createGame();
     for (let wave = 0; wave < 25 && game.status !== 'lost'; wave++) {

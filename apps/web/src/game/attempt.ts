@@ -6,8 +6,12 @@ import { cloneSave, createDefaultSave } from './save';
 import { createRunQuests } from './quests';
 import type { GameState, SaveState, TierId } from './types';
 
-export function createGame(save: SaveState = createDefaultSave()): GameState {
-  return createAttempt(cloneSave(save), 'a1', 'normal');
+export interface CreateGameOptions {
+  runSeed?: number;
+}
+
+export function createGame(save: SaveState = createDefaultSave(), options?: CreateGameOptions): GameState {
+  return createAttempt(cloneSave(save), 'a1', 'normal', options?.runSeed);
 }
 
 export function replaceState(target: GameState, source: GameState): void {
@@ -31,10 +35,15 @@ export function beginBuildPhase(state: GameState): void {
   );
 }
 
-export function createAttempt(save: SaveState, areaId: string, tierId: TierId): GameState {
+export function createAttempt(
+  save: SaveState,
+  areaId: string,
+  tierId: TierId,
+  runSeed?: number,
+): GameState {
   const safeTier = isTierUnlocked(save, areaId, tierId) ? tierId : 'normal';
   const tier = getArea(areaId).tiers[safeTier];
-  const runSeed = (Date.now() ^ (save.stars * 997)) | 0;
+  const resolvedSeed = runSeed ?? ((Date.now() ^ (save.stars * 997)) | 0);
 
   const attempt: GameState = {
     status: 'idle',
@@ -54,7 +63,7 @@ export function createAttempt(save: SaveState, areaId: string, tierId: TierId): 
     mergeSourceGemId: null,
     placementMode: 'rock',
     buildStep: 'rocks',
-    runSeed,
+    runSeed: resolvedSeed,
     combatRollNonce: 0,
     gameSpeed: 1,
     crystalDust: 0,

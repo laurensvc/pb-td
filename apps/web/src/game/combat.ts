@@ -533,7 +533,6 @@ export function completeWaveOrAttempt(state: GameState): void {
   if (state.projectiles.some((projectile) => projectile.active)) return;
   if (state.missiles.some((missile) => missile.active && missile.impactIn > 0)) return;
 
-  const area = getArea(state.areaId);
   const wave = getWave(state.areaId, state.tierId, state.waveIndex);
   const waveNumber = state.waveIndex + 1;
 

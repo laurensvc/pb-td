@@ -194,8 +194,12 @@ Track progress toward real GemTD rules in `apps/web`. Cloud agents and humans us
 - [x] Split `engine.ts` into placement/combat/attempt + query modules (~135 line facade)
 - [x] Split HUD panels into `components/cosmic/panels/*` (max ~290 lines/file)
 - [x] Shared `isPlanningPhase`, `buildDetectionGems`, `canPlaceAtBoardPoint` (DRY)
+- [x] Split `content.ts` into `content/*` with lazy `getWave()` cache
+- [x] Split `types.ts` into primitives/content/runtime/snapshot/actions
+- [x] Split Phaser draw/input into `phaser/render/*` and `phaser/input/*`
+- [x] Lazy-load shop/progress panel tabs; `createGame({ runSeed })` for races
 
-**Done when:** Test/lint/build green; no known soft-locks before Colyseus work.
+**Done when:** Test/lint/build green; no file > ~600 lines without a split plan; ready for protocol adapter (Phase 13).
 
 ---
 

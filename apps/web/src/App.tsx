@@ -1,32 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { isPlanningPhase } from './game/buildPhase';
-import { getRespecCost } from './game/save';
 import type { GameAction, Snapshot } from './game/types';
 import { PhaserGameHost } from './components/PhaserGameHost';
-import {
-  AreaPanel,
-  BuildPhasePanel,
-  GreatGemsPanel,
-  HoldPanel,
-  MazePanel,
-  PlacedGemsPanel,
-  ProspectPanel,
-  QuestPanel,
-  RecipePanel,
-  ResourcePill,
-  ResultPanel,
-  RunMetaPanel,
-  UpgradePanel,
-  WavePreviewPanel,
-} from './components/cosmic/panels';
+import { ResourcePill, ResultPanel } from './components/cosmic/panels/hud';
 import { useCosmicGame } from './hooks/useCosmicGame';
+
+const BuildTab = lazy(() =>
+  import('./components/cosmic/panels/BuildTab').then((m) => ({ default: m.BuildTab })),
+);
+const ShopTab = lazy(() =>
+  import('./components/cosmic/panels/ShopTab').then((m) => ({ default: m.ShopTab })),
+);
+const ProgressTab = lazy(() =>
+  import('./components/cosmic/panels/ProgressTab').then((m) => ({ default: m.ProgressTab })),
+);
 
 type SideTab = 'build' | 'shop' | 'progress';
 
 export default function App() {
   const { snapshot, dispatch, bridge } = useCosmicGame();
   const save = snapshot.save;
-  const respecCost = getRespecCost(save);
   const planning = isPlanningPhase(snapshot.status);
   const [tab, setTab] = useState<SideTab>('build');
 
@@ -85,65 +78,17 @@ export default function App() {
 
         <div className="panel-body">
           {snapshot.toast && <p className="game-toast">{snapshot.toast}</p>}
-          {tab === 'build' && (
-            <>
-              <BuildPhasePanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-              <HoldPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-              <WavePreviewPanel snapshot={snapshot} planning={planning} />
-              <MazePanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-              <PlacedGemsPanel
-                snapshot={snapshot}
-                planning={planning}
-                dispatch={dispatch}
-                save={save}
-              />
-              <GreatGemsPanel snapshot={snapshot} />
-              <RecipePanel save={save} />
-            </>
-          )}
-          {tab === 'shop' && (
-            <>
-              <ProspectPanel
-                snapshot={snapshot}
-                planning={planning}
-                dispatch={dispatch}
-                save={save}
-              />
-              <QuestPanel snapshot={snapshot} planning={planning} dispatch={dispatch} />
-            </>
-          )}
-          {tab === 'progress' && (
-            <>
-              <AreaPanel save={save} dispatch={dispatch} />
-              <RunMetaPanel snapshot={snapshot} />
-              <UpgradePanel save={save} dispatch={dispatch} />
-              <section className="game-card compact">
-                <div className="card-header">
-                  <h2>Save</h2>
-                  <div className="card-actions">
-                    <button
-                      type="button"
-                      className="game-button ghost"
-                      disabled={respecCost > save.stars}
-                      onClick={() => dispatch({ type: 'respecUpgrades' })}
-                    >
-                      Respec {respecCost}★
-                    </button>
-                    <button
-                      type="button"
-                      className="game-button ghost danger"
-                      onClick={() => dispatch({ type: 'resetSave' })}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                <p className="hint">
-                  Run rewards: +{snapshot.attemptStars}★ · +{snapshot.attemptCrowns}♛
-                </p>
-              </section>
-            </>
-          )}
+          <Suspense fallback={<p className="hint">Loading panel…</p>}>
+            {tab === 'build' && (
+              <BuildTab snapshot={snapshot} planning={planning} dispatch={dispatch} save={save} />
+            )}
+            {tab === 'shop' && (
+              <ShopTab snapshot={snapshot} planning={planning} dispatch={dispatch} save={save} />
+            )}
+            {tab === 'progress' && (
+              <ProgressTab snapshot={snapshot} save={save} dispatch={dispatch} />
+            )}
+          </Suspense>
         </div>
       </aside>
     </main>
