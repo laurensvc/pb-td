@@ -1,6 +1,6 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { GameView } from './GameView.tsx'
+import { GameSession } from './GameSession.tsx'
 
 const destroySpy = vi.fn()
 
@@ -19,10 +19,11 @@ describe('GameView smoke', () => {
   })
 
   it('mounts, shows HUD in build phase, and unmounts cleanly', async () => {
-    const { unmount } = render(<GameView />)
+    const { unmount } = render(<GameSession onExit={() => undefined} />)
 
     await waitFor(() => {
       expect(screen.getByTestId('game-hud')).toBeTruthy()
+      expect(screen.getByTestId('minimap')).toBeTruthy()
       expect(screen.getByTestId('game-view').getAttribute('data-phase')).toBe('placement')
     })
 
@@ -32,6 +33,9 @@ describe('GameView smoke', () => {
     expect(screen.getByTestId('phaser-game')).toBeTruthy()
     expect(screen.getByTestId('phaser-canvas')).toBeTruthy()
     expect(screen.getByTestId('build-controls')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause game' }))
+    expect(screen.getByTestId('pause-menu')).toBeTruthy()
 
     await act(async () => {
       unmount()

@@ -132,11 +132,7 @@ export const crownfallGrassBoard = {
     ],
     defaultRouteId: 'crownfall-simple',
     zones: {
-        unbuildable: [
-            ...borderRects(),
-            ...landmarkPads(),
-            ...goalApproachLane(),
-        ],
+        unbuildable: [...borderRects(), ...landmarkPads(), ...goalApproachLane()],
         forcedWalkable: [spawnBypassStrip()],
         goalApproachLane: goalApproachLane(),
         diagonalBypass: diagonalBypass(),

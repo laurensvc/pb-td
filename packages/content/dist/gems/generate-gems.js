@@ -1,5 +1,5 @@
 import { gemTypeTemplates, gemTypes, v1Qualities } from './base-stats.js';
-import { qualityMultipliers, scaleAbilities, } from './quality-multipliers.js';
+import { qualityMultipliers, scaleAbilities } from './quality-multipliers.js';
 function titleCaseQuality(quality) {
     return quality.charAt(0).toUpperCase() + quality.slice(1);
 }

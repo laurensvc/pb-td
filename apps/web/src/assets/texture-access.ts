@@ -38,6 +38,22 @@ export function playManifestAnimation(
   scene: Phaser.Scene,
 ): void {
   if (scene.anims.exists(key)) {
-    sprite.anims.play(key, true)
+    sprite.anims.play({ key, repeat: -1 }, true)
   }
+}
+
+export function playManifestAnimationOnce(
+  sprite: Phaser.GameObjects.Sprite,
+  key: string,
+  scene: Phaser.Scene,
+  onComplete?: () => void,
+): boolean {
+  if (!scene.anims.exists(key)) return false
+  const entry = getManifestEntry(key)
+  const repeat = entry?.repeat ?? 0
+  sprite.anims.play({ key, repeat: repeat === -1 ? 0 : repeat }, true)
+  if (onComplete) {
+    sprite.once('animationcomplete', onComplete)
+  }
+  return true
 }

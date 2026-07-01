@@ -29,14 +29,7 @@ export const qualityTierSchema = z.enum([
     'great',
 ]);
 export const v1QualityTierSchema = z.enum(['chipped', 'flawed', 'normal']);
-export const attackTypeSchema = z.enum([
-    'normal',
-    'pierce',
-    'siege',
-    'magic',
-    'chaos',
-    'pure',
-]);
+export const attackTypeSchema = z.enum(['normal', 'pierce', 'siege', 'magic', 'chaos', 'pure']);
 export const armorTypeSchema = z.enum([
     'unarmored',
     'light',

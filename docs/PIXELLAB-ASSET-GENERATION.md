@@ -4,7 +4,6 @@ Practical guide for producing the first complete art set for the GemTD-inspired 
 
 This project is starting from scratch, so the goal is not one-off pretty sprites. The goal is a repeatable asset pipeline where every generated asset has a clear prompt, export path, animation contract, and Phaser integration shape.
 
-For Codex cloud MCP wiring, see [`CODEX-PIXELLAB-MCP.md`](./CODEX-PIXELLAB-MCP.md).
 
 For board layout, grass terrain, and landmark placement, see [`BOARD-AND-MAZE-SPEC.md`](./BOARD-AND-MAZE-SPEC.md).
 

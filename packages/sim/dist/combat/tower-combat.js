@@ -1,6 +1,8 @@
 import { resolveDamage } from './damage-resolver.js';
 import { applyPoison, applySlow } from './status-effects.js';
 import { resolveTowerCombat } from './tower-stats.js';
+import { computeMagicBoundsMrReduction } from './kill-milestones.js';
+import { computeMvpAuraAllyDamageMultiplier, computeMrReductionForCreep, } from './mvp-system.js';
 function distance(ax, ay, bx, by) {
     return Math.hypot(bx - ax, by - ay);
 }
@@ -18,7 +20,7 @@ function acquireTarget(creeps, tower, mode) {
         return null;
     switch (mode) {
         case 'closest_to_goal':
-            return inRange.reduce((best, c) => c.pathProgress > best.pathProgress ? c : best);
+            return inRange.reduce((best, c) => (c.pathProgress > best.pathProgress ? c : best));
         case 'closest_to_tower':
             return inRange.reduce((best, c) => {
                 const dBest = distance(tower.worldX, tower.worldY, best.worldPos.x, best.worldPos.y);
@@ -33,7 +35,7 @@ function acquireTarget(creeps, tower, mode) {
             return inRange[0] ?? null;
     }
 }
-function buildAttackPacket(tower) {
+function buildAttackPacket(tower, magicResistReduction = 0) {
     let armorReduction = 0;
     for (const ability of tower.abilities) {
         if (ability.type === 'pierce' || ability.type === 'corrupt') {
@@ -45,7 +47,22 @@ function buildAttackPacket(tower) {
         attackType: tower.stats.primaryAttackType,
         sourceTowerId: tower.towerId,
         armorReduction: armorReduction > 0 ? armorReduction : undefined,
+        magicResistReduction: magicResistReduction > 0 ? magicResistReduction : undefined,
     };
+}
+function computeMagicBoundsAuraMrReduction(towers, content, creep, mvpStacks) {
+    let total = 0;
+    for (const towerEntity of towers) {
+        if (!towerEntity.active)
+            continue;
+        const auraTower = resolveTowerCombat(content, towerEntity, mvpStacks.get(towerEntity.id) ?? 0);
+        if (!auraTower || auraTower.stats.primaryAttackType !== 'magic')
+            continue;
+        if (!canTarget(creep, auraTower))
+            continue;
+        total += computeMagicBoundsMrReduction(towerEntity.killCount);
+    }
+    return total;
 }
 function applyOnHitAbilities(creep, tower) {
     for (const ability of tower.abilities) {
@@ -91,7 +108,8 @@ export function tickTowerCombat(content, towers, towerRuntime, creeps, mvpStacks
         runtime.attackCooldown = Math.max(0, runtime.attackCooldown - dt);
         if (runtime.holdFire)
             continue;
-        const resolved = resolveTowerCombat(content, towerEntity, runtime.mvpStacks);
+        const mvpAuraAllyMultiplier = computeMvpAuraAllyDamageMultiplier(towers, towerEntity, mvpStacks);
+        const resolved = resolveTowerCombat(content, towerEntity, runtime.mvpStacks, mvpAuraAllyMultiplier);
         if (!resolved)
             continue;
         if (runtime.attackCooldown > 0)
@@ -109,7 +127,10 @@ export function tickTowerCombat(content, towers, towerRuntime, creeps, mvpStacks
             continue;
         runtime.attackCooldown = resolved.stats.attackInterval;
         for (const target of targets) {
-            const attack = buildAttackPacket(resolved);
+            const magicResistReduction = resolved.stats.primaryAttackType === 'magic'
+                ? computeMrReductionForCreep(towers, target, mvpStacks, computeMagicBoundsAuraMrReduction(towers, content, target, mvpStacks))
+                : 0;
+            const attack = buildAttackPacket(resolved, magicResistReduction);
             const result = resolveDamage(target, attack, damageConfig);
             if (result.missed) {
                 events.push({

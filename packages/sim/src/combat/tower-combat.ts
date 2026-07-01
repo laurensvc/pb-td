@@ -5,6 +5,11 @@ import type { PathCache } from '../pathfinding/path-cache.js'
 import { resolveDamage, type DamageResolverConfig } from './damage-resolver.js'
 import { applyPoison, applySlow } from './status-effects.js'
 import { resolveTowerCombat } from './tower-stats.js'
+import { computeMagicBoundsMrReduction } from './kill-milestones.js'
+import {
+  computeMvpAuraAllyDamageMultiplier,
+  computeMrReductionForCreep,
+} from './mvp-system.js'
 import type { AttackPacket, CombatEvent, CreepEntity, TowerRuntimeState } from './types.js'
 
 function distance(ax: number, ay: number, bx: number, by: number): number {
@@ -46,6 +51,7 @@ function acquireTarget(
 
 function buildAttackPacket(
   tower: NonNullable<ReturnType<typeof resolveTowerCombat>>,
+  magicResistReduction = 0,
 ): AttackPacket {
   let armorReduction = 0
   for (const ability of tower.abilities) {
@@ -59,7 +65,25 @@ function buildAttackPacket(
     attackType: tower.stats.primaryAttackType,
     sourceTowerId: tower.towerId,
     armorReduction: armorReduction > 0 ? armorReduction : undefined,
+    magicResistReduction: magicResistReduction > 0 ? magicResistReduction : undefined,
   }
+}
+
+function computeMagicBoundsAuraMrReduction(
+  towers: TowerEntity[],
+  content: GameContent,
+  creep: CreepEntity,
+  mvpStacks: Map<string, number>,
+): number {
+  let total = 0
+  for (const towerEntity of towers) {
+    if (!towerEntity.active) continue
+    const auraTower = resolveTowerCombat(content, towerEntity, mvpStacks.get(towerEntity.id) ?? 0)
+    if (!auraTower || auraTower.stats.primaryAttackType !== 'magic') continue
+    if (!canTarget(creep, auraTower)) continue
+    total += computeMagicBoundsMrReduction(towerEntity.killCount)
+  }
+  return total
 }
 
 function applyOnHitAbilities(
@@ -127,7 +151,17 @@ export function tickTowerCombat(
 
     if (runtime.holdFire) continue
 
-    const resolved = resolveTowerCombat(content, towerEntity, runtime.mvpStacks)
+    const mvpAuraAllyMultiplier = computeMvpAuraAllyDamageMultiplier(
+      towers,
+      towerEntity,
+      mvpStacks,
+    )
+    const resolved = resolveTowerCombat(
+      content,
+      towerEntity,
+      runtime.mvpStacks,
+      mvpAuraAllyMultiplier,
+    )
     if (!resolved) continue
 
     if (runtime.attackCooldown > 0) continue
@@ -151,7 +185,16 @@ export function tickTowerCombat(
     runtime.attackCooldown = resolved.stats.attackInterval
 
     for (const target of targets) {
-      const attack = buildAttackPacket(resolved)
+      const magicResistReduction =
+        resolved.stats.primaryAttackType === 'magic'
+          ?               computeMrReductionForCreep(
+              towers,
+              target,
+              mvpStacks,
+              computeMagicBoundsAuraMrReduction(towers, content, target, mvpStacks),
+            )
+          : 0
+      const attack = buildAttackPacket(resolved, magicResistReduction)
       const result = resolveDamage(target, attack, damageConfig)
 
       if (result.missed) {

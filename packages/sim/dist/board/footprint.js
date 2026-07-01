@@ -15,8 +15,5 @@ export function footprintInBounds(gx, gy, width, height, size = GEM_FOOTPRINT) {
     return gx >= 0 && gy >= 0 && gx + size <= width && gy + size <= height;
 }
 export function footprintsOverlap(aGx, aGy, bGx, bGy, size = GEM_FOOTPRINT) {
-    return !(aGx + size <= bGx ||
-        bGx + size <= aGx ||
-        aGy + size <= bGy ||
-        bGy + size <= aGy);
+    return !(aGx + size <= bGx || bGx + size <= aGx || aGy + size <= bGy || bGy + size <= aGy);
 }

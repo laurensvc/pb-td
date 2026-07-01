@@ -1,7 +1,8 @@
-import type { GameCommand, GameSnapshot, SnapshotSelectionAction } from '@facet/protocol'
+import type { GameCommand, SnapshotSelectionAction } from '@facet/protocol'
+import type { BuildControlsState } from '../bridge/selectors.ts'
 
 interface BuildControlsProps {
-  snapshot: GameSnapshot
+  state: BuildControlsState
   onCommand: (command: GameCommand) => void
 }
 
@@ -41,35 +42,35 @@ const TARGETING_MODES = [
   { id: 'first_in_range', label: 'First in range' },
 ] as const
 
-export function BuildControls({ snapshot, onCommand }: BuildControlsProps) {
-  const selectedTower = snapshot.towers.find((t) => t.id === snapshot.selectedTowerId)
+export function BuildControls({ state, onCommand }: BuildControlsProps) {
+  const selectedTower = state.selectedTower
 
   return (
     <div className="panel build-controls" data-testid="build-controls">
-      {snapshot.phase === 'countdown' && (
+      {state.phase === 'countdown' && (
         <button type="button" onClick={() => onCommand({ type: 'game.skipCountdown' })}>
           Start build phase
         </button>
       )}
 
-      {(snapshot.phase === 'placement' || snapshot.phase === 'selection') && (
+      {(state.phase === 'placement' || state.phase === 'selection') && (
         <div className="build-controls__section">
-          <h3>Gem chance L{snapshot.chanceLevel}</h3>
+          <h3>Gem chance L{state.chanceLevel}</h3>
           <button
             type="button"
-            disabled={!snapshot.canUpgradeChance}
+            disabled={!state.canUpgradeChance}
             onClick={() => onCommand({ type: 'economy.upgradeGemChance' })}
           >
-            Upgrade ({snapshot.chanceUpgradeCost}g)
+            Upgrade ({state.chanceUpgradeCost}g)
           </button>
         </div>
       )}
 
-      {snapshot.phase === 'selection' && (
+      {state.phase === 'selection' && (
         <div className="build-controls__section">
           <h3>Selection</h3>
           <ul className="build-controls__actions">
-            {snapshot.selectionActions.map((action, index) => (
+            {state.selectionActions.map((action, index) => (
               <li key={`${action.kind}-${action.candidateId}-${index}`}>
                 <button type="button" onClick={() => onCommand(toCommand(action))}>
                   {action.label}

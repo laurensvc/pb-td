@@ -2,17 +2,26 @@ import Phaser from 'phaser'
 
 import type { GameBridge } from '../bridge/game-bridge.js'
 
-import { preloadManifest } from '../assets/preload.js'
+import { finalizeManifestPreload, queueManifestLoads } from '../assets/preload.js'
 
 import { BoardScene } from './scenes/BoardScene.js'
 
 class PreloadScene extends Phaser.Scene {
+  private readonly loadFailures = new Set<string>()
+
   constructor() {
     super('PreloadScene')
   }
 
+  preload(): void {
+    this.load.on('loaderror', (file: { key?: string }) => {
+      if (file.key) this.loadFailures.add(file.key)
+    })
+    queueManifestLoads(this.load)
+  }
+
   create(): void {
-    preloadManifest(this)
+    finalizeManifestPreload(this, this.loadFailures)
 
     this.scene.start('BoardScene', { bridge: this.registry.get('bridge') })
   }

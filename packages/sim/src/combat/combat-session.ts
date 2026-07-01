@@ -7,6 +7,7 @@ import { advanceFlyingCreep, advanceGroundCreep } from './movement.js'
 import { tickStatusEffects } from './status-effects.js'
 import { pickMvpTower, resetWaveDamage, tickTowerCombat } from './tower-combat.js'
 import { awardMvpStack } from './tower-stats.js'
+import { creditTowerKill } from './kill-milestones.js'
 import {
   createWaveSpawner,
   isWaveCleared,
@@ -157,7 +158,7 @@ export class CombatSession {
       for (const kill of combatResult.kills) {
         this.killsThisWave += 1
         const tower = this.towers.find((t) => t.id === kill.killerTowerId)
-        if (tower) tower.killCount += 1
+        if (tower) creditTowerKill(tower)
         registerCreepResolved(this.spawner)
       }
     }
@@ -202,7 +203,7 @@ export class CombatSession {
   ): void {
     this.killsThisWave += 1
     const tower = this.towers.find((t) => t.id === killerTowerId)
-    if (tower) tower.killCount += 1
+    if (tower) creditTowerKill(tower)
     registerCreepResolved(this.spawner)
     events.push({
       type: 'creep_killed',

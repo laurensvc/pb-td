@@ -48,10 +48,7 @@ export function findPath(sim, start, goal, extraBlocking) {
         for (const { dx, dy } of DIRECTIONS) {
             const ngx = current.gx + dx;
             const ngy = current.gy + dy;
-            if (ngx < 0 ||
-                ngy < 0 ||
-                ngx >= sim.board.width ||
-                ngy >= sim.board.height) {
+            if (ngx < 0 || ngy < 0 || ngx >= sim.board.width || ngy >= sim.board.height) {
                 continue;
             }
             const key = coordKey(ngx, ngy);

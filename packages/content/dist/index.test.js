@@ -123,10 +123,7 @@ describe('validateContent', () => {
             ...crownfallGrassBoard,
             zones: {
                 ...crownfallGrassBoard.zones,
-                unbuildable: [
-                    ...crownfallGrassBoard.zones.unbuildable,
-                    { gx: 0, gy: 95, w: 148, h: 12 },
-                ],
+                unbuildable: [...crownfallGrassBoard.zones.unbuildable, { gx: 0, gy: 95, w: 148, h: 12 }],
             },
         };
         expect(() => validateContent({ ...gameContent, board: walledBoard })).toThrow(/disconnected/);

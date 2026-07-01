@@ -1,5 +1,6 @@
 import { gridToWorldCenter } from '../board/coordinates.js';
 import { GEM_FOOTPRINT } from '../constants.js';
+import { computeKillMilestoneDamageMultiplier, computeMagicBoundsMrReduction, } from './kill-milestones.js';
 const MVP_DAMAGE_BONUS_PER_STACK = 0.1;
 const MAX_MVP_STACKS = 10;
 export function towerWorldCenter(gx, gy) {
@@ -7,7 +8,7 @@ export function towerWorldCenter(gx, gy) {
     const centerGy = gy + GEM_FOOTPRINT / 2;
     return gridToWorldCenter(centerGx, centerGy);
 }
-export function resolveTowerCombat(content, tower, mvpStacks) {
+export function resolveTowerCombat(content, tower, mvpStacks, mvpAuraAllyMultiplier = 1) {
     if (!tower.active)
         return null;
     let stats;
@@ -29,7 +30,10 @@ export function resolveTowerCombat(content, tower, mvpStacks) {
     else {
         return null;
     }
-    const damageMultiplier = 1 + mvpStacks * MVP_DAMAGE_BONUS_PER_STACK;
+    const mvpMultiplier = 1 + mvpStacks * MVP_DAMAGE_BONUS_PER_STACK;
+    const killMilestoneMultiplier = computeKillMilestoneDamageMultiplier(tower.killCount, stats.primaryAttackType);
+    const damageMultiplier = mvpMultiplier * killMilestoneMultiplier * mvpAuraAllyMultiplier;
+    const magicBoundsMrReduction = computeMagicBoundsMrReduction(tower.killCount);
     const center = towerWorldCenter(tower.gx, tower.gy);
     return {
         towerId: tower.id,
@@ -43,6 +47,8 @@ export function resolveTowerCombat(content, tower, mvpStacks) {
         },
         abilities,
         damageMultiplier,
+        killMilestoneMultiplier,
+        magicBoundsMrReduction,
     };
 }
 export function awardMvpStack(currentStacks) {

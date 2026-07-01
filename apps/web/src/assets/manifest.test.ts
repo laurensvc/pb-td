@@ -5,6 +5,7 @@ import {
   assertManifestCoversContent,
   collectContentAssetKeys,
   getManifestEntry,
+  resolvePresentationKey,
 } from './manifest.js'
 
 describe('asset manifest', () => {
@@ -43,5 +44,12 @@ describe('asset manifest', () => {
     expect(keys.has('tower.flame-t1.idle')).toBe(true)
     expect(keys.has('projectile.flame-bolt')).toBe(true)
     expect(keys.has('fx.hit-spark')).toBe(true)
+  })
+
+  it('maps gem content keys to family-tier idle sprites', () => {
+    expect(resolvePresentationKey('tower.ruby.chipped')).toBe('tower.flame-t1.idle')
+    expect(resolvePresentationKey('tower.emerald.normal')).toBe('tower.thorn-t3.idle')
+    expect(resolvePresentationKey('tower.amethyst.chipped')).toBe('tower.amethyst.chipped')
+    expect(resolvePresentationKey('enemy.stone-grunt.walk')).toBe('enemy.stone-grunt.walk')
   })
 })

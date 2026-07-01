@@ -53,7 +53,9 @@ export function advanceGroundCreep(creep, pathCache, dt) {
     creep.legIndex = leg.legIndex;
     creep.pathProgress = computePathProgress(leg.legIndex, leg.pathIndex, creep.distanceAlongSegment, pathCache.legStartIndex);
     const atEnd = creep.pathIndex >= points.length - 2 &&
-        creep.distanceAlongSegment >= segmentLength(points[points.length - 2].x, points[points.length - 2].y, points[points.length - 1].x, points[points.length - 1].y) - 0.01;
+        creep.distanceAlongSegment >=
+            segmentLength(points[points.length - 2].x, points[points.length - 2].y, points[points.length - 1].x, points[points.length - 1].y) -
+                0.01;
     return atEnd;
 }
 export function advanceFlyingCreep(creep, flyingPath, dt) {
@@ -67,7 +69,9 @@ export function advanceFlyingCreep(creep, flyingPath, dt) {
     creep.worldPos = result.worldPos;
     creep.legIndex = 0;
     creep.pathProgress =
-        creep.pathIndex + creep.distanceAlongSegment / Math.max(1, segmentLength(points[creep.pathIndex]?.x ?? 0, points[creep.pathIndex]?.y ?? 0, points[creep.pathIndex + 1]?.x ?? 0, points[creep.pathIndex + 1]?.y ?? 0));
+        creep.pathIndex +
+            creep.distanceAlongSegment /
+                Math.max(1, segmentLength(points[creep.pathIndex]?.x ?? 0, points[creep.pathIndex]?.y ?? 0, points[creep.pathIndex + 1]?.x ?? 0, points[creep.pathIndex + 1]?.y ?? 0));
     const lastSeg = segmentLength(points[points.length - 2].x, points[points.length - 2].y, points[points.length - 1].x, points[points.length - 1].y);
     return creep.pathIndex >= points.length - 2 && creep.distanceAlongSegment >= lastSeg - 0.01;
 }

@@ -20,21 +20,7 @@ const LANDMARK_TEXTURE_KEYS: Record<string, string> = {
   goal: 'env.goal-nexus',
 }
 
-const LANDMARKS: Array<{ id: string; gx: number; gy: number }> = [
-  { id: 'spawn', gx: 8, gy: 124 },
-
-  { id: 'checkpoint-1', gx: 68, gy: 68 },
-
-  { id: 'checkpoint-2', gx: 108, gy: 48 },
-
-  { id: 'checkpoint-3', gx: 48, gy: 48 },
-
-  { id: 'checkpoint-4', gx: 108, gy: 88 },
-
-  { id: 'checkpoint-5', gx: 48, gy: 88 },
-
-  { id: 'goal', gx: 124, gy: 8 },
-]
+import { BOARD_LANDMARKS, landmarkWorldCenter } from '../../board/landmarks.js'
 
 export class LandmarkLayer {
   private readonly markers = new Map<string, Phaser.GameObjects.Sprite>()
@@ -46,7 +32,7 @@ export class LandmarkLayer {
 
     const pad = tile * 3
 
-    for (const lm of LANDMARKS) {
+    for (const lm of BOARD_LANDMARKS) {
       const key = LANDMARK_TEXTURE_KEYS[lm.id]!
 
       const footX = lm.gx * tile + tile * 1.5
@@ -68,11 +54,7 @@ export class LandmarkLayer {
   }
 
   getWorldCenter(landmarkId: string, tileSize: number): { x: number; y: number } | null {
-    const lm = LANDMARKS.find((l) => l.id === landmarkId)
-
-    if (!lm) return null
-
-    return { x: lm.gx * tileSize + tileSize * 1.5, y: lm.gy * tileSize + tileSize * 1.5 }
+    return landmarkWorldCenter(landmarkId, tileSize)
   }
 
   destroy(): void {

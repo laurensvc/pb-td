@@ -25,6 +25,7 @@ import { validatePlacement, type PlacementRejectReason } from '../placement/plac
 import { ensurePathCache, type PathCache } from '../pathfinding/path-cache.js'
 import { SeededRng } from '../rng/seeded-rng.js'
 import { CombatSession } from '../combat/combat-session.js'
+import { sumKillCountAtTiles } from '../combat/kill-milestones.js'
 import type { CombatEvent, CombatSnapshot } from '../combat/types.js'
 import type {
   CandidateGem,
@@ -258,8 +259,21 @@ export class RoundController {
     )
 
     const consumed = new Set(resolution.consumedCandidateIds)
+    const consumedTiles = this.candidates
+      .filter((c) => consumed.has(c.id))
+      .map((c) => ({ gx: c.gx, gy: c.gy }))
     removeStructures(this.simBoard, consumed)
     this.candidates = this.candidates.filter((c) => !consumed.has(c.id))
+
+    let transferredKills = 0
+    if (action.kind === 'duplicate-combine' || action.kind === 'one-hit-special') {
+      const { totalKills, consumedTowerIds } = sumKillCountAtTiles(this.towers, consumedTiles)
+      transferredKills = totalKills
+      if (consumedTowerIds.length > 0) {
+        this.towers = this.towers.filter((t) => !consumedTowerIds.includes(t.id))
+        removeStructures(this.simBoard, new Set(consumedTowerIds))
+      }
+    }
 
     if (resolution.tower) {
       const tower: TowerEntity = {
@@ -269,7 +283,7 @@ export class RoundController {
         gx: resolution.tower.gx,
         gy: resolution.tower.gy,
         active: true,
-        killCount: 0,
+        killCount: transferredKills,
         ...defaultTowerFields(),
       }
       this.towers.push(tower)

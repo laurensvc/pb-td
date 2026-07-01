@@ -2,6 +2,10 @@ import type { GameContent, TowerAbility, TowerCombatStats } from '@facet/content
 import { gridToWorldCenter } from '../board/coordinates.js'
 import { GEM_FOOTPRINT } from '../constants.js'
 import type { TowerEntity } from '../round/types.js'
+import {
+  computeKillMilestoneDamageMultiplier,
+  computeMagicBoundsMrReduction,
+} from './kill-milestones.js'
 
 export interface ResolvedTowerCombat {
   towerId: string
@@ -12,6 +16,8 @@ export interface ResolvedTowerCombat {
   stats: TowerCombatStats
   abilities: TowerAbility[]
   damageMultiplier: number
+  killMilestoneMultiplier: number
+  magicBoundsMrReduction: number
 }
 
 const MVP_DAMAGE_BONUS_PER_STACK = 0.1
@@ -27,6 +33,7 @@ export function resolveTowerCombat(
   content: GameContent,
   tower: TowerEntity,
   mvpStacks: number,
+  mvpAuraAllyMultiplier = 1,
 ): ResolvedTowerCombat | null {
   if (!tower.active) return null
 
@@ -47,7 +54,13 @@ export function resolveTowerCombat(
     return null
   }
 
-  const damageMultiplier = 1 + mvpStacks * MVP_DAMAGE_BONUS_PER_STACK
+  const mvpMultiplier = 1 + mvpStacks * MVP_DAMAGE_BONUS_PER_STACK
+  const killMilestoneMultiplier = computeKillMilestoneDamageMultiplier(
+    tower.killCount,
+    stats.primaryAttackType,
+  )
+  const damageMultiplier = mvpMultiplier * killMilestoneMultiplier * mvpAuraAllyMultiplier
+  const magicBoundsMrReduction = computeMagicBoundsMrReduction(tower.killCount)
   const center = towerWorldCenter(tower.gx, tower.gy)
 
   return {
@@ -62,6 +75,8 @@ export function resolveTowerCombat(
     },
     abilities,
     damageMultiplier,
+    killMilestoneMultiplier,
+    magicBoundsMrReduction,
   }
 }
 

@@ -1,4 +1,4 @@
-import { GEM_QUALITY_ORDER, gemId, parseGemId, qualityAtIndex, qualityIndex, } from '../constants.js';
+import { GEM_QUALITY_ORDER, gemId, parseGemId, qualityAtIndex, qualityIndex } from '../constants.js';
 function groupByGemId(candidates) {
     const groups = new Map();
     for (const c of candidates) {
@@ -158,18 +158,14 @@ function selectionActionsEqual(a, b) {
         case 'keep':
             return b.kind === 'keep' && a.candidateId === b.candidateId;
         case 'downgrade':
-            return (b.kind === 'downgrade' &&
-                a.candidateId === b.candidateId &&
-                a.resultGemId === b.resultGemId);
+            return (b.kind === 'downgrade' && a.candidateId === b.candidateId && a.resultGemId === b.resultGemId);
         case 'duplicate-combine':
             return (b.kind === 'duplicate-combine' &&
                 a.candidateId === b.candidateId &&
                 a.count === b.count &&
                 a.resultGemId === b.resultGemId);
         case 'one-hit-special':
-            return (b.kind === 'one-hit-special' &&
-                a.candidateId === b.candidateId &&
-                a.recipeId === b.recipeId);
+            return (b.kind === 'one-hit-special' && a.candidateId === b.candidateId && a.recipeId === b.recipeId);
         default:
             return false;
     }

@@ -1,15 +1,12 @@
 import { v1Recipes } from '@facet/content'
-import type { GameSnapshot } from '@facet/protocol'
+import type { RecipeDictionaryState } from '../bridge/selectors.ts'
 
 interface RecipeDictionaryProps {
-  snapshot: GameSnapshot
+  state: RecipeDictionaryState
 }
 
-export function RecipeDictionary({ snapshot }: RecipeDictionaryProps) {
-  const ownedGemIds = new Set([
-    ...snapshot.candidates.map((c) => c.gemId),
-    ...snapshot.towers.filter((t) => t.gemId).map((t) => t.gemId!),
-  ])
+export function RecipeDictionary({ state }: RecipeDictionaryProps) {
+  const ownedGemIds = new Set(state.ownedGemIds)
 
   return (
     <div className="panel recipe-dictionary" data-testid="recipe-dictionary">

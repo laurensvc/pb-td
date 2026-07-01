@@ -172,6 +172,12 @@ export class GameBridge {
     return () => this.cameraFocusListeners.delete(listener)
   }
 
+  /** Fractional progress toward the next sim tick (0–1) for render interpolation. */
+  getRenderAlpha(): number {
+    const step = 1 / SIM_HZ
+    return Math.min(1, this.accumulator / step)
+  }
+
   start(): void {
     if (this.rafId !== 0) return
     this.lastFrameMs = performance.now()
@@ -384,7 +390,10 @@ export class GameBridge {
       candidates: state.candidates.map((c) => ({ ...c })),
       towers: state.towers.map((t) => ({ ...t })),
       rocks: state.rocks.map((r) => ({ ...r })),
-      creeps: (combat?.creeps ?? []).map((c) => ({ ...c })),
+      creeps: (combat?.creeps ?? []).map((c) => ({
+        ...c,
+        worldPos: { ...c.worldPos },
+      })),
       selectionActions: this.controller.getSelectionActions().map(toProtocolSelectionAction),
       hover:
         state.phase === 'placement'

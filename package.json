@@ -14,6 +14,7 @@
     "test": "pnpm -r run test",
     "assets:generate": "node scripts/generate-pixel-art.mjs",
     "assets:pixellab": "node scripts/pixellab-sync.mjs",
+    "assets:batch": "node scripts/pixellab-run-batch.mjs",
     "gemtd:next-phase": "node scripts/gemtd-phase-status.mjs"
   },
   "devDependencies": {

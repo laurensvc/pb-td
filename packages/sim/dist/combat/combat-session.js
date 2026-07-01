@@ -1,8 +1,9 @@
 import { buildFlyingPath } from './flying-path.js';
-import { advanceFlyingCreep, advanceGroundCreep, } from './movement.js';
+import { advanceFlyingCreep, advanceGroundCreep } from './movement.js';
 import { tickStatusEffects } from './status-effects.js';
-import { pickMvpTower, resetWaveDamage, tickTowerCombat, } from './tower-combat.js';
+import { pickMvpTower, resetWaveDamage, tickTowerCombat } from './tower-combat.js';
 import { awardMvpStack } from './tower-stats.js';
+import { creditTowerKill } from './kill-milestones.js';
 import { createWaveSpawner, isWaveCleared, registerCreepResolved, tickWaveSpawner, } from './wave-spawner.js';
 export class CombatSession {
     content;
@@ -100,7 +101,7 @@ export class CombatSession {
                 this.killsThisWave += 1;
                 const tower = this.towers.find((t) => t.id === kill.killerTowerId);
                 if (tower)
-                    tower.killCount += 1;
+                    creditTowerKill(tower);
                 registerCreepResolved(this.spawner);
             }
         }
@@ -135,7 +136,7 @@ export class CombatSession {
         this.killsThisWave += 1;
         const tower = this.towers.find((t) => t.id === killerTowerId);
         if (tower)
-            tower.killCount += 1;
+            creditTowerKill(tower);
         registerCreepResolved(this.spawner);
         events.push({
             type: 'creep_killed',

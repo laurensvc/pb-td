@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ASSET_MANIFEST } from './manifest.js'
-import { preloadManifest } from './preload.js'
+import { finalizeManifestPreload, preloadManifest } from './preload.js'
 import { requireTextureKey } from './texture-access.js'
 
 function createMockScene() {
@@ -44,6 +44,13 @@ describe('preloadManifest', () => {
     preloadManifest(scene as never)
     const animated = ASSET_MANIFEST.filter((e) => e.frames > 1 && e.fps > 0)
     expect(scene.anims.create).toHaveBeenCalledTimes(animated.length)
+  })
+
+  it('finalizeManifestPreload fills placeholders for failed loads', () => {
+    const scene = createMockScene()
+    finalizeManifestPreload(scene as never, new Set(['terrain.default-floor']))
+    expect(scene.texturesMap.size).toBe(ASSET_MANIFEST.length)
+    expect(scene.textures.addCanvas).toHaveBeenCalled()
   })
 })
 

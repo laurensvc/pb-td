@@ -7,9 +7,16 @@ export {
   gemAssetKeyFromGemId,
   getManifestEntry,
   PRESENTATION_ASSET_KEYS,
+  resolvePresentationKey,
   specialAssetKey,
 } from './manifest.js'
 export { generatePlaceholderCanvas } from './placeholder-generator.js'
 export { resolvePlaceholderStyle } from './placeholder-styles.js'
-export { manifestProgressTotal, preloadManifest, registerManifestAnimations } from './preload.js'
+export {
+  finalizeManifestPreload,
+  manifestProgressTotal,
+  preloadManifest,
+  queueManifestLoads,
+  registerManifestAnimations,
+} from './preload.js'
 export { createManifestSprite, playManifestAnimation, requireTextureKey } from './texture-access.js'

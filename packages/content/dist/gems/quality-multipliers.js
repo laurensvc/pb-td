@@ -28,9 +28,7 @@ export function scaleAbilities(abilities, mult) {
                     ...ability,
                     armorReduction: ability.armorReduction * mult.dotDebuff,
                     speedReduction: ability.speedReduction * mult.dotDebuff,
-                    mrReduction: ability.mrReduction
-                        ? ability.mrReduction * mult.dotDebuff
-                        : undefined,
+                    mrReduction: ability.mrReduction ? ability.mrReduction * mult.dotDebuff : undefined,
                 };
             default:
                 return { ...ability };

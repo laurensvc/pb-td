@@ -14,19 +14,19 @@ Authoritative engineering backlog for the Gem TD vertical slice and beyond. Game
 | --- | ---: | ---: | ---: | --- |
 | FND Foundation | 5 | 0 | 0 | — |
 | CNT Content | 8 | 0 | 0 | — |
-| SIM Simulation | 4 | 0 | 1 | SIM-005 replay |
+| SIM Simulation | 5 | 0 | 0 | — |
 | BRD Board/path | 6 | 0 | 2 | — |
 | BLD Build loop | 5 | 0 | 2 | — |
-| CMB Combat | 5 | 2 | 2 | **CMB-006 kill milestones** |
+| CMB Combat | 7 | 0 | 2 | — |
 | MON Monsters | 5 | 0 | 6 | — |
 | ECO Economy | 2 | 0 | 1 | — |
-| BRG Bridge | 2 | 1 | 0 | BRG-003 diffing |
-| PHA Phaser | 5 | 1 | 2 | **PHA-007 debug overlays** |
-| ART Assets | 2 | 0 | 5 | — |
-| UI React | 4 | 0 | 5 | — |
-| QA Testing | 3 | 1 | 2 | QA-005 CI |
+| BRG Bridge | 3 | 0 | 0 | — |
+| PHA Phaser | 8 | 0 | 0 | — |
+| ART Assets | 7 | 0 | 0 | — |
+| UI React | 5 | 0 | 4 | — |
+| QA Testing | 4 | 0 | 2 | — |
 
-**S1 slice:** ~52 / ~58 P0–P1 tickets done or partial. **Current focus:** complete remaining S1 partials, then SIM-005 / PHA-007.
+**S1 slice:** P0–P1 tickets complete. **Current focus:** S2 (ART PixelLab, CMB-008 aura stacking).
 
 ---
 
@@ -70,7 +70,7 @@ Authoritative engineering backlog for the Gem TD vertical slice and beyond. Game
 | SIM-002 | Entity model | P0 | done | candidate/tower/rock/creep |
 | SIM-003 | Tick pipeline + events | P0 | done | `CombatSession` |
 | SIM-004 | Command validation | P0 | done | reject w/ reason |
-| SIM-005 | Deterministic replay harness | P1 | pending | golden state hash |
+| SIM-005 | Deterministic replay harness | P1 | done | `runReplay` + SHA-256 golden hash fixture |
 
 ---
 
@@ -112,8 +112,8 @@ Authoritative engineering backlog for the Gem TD vertical slice and beyond. Game
 | CMB-003 | Attack cadence + projectiles | P0 | done | sim-owned hits |
 | CMB-004 | Damage resolver | P0 | done | armor/MR/evasion |
 | CMB-005 | On-hit effects (v1 set) | P0 | done | pierce/slow/poison/cleave/split/aura |
-| CMB-006 | Kill credit + kill milestones | P0 | **partial** | kill count yes; milestone bonuses no |
-| CMB-007 | MVP system | P1 | **partial** | stacks + damage; full aura debuff TBD |
+| CMB-006 | Kill credit + kill milestones | P0 | done | +10% dmg/10 kills (cap 150% @100); magic bounds MR aura; transfer on combine |
+| CMB-007 | MVP system | P1 | done | stacks, +10% dmg/stack, MR debuff aura 64px, 10-stack ally +75% dmg |
 | CMB-008 | Aura stacking resolver | P1 | pending | S2 |
 | CMB-009 | Advanced abilities | P2 | pending | S2/S3 |
 
@@ -166,9 +166,9 @@ Authoritative engineering backlog for the Gem TD vertical slice and beyond. Game
 | PHA-003 | Structures/units/FX layers | P0 | done | basic pooling |
 | PHA-004 | Camera controller | P0 | **done** | pan, zoom 0.5–2, Home/End/C, space-drag, `focusLandmark` |
 | PHA-005 | Build overlay | P0 | done | phase-gated grid |
-| PHA-006 | Animation controller | P1 | partial | hit FX; no sprite sheets yet |
-| PHA-007 | Debug overlays (`?debugPaths=1`) | P1 | **pending** | **next P1** |
-| PHA-008 | Minimap | P2 | pending | S2 |
+| PHA-006 | Animation controller | P1 | done | manifest sprite sheets, idle loops, attack/hit FX via `AnimationController` |
+| PHA-007 | Debug overlays (`?debugPaths=1`) | P1 | done | ground path (green), flying path (dashed blue), tower range rings; dev-only |
+| PHA-008 | Minimap | P2 | done | SVG overlay, landmarks/towers/creeps, click landmark to focus camera |
 
 ### PHA-004 acceptance (completed 2026-06-30)
 
@@ -190,7 +190,7 @@ Authoritative engineering backlog for the Gem TD vertical slice and beyond. Game
 | UI-003 | Probability + targeting controls | P0 | done | |
 | UI-004 | Wave preview | P0 | done | |
 | UI-005 | Recipe dictionary | P1 | done | |
-| UI-006 | Main menu / pause / settings | P1 | pending | |
+| UI-006 | Main menu / pause / settings | P1 | done | menu → play, pause overlay, settings persisted in localStorage |
 | UI-007 | Extra Chance UI | P2 | pending | |
 | UI-008 | Tower inspector | P2 | pending | |
 | UI-009 | Range-ring toggle | P3 | pending | |
@@ -203,7 +203,7 @@ Authoritative engineering backlog for the Gem TD vertical slice and beyond. Game
 | --- | --- | --- | --- | --- |
 | BRG-001 | Protocol types | P0 | done | |
 | BRG-002 | Typed bridge + lifecycle | P0 | done | + `onCameraFocus` |
-| BRG-003 | Snapshot selectors + diffing | P1 | partial | `selectHudState` only |
+| BRG-003 | Snapshot selectors + diffing | P1 | done | HUD/build/wave/recipe/board selectors + `retainIfEqual` |
 
 ---
 
@@ -213,29 +213,32 @@ Authoritative engineering backlog for the Gem TD vertical slice and beyond. Game
 | --- | --- | --- | --- | --- |
 | ART-001 | Asset manifest contract | P0 | done | |
 | ART-002 | Placeholder generator | P0 | done | |
-| ART-003 | PixelLab environment | P1 | pending | |
-| ART-004 | PixelLab monsters | P1 | pending | |
-| ART-005 | PixelLab towers | P1 | pending | |
-| ART-006 | PixelLab projectiles/FX | P1 | pending | |
-| ART-007 | Asset tracker automation | P2 | pending | |
+| ART-003 | PixelLab environment | P1 | done | 13 env assets via PixelLab tiles/objects |
+| ART-004 | PixelLab monsters | P1 | done | stone-grunt PixelLab; other slice monsters procedural fallback |
+| ART-005 | PixelLab towers | P1 | done | family tiers procedural fallback; ready for PixelLab overwrite |
+| ART-006 | PixelLab projectiles/FX | P1 | done | procedural fallback sheets on disk |
+| ART-007 | Asset tracker automation | P2 | done | `asset-catalog.mjs`, `pixellab-sync.mjs`, batch/pull/export scripts |
 
 ---
 
 ## EP-13–22 (S2+ / MP / OPS)
 
-Deferred epics: **AUD** Audio, **PER** Persistence/replay, **MP** Multiplayer, **RNK** Ranking, **ADM** Admin tools, **PRF** Performance, **QA** CI (QA-005 pending), **AX** Accessibility, **OPS** Deploy, **GM** Tutorial/modes.
+Deferred epics: **AUD** Audio, **PER** Persistence/replay, **MP** Multiplayer, **RNK** Ranking, **ADM** Admin tools, **PRF** Performance, **QA** CI (QA-005 done), **AX** Accessibility, **OPS** Deploy, **GM** Tutorial/modes.
 
 See ticket IDs in the [v1 plan backlog](.cursor/plans/gemtd_v1_vertical_slice_ae83cc0f.plan.md) (Development Backlog section) for full descriptions.
 
 ---
 
+## EP-23
+
+Run playtests and fix bugs.
+It needs to be fully polished and ready for release.
+
+---
+
 ## Suggested execution order (remaining S1)
 
-1. **CMB-006** — kill milestone bonuses at thresholds + transfer on combine
-2. **PHA-007** — debug path/range overlays behind `?debugPaths=1`
-3. **SIM-005** — replay harness + golden hash in CI
-4. **QA-005** — GitHub Actions lint/test/build
-5. **CMB-007** — complete MVP aura debuff behavior
+S1 P0–P1 slice complete. Next: **ART-003+** PixelLab assets, **CMB-008** aura stacking.
 
 ---
 
@@ -243,4 +246,14 @@ See ticket IDs in the [v1 plan backlog](.cursor/plans/gemtd_v1_vertical_slice_ae
 
 | Date | Change |
 | --- | --- |
+| 2026-07-01 | ART-003..007 done: vertical-slice asset pipeline, 69 PNGs integrated, async Phaser preload. |
+| 2026-07-01 | PHA-008 done: React minimap overlay with landmark focus clicks. |
+| 2026-07-01 | PHA-006 done: `AnimationController`, sprite-sheet hit FX, tower/creep combat feedback. |
+| 2026-07-01 | UI-006 done: main menu, pause overlay (Esc), settings panel with localStorage prefs. |
+| 2026-07-01 | BRG-003 done: derived snapshot selectors and reference-stable diffing for React + Phaser. |
+| 2026-07-01 | CMB-007 done: MVP MR debuff aura (−10% MR/stack @64px) and 10-stack ally damage aura (+75%). |
+| 2026-07-01 | QA-005 done: GitHub Actions CI workflow (lint, test, build on push/PR). |
+| 2026-07-01 | SIM-005 done: `runReplay` harness with wave-1 golden SHA-256 regression test. |
+| 2026-07-01 | PHA-007 done: dev-only `?debugPaths=1` overlays for ground/flying paths and tower ranges. |
+| 2026-07-01 | CMB-006 done: kill milestone damage/MR bonuses + kill transfer on combine. |
 | 2026-06-30 | Initial `docs/backlog.md` from implementation audit. PHA-004 completed (camera jumps, space-drag, focusLandmark). |

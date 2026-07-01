@@ -36,11 +36,6 @@ export const boardDefinitionSchema = z.object({
     }),
     camera: z.object({
         startFocus: contentIdSchema,
-        bounds: z.tuple([
-            z.number(),
-            z.number(),
-            z.number(),
-            z.number(),
-        ]),
+        bounds: z.tuple([z.number(), z.number(), z.number(), z.number()]),
     }),
 });

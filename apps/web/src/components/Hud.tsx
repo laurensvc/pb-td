@@ -3,9 +3,10 @@ import { phaseLabel } from '../bridge/selectors.ts'
 
 interface HudProps {
   hud: HudState
+  onPause: () => void
 }
 
-export function Hud({ hud }: HudProps) {
+export function Hud({ hud, onPause }: HudProps) {
   return (
     <div className="hud" data-testid="game-hud">
       <div className="hud__stat">
@@ -36,6 +37,9 @@ export function Hud({ hud }: HudProps) {
           <span className="hud__value">{hud.placementCharges}/5</span>
         </div>
       )}
+      <button type="button" className="hud__pause" onClick={onPause} aria-label="Pause game">
+        Pause
+      </button>
     </div>
   )
 }

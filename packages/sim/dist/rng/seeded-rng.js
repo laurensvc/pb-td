@@ -38,7 +38,7 @@ export class SeededRng {
         let mix = this.next() * 0xffffffff;
         if (label) {
             for (let i = 0; i < label.length; i++) {
-                mix = (mix ^ label.charCodeAt(i) * (i + 1)) >>> 0;
+                mix = (mix ^ (label.charCodeAt(i) * (i + 1))) >>> 0;
             }
         }
         return new SeededRng(mix >>> 0);

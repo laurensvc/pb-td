@@ -15,9 +15,11 @@ export { resolveDamage, } from './combat/damage-resolver.js';
 export { buildFlyingPath } from './combat/flying-path.js';
 export { createCreepFromWave, resetCreepIdCounter } from './combat/creep-factory.js';
 export { effectiveSlowPercent, effectiveSpeedMultiplier, applySlow, applyPoison, tickStatusEffects, } from './combat/status-effects.js';
-export { advanceGroundCreep, advanceFlyingCreep, initCreepPosition, } from './combat/movement.js';
+export { advanceGroundCreep, advanceFlyingCreep, initCreepPosition } from './combat/movement.js';
 export { createWaveSpawner, tickWaveSpawner, registerCreepResolved, isWaveCleared, } from './combat/wave-spawner.js';
 export { resolveTowerCombat, towerWorldCenter, awardMvpStack, MVP_MAX_STACKS as TOWER_MVP_MAX_STACKS, } from './combat/tower-stats.js';
-export { tickTowerCombat, pickMvpTower, resetWaveDamage, } from './combat/tower-combat.js';
+export { creditTowerKill, computeKillMilestoneDamageMultiplier, computeMagicBoundsMrReduction, computePhysicalKillDamageMultiplier, sumKillCountAtTiles, KILL_MILESTONE_INTERVAL, } from './combat/kill-milestones.js';
+export { tickTowerCombat, pickMvpTower, resetWaveDamage } from './combat/tower-combat.js';
+export { computeMvpMrDebuffForCreep, computeMvpAuraAllyDamageMultiplier, computeMrReductionForCreep, MVP_MR_DEBUFF_RADIUS, MVP_MR_DEBUFF_PER_STACK, MVP_AURA_RADIUS, MVP_AURA_ALLY_DAMAGE_BONUS, } from './combat/mvp-system.js';
 /** @deprecated Use content schema validation */
 export { isValidBoardId } from './legacy.js';

@@ -1,4 +1,4 @@
-import { buildInitialBoardGrid, isWalkableCell, } from '@facet/content';
+import { buildInitialBoardGrid, isWalkableCell } from '@facet/content';
 import { GEM_FOOTPRINT } from '../constants.js';
 import { footprintCells, footprintInBounds, footprintsOverlap } from './footprint.js';
 function blockingIndex(width, gx, gy) {

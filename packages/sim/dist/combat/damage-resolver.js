@@ -39,7 +39,8 @@ export function resolveDamage(creep, attack, config) {
         damage *= armorValueMultiplier(matrix, effectiveArmor, attack.attackType);
     }
     if (attack.attackType === 'magic') {
-        damage *= magicResistMultiplier(creep.magicResist, matrix);
+        const effectiveMr = Math.max(0, creep.magicResist - (attack.magicResistReduction ?? 0));
+        damage *= magicResistMultiplier(effectiveMr, matrix);
     }
     return {
         damage: Math.max(0, Math.floor(damage)),

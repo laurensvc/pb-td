@@ -59,8 +59,7 @@ export function registerCreepResolved(spawner) {
     spawner.resolvedCount += 1;
 }
 export function isWaveCleared(spawner) {
-    return (spawner.spawnComplete &&
-        spawner.resolvedCount >= spawner.spawnedCount);
+    return spawner.spawnComplete && spawner.resolvedCount >= spawner.spawnedCount;
 }
 export function canStartConcurrentWave(spawner, activeCreepsFromOtherWaves) {
     if (spawner.concurrent)

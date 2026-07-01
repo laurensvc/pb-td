@@ -5,6 +5,7 @@ import type { GameSnapshot } from '@facet/protocol'
 import {
   gemAssetKeyFromGemId,
   PRESENTATION_ASSET_KEYS,
+  resolvePresentationKey,
   specialAssetKey,
 } from '../../assets/manifest.js'
 
@@ -106,7 +107,7 @@ export class StructureLayer {
 
         c.gy,
 
-        gemAssetKeyFromGemId(c.gemId),
+        resolvePresentationKey(gemAssetKeyFromGemId(c.gemId)),
 
         c.quality === 'chipped' ? 0.65 : c.quality === 'flawed' ? 0.8 : 1,
 
@@ -117,9 +118,10 @@ export class StructureLayer {
     }
 
     for (const t of snapshot.towers) {
-      const textureKey = t.specialId
+      const contentKey = t.specialId
         ? specialAssetKey(t.specialId)
         : gemAssetKeyFromGemId(t.gemId ?? 'ruby-chipped')
+      const textureKey = t.specialId ? contentKey : resolvePresentationKey(contentKey)
 
       const label = t.specialId
         ? t.specialId.slice(0, 3)
@@ -141,6 +143,15 @@ export class StructureLayer {
         this.sprites.delete(id)
       }
     }
+  }
+
+  playTowerAttack(
+    towerId: string,
+    animations: { pulseScale: (sprite: Phaser.GameObjects.Sprite) => void },
+  ): void {
+    const entry = this.sprites.get(towerId)
+    if (!entry) return
+    animations.pulseScale(entry.gfx)
   }
 
   hitTest(worldX: number, worldY: number, snapshot: GameSnapshot): string | null {

@@ -54,6 +54,27 @@ describe('resolveDamage', () => {
     )
     expect(result.damage).toBeLessThan(50)
   })
+
+  it('applies magic bounds aura MR reduction on attacks', () => {
+    const creep = createCreepFromWave(content, 'stone-grunt', wave, 1, 1, 1)
+    creep.magicResist = 50
+    const withoutAura = resolveDamage(
+      creep,
+      { baseDamage: 100, attackType: 'magic', sourceTowerId: 't1' },
+      { matrix: armorDamageMatrix, rng },
+    )
+    const withAura = resolveDamage(
+      creep,
+      {
+        baseDamage: 100,
+        attackType: 'magic',
+        sourceTowerId: 't1',
+        magicResistReduction: 30,
+      },
+      { matrix: armorDamageMatrix, rng },
+    )
+    expect(withAura.damage).toBeGreaterThan(withoutAura.damage)
+  })
   it('pure damage ignores armor typing', () => {
     const creep = createCreepFromWave(content, 'gate-colossus', wave, 1, 1, 1)
     const result = resolveDamage(

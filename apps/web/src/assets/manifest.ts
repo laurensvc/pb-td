@@ -1,10 +1,12 @@
 import {
   gemTypes,
+  gemTypeTemplates,
   v1EnemyDefinitions,
   v1GemDefinitions,
   v1Qualities,
   v1SpecialTowers,
   type GameContent,
+  type GemType,
 } from '@facet/content'
 import type { AssetManifestEntry } from './types.js'
 
@@ -314,6 +316,29 @@ export function gemAssetKeyFromGemId(gemId: string): string {
   const type = gemId.slice(0, lastDash)
   const quality = gemId.slice(lastDash + 1)
   return `tower.${type}.${quality}`
+}
+
+const QUALITY_TIER: Record<string, number> = {
+  chipped: 1,
+  flawed: 2,
+  normal: 3,
+}
+
+const SLICE_FAMILIES = new Set(['flame', 'stone', 'thorn'])
+
+/** Map content gem keys to generated family-tier idle sprites for the vertical slice. */
+export function resolvePresentationKey(contentKey: string): string {
+  const gemMatch = /^tower\.([a-z]+)\.(chipped|flawed|normal)$/.exec(contentKey)
+  if (!gemMatch) return contentKey
+
+  const type = gemMatch[1] as GemType
+  const quality = gemMatch[2]!
+  const template = gemTypeTemplates[type]
+  if (!template || !SLICE_FAMILIES.has(template.assetFamily)) return contentKey
+
+  const tier = QUALITY_TIER[quality] ?? 1
+  const resolved = `tower.${template.assetFamily}-t${tier}.idle`
+  return manifestByKey.has(resolved) ? resolved : contentKey
 }
 
 export function specialAssetKey(specialId: string): string {

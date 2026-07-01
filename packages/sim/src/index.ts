@@ -144,7 +144,26 @@ export {
   MVP_MAX_STACKS as TOWER_MVP_MAX_STACKS,
 } from './combat/tower-stats.js'
 
+export {
+  creditTowerKill,
+  computeKillMilestoneDamageMultiplier,
+  computeMagicBoundsMrReduction,
+  computePhysicalKillDamageMultiplier,
+  sumKillCountAtTiles,
+  KILL_MILESTONE_INTERVAL,
+} from './combat/kill-milestones.js'
+
 export { tickTowerCombat, pickMvpTower, resetWaveDamage } from './combat/tower-combat.js'
+
+export {
+  computeMvpMrDebuffForCreep,
+  computeMvpAuraAllyDamageMultiplier,
+  computeMrReductionForCreep,
+  MVP_MR_DEBUFF_RADIUS,
+  MVP_MR_DEBUFF_PER_STACK,
+  MVP_AURA_RADIUS,
+  MVP_AURA_ALLY_DAMAGE_BONUS,
+} from './combat/mvp-system.js'
 
 export type {
   TargetingMode,

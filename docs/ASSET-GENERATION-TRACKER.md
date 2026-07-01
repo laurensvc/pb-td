@@ -49,14 +49,14 @@ _Update these counts when statuses change._
 
 | Section        |  Total | Pending | Generating | Review | Accepted | Integrated |
 | -------------- | -----: | ------: | ---------: | -----: | -------: | ---------: |
-| Monsters       |     24 |      24 |          0 |      0 |        0 |          0 |
-| Towers         |     30 |      30 |          0 |      0 |        0 |          0 |
-| Projectiles    |      6 |       6 |          0 |      0 |        0 |          0 |
-| Particles / FX |      8 |       8 |          0 |      0 |        0 |          0 |
-| Environment    |     13 |      13 |          0 |      0 |        0 |          0 |
-| **All**        | **81** |  **81** |      **0** |  **0** |    **0** |      **0** |
+| Monsters       |     24 |       0 |          0 |      0 |        3 |         17 |
+| Towers         |     30 |       0 |          0 |      0 |        0 |         30 |
+| Projectiles    |      6 |       0 |          0 |      0 |        0 |          4 |
+| Particles / FX |      8 |       0 |          0 |      0 |        0 |          5 |
+| Environment    |     13 |       0 |          0 |      0 |       13 |         13 |
+| **All**        | **81** |  **53** |      **0** |  **0** |   **16** |     **69** |
 
-**Current focus:** Environment → Monsters → Towers → Projectiles / FX
+**Current focus:** Vertical slice complete (69 files on disk). Slice-2 deferred items remain pending. PixelLab replacements can overwrite procedural fallbacks via `scripts/pixellab-pull.mjs` / `pixellab-export-animation.mjs`.
 
 ---
 
@@ -304,20 +304,17 @@ _Copy a block per accepted asset. Newest first._
 
 <!--
 ### YYYY-MM-DD — `asset-id` / `animation`
-
-- **Status:** accepted → integrated
-- **PixelLab tool:** create_character | animate_character | create_1_direction_object | …
-- **Job ID:**
-- **Candidate:**
-- **Export path:**
-- **Phaser key:**
-- **Frame size / count / FPS:**
-- **Origin / render scale:**
-- **Prompt:** (final working prompt)
-- **Notes:**
+...
 -->
 
-_No assets accepted yet._
+### 2026-07-01 — Vertical slice pipeline (`69` integrated files)
+
+- **Status:** integrated (16 PixelLab + 53 procedural fallback via `pnpm assets:batch --all-missing`)
+- **Pipeline:** `scripts/asset-catalog.mjs`, `pixellab-sync.mjs`, `pixellab-pull.mjs`, `pixellab-export-animation.mjs`, `generate-pixel-art.mjs`
+- **PixelLab environment:** `create_tiles_pro` + `create_1_direction_object` (terrain + landmarks + rings)
+- **PixelLab monster smoke test:** `stone-grunt` character `d902bc14-0260-4fc9-9f2c-9223cc1e3855` with walk/hit/death south-east animations
+- **Phaser:** async preload from `apps/web/public/assets/` with per-key placeholder fallback; `resolvePresentationKey()` maps gem keys → family-tier idle sprites
+- **Notes:** Remaining vertical-slice monsters/towers/FX use procedural PNGs until individually regenerated in PixelLab
 
 ---
 
@@ -325,6 +322,7 @@ _No assets accepted yet._
 
 | Date       | Change                                                                                                |
 | ---------- | ----------------------------------------------------------------------------------------------------- |
+| 2026-07-01 | Vertical slice asset pipeline: 69 PNGs on disk, PixelLab env + stone-grunt, procedural fallback batch, async Phaser preload. |
 | 2026-06-30 | Initial tracker created. Sections: monsters, towers/projectiles/FX, environment. All items `pending`. |
 
 ---

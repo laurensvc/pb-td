@@ -1,8 +1,15 @@
 import Phaser from 'phaser'
 import type { GameEvent, GameSnapshot } from '@facet/protocol'
 import type { GameBridge } from '../../bridge/game-bridge.js'
+import {
+  selectBoardPresentationState,
+  type BoardPresentationState,
+} from '../../bridge/selectors.js'
+import { jsonEqual, retainIfEqual } from '../../bridge/snapshot-diff.js'
+import { AnimationController } from '../AnimationController.js'
 import { CameraController } from '../CameraController.js'
 import { BuildOverlayLayer } from '../layers/BuildOverlayLayer.js'
+import { DebugOverlayLayer } from '../layers/DebugOverlayLayer.js'
 import { FxLayer } from '../layers/FxLayer.js'
 import { LandmarkLayer } from '../layers/LandmarkLayer.js'
 import { StructureLayer } from '../layers/StructureLayer.js'
@@ -23,6 +30,9 @@ export class BoardScene extends Phaser.Scene {
   private units: UnitLayer | null = null
   private fx: FxLayer | null = null
   private buildOverlay: BuildOverlayLayer | null = null
+  private debugOverlay: DebugOverlayLayer | null = null
+  private boardPresentation: BoardPresentationState | null = null
+  private animations: AnimationController | null = null
 
   constructor() {
     super('BoardScene')
@@ -49,10 +59,12 @@ export class BoardScene extends Phaser.Scene {
 
     this.terrain = new TerrainLayer(this)
     this.landmarks = new LandmarkLayer(this)
+    this.animations = new AnimationController(this)
     this.structures = new StructureLayer(this, tileSize)
     this.units = new UnitLayer(this, tileSize)
-    this.fx = new FxLayer(this)
+    this.fx = new FxLayer(this, this.animations)
     this.buildOverlay = new BuildOverlayLayer(this, tileSize)
+    this.debugOverlay = new DebugOverlayLayer(this)
     this.cameraController = new CameraController(this, cameraBounds, {
       resolveLandmarkCenter: (landmarkId) =>
         this.landmarks?.getWorldCenter(landmarkId, tileSize) ?? null,
@@ -99,17 +111,22 @@ export class BoardScene extends Phaser.Scene {
     })
 
     this.unsubscribeEvents = bridge.onEvent((event: GameEvent) => {
-      if (event.type === 'tower.fired' && this.snapshot) {
+      if (event.type === 'tower.fired' && this.snapshot && this.animations) {
         const creep = this.snapshot.creeps.find((c) => c.id === event.creepId)
+        this.structures?.playTowerAttack(event.towerId, this.animations)
+        this.units?.playCreepHit(event.creepId, this.animations)
         if (creep) this.fx?.spawnHit(creep.worldPos.x, creep.worldPos.y)
       }
     })
 
     this.syncLayers(snapshot)
+    this.units?.interpolate(this.bridge?.getRenderAlpha() ?? 1)
   }
 
   update(): void {
     this.cameraController?.update()
+    const alpha = this.bridge?.getRenderAlpha() ?? 1
+    this.units?.interpolate(alpha)
   }
 
   shutdown(): void {
@@ -122,13 +139,25 @@ export class BoardScene extends Phaser.Scene {
     this.units?.destroy()
     this.fx?.destroy()
     this.buildOverlay?.destroy()
+    this.debugOverlay?.destroy()
   }
 
   private syncLayers(snapshot: GameSnapshot): void {
+    this.snapshot = snapshot
     this.terrain?.sync(snapshot)
     this.landmarks?.sync(snapshot)
-    this.structures?.sync(snapshot)
+
+    // Creeps move every sim tick; never skip unit sync behind presentation diffing.
     this.units?.sync(snapshot)
+
+    const nextBoard = selectBoardPresentationState(snapshot)
+    const board = retainIfEqual(this.boardPresentation, nextBoard, jsonEqual)
+    if (board === this.boardPresentation) return
+
+    this.boardPresentation = board
+
+    this.structures?.sync(snapshot)
     this.buildOverlay?.sync(snapshot)
+    this.debugOverlay?.sync(snapshot)
   }
 }

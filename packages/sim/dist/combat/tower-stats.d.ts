@@ -9,12 +9,14 @@ export interface ResolvedTowerCombat {
     stats: TowerCombatStats;
     abilities: TowerAbility[];
     damageMultiplier: number;
+    killMilestoneMultiplier: number;
+    magicBoundsMrReduction: number;
 }
 export declare function towerWorldCenter(gx: number, gy: number): {
     x: number;
     y: number;
 };
-export declare function resolveTowerCombat(content: GameContent, tower: TowerEntity, mvpStacks: number): ResolvedTowerCombat | null;
+export declare function resolveTowerCombat(content: GameContent, tower: TowerEntity, mvpStacks: number, mvpAuraAllyMultiplier?: number): ResolvedTowerCombat | null;
 export declare function awardMvpStack(currentStacks: number): number;
 export declare const MVP_MAX_STACKS = 10;
 //# sourceMappingURL=tower-stats.d.ts.map

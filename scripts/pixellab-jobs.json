@@ -1,0 +1,567 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-01T06:39:33.460Z",
+  "jobs": [
+    {
+      "assetId": "terrain.default-floor",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/tiles/default-floor.png",
+      "objectId": "6a2c97c7-6328-4e17-ade1-93991d71b9a9",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:27:55.072Z"
+    },
+    {
+      "assetId": "terrain.path-floor",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/tiles/path-floor.png",
+      "objectId": "6a2c97c7-6328-4e17-ade1-93991d71b9a9",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:27:55.303Z"
+    },
+    {
+      "assetId": "terrain.blocked-floor",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/tiles/blocked-floor.png",
+      "objectId": "6a2c97c7-6328-4e17-ade1-93991d71b9a9",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:27:55.559Z"
+    },
+    {
+      "assetId": "env.spawn-gate",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/spawn-gate.png",
+      "objectId": "4fc91d61-de4d-4759-ac01-2b7ad76b8be3",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:31:59.462Z"
+    },
+    {
+      "assetId": "env.rock",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/rock.png",
+      "objectId": "68c4a2ab-376a-406a-b062-311ba3e2c903",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:31:59.687Z"
+    },
+    {
+      "assetId": "env.checkpoint-1",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/checkpoint-1.png",
+      "objectId": "6788ebf7-ea97-453f-ab0d-a24f3f3446c1",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:31:59.953Z"
+    },
+    {
+      "assetId": "env.goal-nexus",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/goal-nexus.png",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:32:21.611Z"
+    },
+    {
+      "assetId": "fx.selection-ring",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/selection-ring.png",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:32:21.837Z"
+    },
+    {
+      "assetId": "fx.invalid-ring",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/invalid-ring.png",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:32:22.058Z"
+    },
+    {
+      "assetId": "env.checkpoint-2",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/checkpoint-2.png",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:32:22.283Z"
+    },
+    {
+      "assetId": "env.checkpoint-3",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/checkpoint-3.png",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:39:32.999Z"
+    },
+    {
+      "assetId": "env.checkpoint-4",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/checkpoint-4.png",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:39:33.230Z"
+    },
+    {
+      "assetId": "env.checkpoint-5",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/terrain/objects/checkpoint-5.png",
+      "pixellabTool": "pull",
+      "notes": "dimensions ok",
+      "updatedAt": "2026-07-01T06:39:33.459Z"
+    },
+    {
+      "assetId": "enemy.stone-grunt.walk",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/enemies/stone-grunt/walk.png",
+      "pixellabTool": "animate_character",
+      "notes": "Exported 8 frames",
+      "updatedAt": "2026-07-01T06:39:16.101Z",
+      "characterId": "d902bc14-0260-4fc9-9f2c-9223cc1e3855"
+    },
+    {
+      "assetId": "enemy.stone-grunt.hit",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/enemies/stone-grunt/hit.png",
+      "pixellabTool": "animate_character",
+      "notes": "Exported 3 frames",
+      "updatedAt": "2026-07-01T06:39:16.407Z",
+      "characterId": "d902bc14-0260-4fc9-9f2c-9223cc1e3855"
+    },
+    {
+      "assetId": "enemy.stone-grunt.death",
+      "status": "accepted",
+      "exportPath": "apps/web/public/assets/enemies/stone-grunt/death.png",
+      "pixellabTool": "animate_character",
+      "notes": "Exported 8 frames",
+      "updatedAt": "2026-07-01T06:39:16.820Z",
+      "characterId": "d902bc14-0260-4fc9-9f2c-9223cc1e3855"
+    },
+    {
+      "assetId": "tower.flame-t1.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t1/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.202Z"
+    },
+    {
+      "assetId": "tower.flame-t1.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t1/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.208Z"
+    },
+    {
+      "assetId": "tower.flame-t1.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t1/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.213Z"
+    },
+    {
+      "assetId": "tower.flame-t2.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t2/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.218Z"
+    },
+    {
+      "assetId": "tower.flame-t2.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t2/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.223Z"
+    },
+    {
+      "assetId": "tower.flame-t2.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t2/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.229Z"
+    },
+    {
+      "assetId": "tower.flame-t3.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t3/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.234Z"
+    },
+    {
+      "assetId": "tower.flame-t3.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t3/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.240Z"
+    },
+    {
+      "assetId": "tower.flame-t3.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/flame-t3/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.246Z"
+    },
+    {
+      "assetId": "projectile.flame-bolt",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/projectiles/flame-bolt.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.251Z"
+    },
+    {
+      "assetId": "fx.hit-spark",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/particles/hit-spark.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.257Z"
+    },
+    {
+      "assetId": "enemy.crystal-runner.walk",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/crystal-runner/walk.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.262Z"
+    },
+    {
+      "assetId": "enemy.crystal-runner.hit",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/crystal-runner/hit.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.268Z"
+    },
+    {
+      "assetId": "enemy.crystal-runner.death",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/crystal-runner/death.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.273Z"
+    },
+    {
+      "assetId": "enemy.shield-bulwark.walk",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/shield-bulwark/walk.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.279Z"
+    },
+    {
+      "assetId": "enemy.shield-bulwark.hit",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/shield-bulwark/hit.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.285Z"
+    },
+    {
+      "assetId": "enemy.shield-bulwark.death",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/shield-bulwark/death.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.290Z"
+    },
+    {
+      "assetId": "enemy.sky-warden.fly",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/sky-warden/fly.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.295Z"
+    },
+    {
+      "assetId": "enemy.sky-warden.hit",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/sky-warden/hit.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.301Z"
+    },
+    {
+      "assetId": "enemy.sky-warden.death",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/sky-warden/death.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.306Z"
+    },
+    {
+      "assetId": "enemy.sky-warden.shadow",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/sky-warden/shadow.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.312Z"
+    },
+    {
+      "assetId": "enemy.gate-colossus.walk",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/gate-colossus/walk.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.317Z"
+    },
+    {
+      "assetId": "enemy.gate-colossus.hit",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/gate-colossus/hit.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.322Z"
+    },
+    {
+      "assetId": "enemy.gate-colossus.death",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/gate-colossus/death.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.328Z"
+    },
+    {
+      "assetId": "enemy.gate-colossus.spawn",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/enemies/gate-colossus/spawn.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.333Z"
+    },
+    {
+      "assetId": "tower.stone-t1.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t1/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.338Z"
+    },
+    {
+      "assetId": "tower.stone-t1.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t1/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.344Z"
+    },
+    {
+      "assetId": "tower.stone-t1.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t1/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.350Z"
+    },
+    {
+      "assetId": "tower.stone-t2.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t2/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.356Z"
+    },
+    {
+      "assetId": "tower.stone-t2.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t2/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.361Z"
+    },
+    {
+      "assetId": "tower.stone-t2.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t2/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.367Z"
+    },
+    {
+      "assetId": "tower.stone-t3.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t3/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.373Z"
+    },
+    {
+      "assetId": "tower.stone-t3.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t3/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.379Z"
+    },
+    {
+      "assetId": "tower.stone-t3.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/stone-t3/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.384Z"
+    },
+    {
+      "assetId": "tower.thorn-t1.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t1/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.390Z"
+    },
+    {
+      "assetId": "tower.thorn-t1.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t1/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.395Z"
+    },
+    {
+      "assetId": "tower.thorn-t1.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t1/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.400Z"
+    },
+    {
+      "assetId": "tower.thorn-t2.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t2/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.405Z"
+    },
+    {
+      "assetId": "tower.thorn-t2.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t2/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.410Z"
+    },
+    {
+      "assetId": "tower.thorn-t2.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t2/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.416Z"
+    },
+    {
+      "assetId": "tower.thorn-t3.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t3/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.421Z"
+    },
+    {
+      "assetId": "tower.thorn-t3.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t3/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.427Z"
+    },
+    {
+      "assetId": "tower.thorn-t3.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/thorn-t3/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.432Z"
+    },
+    {
+      "assetId": "tower.magma-core.idle",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/magma-core/idle.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.438Z"
+    },
+    {
+      "assetId": "tower.magma-core.attack",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/magma-core/attack.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.443Z"
+    },
+    {
+      "assetId": "tower.magma-core.build",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/towers/magma-core/build.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.448Z"
+    },
+    {
+      "assetId": "projectile.stone-shard",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/projectiles/stone-shard.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.454Z"
+    },
+    {
+      "assetId": "projectile.thorn-spore",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/projectiles/thorn-spore.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.460Z"
+    },
+    {
+      "assetId": "projectile.magma-core-shot",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/projectiles/magma-core-shot.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.465Z"
+    },
+    {
+      "assetId": "fx.burn-tick",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/particles/burn-tick.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.471Z"
+    },
+    {
+      "assetId": "fx.poison-tick",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/particles/poison-tick.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.476Z"
+    },
+    {
+      "assetId": "fx.merge-burst",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/particles/merge-burst.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.481Z"
+    },
+    {
+      "assetId": "fx.build-flash",
+      "status": "fallback",
+      "exportPath": "apps/web/public/assets/particles/build-flash.png",
+      "pixellabTool": "generate-pixel-art",
+      "notes": "Procedural fallback PNG until PixelLab asset accepted",
+      "updatedAt": "2026-07-01T06:34:21.486Z"
+    }
+  ]
+}

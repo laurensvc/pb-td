@@ -64,6 +64,8 @@ export interface AttackPacket {
     attackType: AttackType;
     sourceTowerId: string;
     armorReduction?: number;
+    /** Magic bounds aura MR reduction (stackable across magic towers in range). */
+    magicResistReduction?: number;
     /** Bypass evasion (monkey king bar — deferred). */
     trueStrike?: boolean;
 }

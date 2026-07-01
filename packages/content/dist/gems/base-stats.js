@@ -87,9 +87,7 @@ export const gemTypeTemplates = {
             targets: 1,
             primaryAttackType: 'normal',
         },
-        abilities: [
-            { type: 'cleave', percent: 30, radius: 96, damageType: 'pure' },
-        ],
+        abilities: [{ type: 'cleave', percent: 30, radius: 96, damageType: 'pure' }],
         projectileKey: 'projectile.flame-bolt',
         assetFamily: 'flame',
     },

@@ -1,8 +1,5 @@
 function pointInRect(gx, gy, rect) {
-    return (gx >= rect.gx &&
-        gx < rect.gx + rect.w &&
-        gy >= rect.gy &&
-        gy < rect.gy + rect.h);
+    return gx >= rect.gx && gx < rect.gx + rect.w && gy >= rect.gy && gy < rect.gy + rect.h;
 }
 function rectOverlaps(rect, gx, gy) {
     return pointInRect(gx, gy, rect);

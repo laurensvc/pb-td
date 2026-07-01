@@ -1,4 +1,3 @@
-import type Phaser from 'phaser'
 import { generatePlaceholderCanvas } from './placeholder-generator.js'
 import { ASSET_MANIFEST } from './manifest.js'
 import type { AssetManifestEntry } from './types.js'
@@ -9,22 +8,75 @@ export function getRegisteredTextureKeys(): ReadonlySet<string> {
   return registeredKeys ?? new Set()
 }
 
-/** Generate placeholder textures and register Phaser animations from the manifest. */
-export function preloadManifest(scene: Phaser.Scene): void {
-  const keys = new Set<string>()
+function applyPlaceholderTexture(scene: Phaser.Scene, entry: AssetManifestEntry): void {
+  if (scene.textures.exists(entry.key)) return
 
+  const canvas = generatePlaceholderCanvas(entry)
+  if (entry.frames > 1) {
+    scene.textures.addSpriteSheet(entry.key, canvas as unknown as HTMLImageElement, {
+      frameWidth: entry.frameWidth,
+      frameHeight: entry.frameHeight,
+    })
+  } else {
+    scene.textures.addCanvas(entry.key, canvas)
+  }
+}
+
+function applyNearestFilter(scene: Phaser.Scene, key: string): void {
+  if (!scene.textures.exists(key)) return
+  scene.textures.get(key).setFilter(0)
+}
+
+/** Queue manifest PNG loads from `public/` (missing files fail silently until finalize). */
+export function queueManifestLoads(loader: {
+  image: (key: string, url: string) => void
+  spritesheet: (
+    key: string,
+    url: string,
+    config: { frameWidth: number; frameHeight: number },
+  ) => void
+}): void {
   for (const entry of ASSET_MANIFEST) {
-    if (scene.textures.exists(entry.key)) continue
-
-    const canvas = generatePlaceholderCanvas(entry)
+    const url = `/${entry.path}`
     if (entry.frames > 1) {
-      scene.textures.addSpriteSheet(entry.key, canvas as unknown as HTMLImageElement, {
+      loader.spritesheet(entry.key, url, {
         frameWidth: entry.frameWidth,
         frameHeight: entry.frameHeight,
       })
     } else {
-      scene.textures.addCanvas(entry.key, canvas)
+      loader.image(entry.key, url)
     }
+  }
+}
+
+/** After loader completes: placeholder fallback for missing keys, then register animations. */
+export function finalizeManifestPreload(
+  scene: Phaser.Scene,
+  failedKeys?: ReadonlySet<string>,
+): void {
+  const keys = new Set<string>()
+  const failures = failedKeys ?? new Set<string>()
+
+  for (const entry of ASSET_MANIFEST) {
+    const missing = failures.has(entry.key) || !scene.textures.exists(entry.key)
+    if (missing) {
+      applyPlaceholderTexture(scene, entry)
+    } else {
+      applyNearestFilter(scene, entry.key)
+    }
+    keys.add(entry.key)
+  }
+
+  registeredKeys = keys
+  registerManifestAnimations(scene)
+}
+
+/** Synchronous placeholder preload (tests and emergency fallback). */
+export function preloadManifest(scene: Phaser.Scene): void {
+  const keys = new Set<string>()
+
+  for (const entry of ASSET_MANIFEST) {
+    applyPlaceholderTexture(scene, entry)
     keys.add(entry.key)
   }
 

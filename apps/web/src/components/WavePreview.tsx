@@ -1,19 +1,13 @@
-import type { GameSnapshot } from '@facet/protocol'
+import type { WavePreviewState } from '../bridge/selectors.ts'
 
 interface WavePreviewProps {
-  snapshot: GameSnapshot
+  state: WavePreviewState
 }
 
-export function WavePreview({ snapshot }: WavePreviewProps) {
-  const wave = snapshot.nextWave
-  if (!wave) return null
+export function WavePreview({ state }: WavePreviewProps) {
+  if (!state.visible || !state.wave) return null
 
-  const showDuringBuild =
-    snapshot.phase === 'placement' ||
-    snapshot.phase === 'selection' ||
-    snapshot.phase === 'countdown'
-
-  if (!showDuringBuild) return null
+  const wave = state.wave
 
   return (
     <div className="panel wave-preview" data-testid="wave-preview">

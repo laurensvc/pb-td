@@ -1,6 +1,6 @@
 export { contentIdSchema } from './schemas/common.js';
 export * from './schemas/index.js';
-export { v1GemDefinitions, generateGemDefinition, generateV1GemDefinitions } from './gems/generate-gems.js';
+export { v1GemDefinitions, generateGemDefinition, generateV1GemDefinitions, } from './gems/generate-gems.js';
 export { gemTypeTemplates, gemTypes, v1Qualities } from './gems/base-stats.js';
 export { qualityMultipliers } from './gems/quality-multipliers.js';
 export { crownfallGrassBoard } from './boards/crownfall-grass.js';

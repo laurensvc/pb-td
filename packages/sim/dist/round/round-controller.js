@@ -1,11 +1,12 @@
 import { FIRST_LETHAL_LEAK_LEVEL, GEM_FOOTPRINT, MAX_GEM_CHANCE_LEVEL_V1, MAX_WAVE_LEVEL, PLACEMENT_CHARGES_PER_ROUND, SIM_HZ, STARTING_GOLD, gemChanceUpgradeCost, } from '../constants.js';
 import { GemRoller } from '../build/gem-roller.js';
 import { computeSelectionActions, resolveSelection, } from '../build/selection-resolver.js';
-import { addStructure, createSimBoard, removeStructures } from '../board/sim-board.js';
+import { addStructure, createSimBoard, removeStructures, } from '../board/sim-board.js';
 import { validatePlacement } from '../placement/placement-validator.js';
 import { ensurePathCache } from '../pathfinding/path-cache.js';
 import { SeededRng } from '../rng/seeded-rng.js';
 import { CombatSession } from '../combat/combat-session.js';
+import { sumKillCountAtTiles } from '../combat/kill-milestones.js';
 let entityCounter = 0;
 function nextEntityId(prefix) {
     entityCounter += 1;
@@ -109,7 +110,8 @@ export class RoundController {
         if (this.phase !== 'placement' && this.phase !== 'selection') {
             return { ok: false, reason: 'wrong_phase' };
         }
-        const maxLevel = this.content.gemProbability.levels.reduce((max, entry) => Math.max(max, entry.level), 1) ?? MAX_GEM_CHANCE_LEVEL_V1;
+        const maxLevel = this.content.gemProbability.levels.reduce((max, entry) => Math.max(max, entry.level), 1) ??
+            MAX_GEM_CHANCE_LEVEL_V1;
         if (this.chanceLevel >= maxLevel) {
             return { ok: false, reason: 'max_level' };
         }
@@ -179,8 +181,20 @@ export class RoundController {
         }
         const resolution = resolveSelection(this.content, this.candidates, action, () => nextEntityId('entity'));
         const consumed = new Set(resolution.consumedCandidateIds);
+        const consumedTiles = this.candidates
+            .filter((c) => consumed.has(c.id))
+            .map((c) => ({ gx: c.gx, gy: c.gy }));
         removeStructures(this.simBoard, consumed);
         this.candidates = this.candidates.filter((c) => !consumed.has(c.id));
+        let transferredKills = 0;
+        if (action.kind === 'duplicate-combine' || action.kind === 'one-hit-special') {
+            const { totalKills, consumedTowerIds } = sumKillCountAtTiles(this.towers, consumedTiles);
+            transferredKills = totalKills;
+            if (consumedTowerIds.length > 0) {
+                this.towers = this.towers.filter((t) => !consumedTowerIds.includes(t.id));
+                removeStructures(this.simBoard, new Set(consumedTowerIds));
+            }
+        }
         if (resolution.tower) {
             const tower = {
                 id: resolution.tower.id,
@@ -189,7 +203,7 @@ export class RoundController {
                 gx: resolution.tower.gx,
                 gy: resolution.tower.gy,
                 active: true,
-                killCount: 0,
+                killCount: transferredKills,
                 ...defaultTowerFields(),
             };
             this.towers.push(tower);

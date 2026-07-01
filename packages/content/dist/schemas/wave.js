@@ -30,11 +30,5 @@ export const waveDefinitionSchema = z.object({
     isFlying: z.boolean(),
     clearCount: z.number().int().positive(),
     rewardGold: z.number().int().nonnegative(),
-    threatLevel: z.union([
-        z.literal(1),
-        z.literal(2),
-        z.literal(3),
-        z.literal(4),
-        z.literal(5),
-    ]),
+    threatLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
 });
